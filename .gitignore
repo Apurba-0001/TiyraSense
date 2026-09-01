@@ -1,0 +1,608 @@
+# ============================================================
+# TiyraSense - SIH 26002
+# Root .gitignore
+#
+# Stack:
+# Flutter + React/TypeScript + Python/FastAPI
+# ML/AI + PostgreSQL/PostGIS + Docker + GIS
+# Windows development
+# ============================================================
+
+
+# ============================================================
+# 1. SECRETS / ENVIRONMENT
+# ============================================================
+
+.env
+.env.*
+!.env.example
+!.env.sample
+!.env.template
+
+*.secret
+*.secrets
+secrets/
+credentials/
+.local/
+
+# Private keys / certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# Cloud/provider credentials
+.aws/
+.gcloud/
+.azure/
+
+# Local auth/config files
+firebase-debug.log
+google-services.json
+GoogleService-Info.plist
+
+
+# ============================================================
+# 2. OS FILES
+# ============================================================
+
+# Windows
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+*.stackdump
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+
+# ============================================================
+# 3. EDITORS / IDEs
+# ============================================================
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+.vs/
+*.user
+*.suo
+
+# Vim / Emacs
+*.swp
+*.swo
+.#*
+\#*\#
+
+
+# ============================================================
+# 4. PYTHON / FASTAPI
+# ============================================================
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+
+.mypy_cache/
+.pyright/
+.pyre/
+.dmypy.json
+dmypy.json
+
+.ruff_cache/
+.pylint.d/
+.ipynb_checkpoints/
+
+# Python packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+
+# Python logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+
+# ============================================================
+# 5. FLUTTER / DART
+# ============================================================
+
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# Flutter build output
+mobile/build/
+
+# Dart coverage
+mobile/coverage/
+
+# Generated Flutter plugin files
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+
+# Android local/build files
+mobile/android/.gradle/
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/local.properties
+mobile/android/.cxx/
+mobile/android/key.properties
+
+# Android generated artifacts
+mobile/android/app/*.keystore
+mobile/android/app/*.jks
+
+# iOS
+mobile/ios/Pods/
+mobile/ios/.symlinks/
+mobile/ios/Flutter/ephemeral/
+mobile/ios/Flutter/.last_build_id
+
+mobile/ios/Runner.xcworkspace/xcuserdata/
+mobile/ios/Runner.xcodeproj/xcuserdata/
+mobile/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
+
+# CocoaPods
+**/Pods/
+
+# Apple build output
+DerivedData/
+
+# FVM
+mobile/.fvm/flutter_sdk
+
+
+# ============================================================
+# 6. REACT / NODE / VITE
+# ============================================================
+
+web/node_modules/
+web/.vite/
+web/dist/
+web/build/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+.npm/
+.yarn/
+.pnpm-store/
+
+*.tsbuildinfo
+
+web/.cache/
+web/.parcel-cache/
+web/.turbo/
+
+# Keep package lock files tracked:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+
+# ============================================================
+# 7. GENERAL BUILD OUTPUT
+# ============================================================
+
+bin/
+obj/
+out/
+release/
+artifacts/
+build-artifacts/
+
+
+# ============================================================
+# 8. DATABASE / LOCAL DATABASE STATE
+# ============================================================
+
+# Local DB data directories
+pgdata/
+postgres_data/
+postgis_data/
+db_data/
+docker-data/
+volumes/
+
+# SQLite/local runtime DB files
+*.sqlite
+*.sqlite3
+
+# Database dumps/backups
+*.dump
+*.backup
+*.bak.sql
+*.sql.gz
+
+# IMPORTANT:
+# Do NOT ignore migration/schema .sql files.
+# They belong in Git.
+
+
+# ============================================================
+# 9. DOCKER LOCAL FILES
+# ============================================================
+
+docker-compose.override.yml
+docker-compose.local.yml
+
+.docker/
+
+
+# ============================================================
+# 10. GIS / MAP CACHES
+# ============================================================
+
+map_cache/
+map_data/
+tile_cache/
+tiles/
+osm_cache/
+routing_cache/
+geo_cache/
+geodata_cache/
+
+# Large map packages
+*.mbtiles
+*.pmtiles
+*.pbf
+
+# Do not ignore intentional small GeoJSON examples in docs
+# or source-controlled geographic fixtures.
+
+
+# ============================================================
+# 11. ML / AI ARTIFACTS
+# ============================================================
+
+# Training output
+ml/runs/
+ml/checkpoints/
+ml/training_outputs/
+ml/evaluation_outputs/
+ml/predictions/
+
+# Experiment tracking
+ml/mlruns/
+ml/wandb/
+
+# Model weights / checkpoints
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+
+# TensorFlow / Keras
+*.h5
+*.keras
+
+# Serialized Python ML objects
+*.joblib
+*.pickle
+
+# Model caches
+ml/model_cache/
+
+# IMPORTANT:
+# Do NOT ignore ml/models/ globally.
+# If you intentionally commit a small production model,
+# it should be explicitly added/managed.
+
+
+# ============================================================
+# 12. LOCAL / RAW DATASETS
+# ============================================================
+
+# Potentially large/private/local datasets
+data/raw/
+data/processed/
+data/interim/
+data/external/
+
+datasets/
+raw_data/
+processed_data/
+
+# API dumps and downloaded source data
+api_dumps/
+response_dumps/
+
+# Local exports
+exports/
+generated-data/
+generated_data/
+
+# Large tabular data
+*.parquet
+*.feather
+
+# CSV/TSV:
+# Don't globally ignore these because small tracked datasets
+# and fixtures may legitimately belong in the repository.
+#
+# If a particular directory contains private/large CSV files,
+# ignore that directory instead.
+
+
+# ============================================================
+# 13. USER-GENERATED FILES / UPLOADS
+# ============================================================
+
+uploads/
+user_uploads/
+incident_uploads/
+local_uploads/
+
+# Runtime media
+runtime_media/
+storage/
+
+# User/test media
+test_uploads/
+recordings/
+
+# Large media files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
+
+# Camera/test images generated locally
+camera_cache/
+
+
+# ============================================================
+# 14. LOGS / TEMPORARY FILES
+# ============================================================
+
+*.log
+
+logs/
+tmp/
+temp/
+.cache/
+
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
+
+debug/
+scratch/
+scratch-files/
+
+
+# ============================================================
+# 15. TEST ARTIFACTS
+# ============================================================
+
+test-results/
+playwright-report/
+allure-results/
+allure-report/
+
+coverage/
+screenshots/
+videos/
+traces/
+
+
+# ============================================================
+# 16. GENERATED DOCUMENTS / REPORTS
+# ============================================================
+
+generated_reports/
+generated_docs/
+
+# Keep documentation source files in Git.
+
+
+# ============================================================
+# 17. AI CODING TOOL LOCAL STATE
+# ============================================================
+
+# Local agent caches/state only
+.ai/
+.ai-cache/
+.agent/
+.agent-cache/
+.agent-state/
+
+.cursor/
+.cursor-cache/
+
+.claude/
+.claude-cache/
+
+.codex/
+.codex-cache/
+
+.copilot/
+.copilot-cache/
+
+.antigravity/
+.antigravity-cache/
+
+prompt-cache/
+context-cache/
+agent-cache/
+
+# IMPORTANT:
+# AGENTS.md MUST remain tracked.
+# SESSION.md MUST remain tracked.
+# LOG.md MUST remain tracked.
+# TODO.md MUST remain tracked.
+# DECISIONS.md MUST remain tracked.
+# BUILD_GUIDE.md MUST remain tracked.
+# SECURITY.md MUST remain tracked.
+
+
+# ============================================================
+# 18. MCP / LOCAL TOOL STATE
+# ============================================================
+
+.mcp/
+mcp-cache/
+mcp-local/
+
+
+# ============================================================
+# 19. SECURITY TOOL OUTPUT
+# ============================================================
+
+.gitleaks/
+.trufflehog/
+.secretlint/
+
+security-reports/
+
+
+# ============================================================
+# 20. TERRAFORM / INFRASTRUCTURE STATE
+# ============================================================
+
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+
+# Keep examples
+!*.tfvars.example
+
+
+# ============================================================
+# 21. KUBERNETES LOCAL SECRETS / CONFIG
+# ============================================================
+
+.kube/
+kubeconfig
+kubeconfig.*
+*.secret.yaml
+*.secret.yml
+
+
+# ============================================================
+# 22. DEPLOYMENT TOOL LOCAL STATE
+# ============================================================
+
+.vercel/
+.netlify/
+.serverless/
+.deploy/
+
+
+# ============================================================
+# 23. MOBILE BUILD ARTIFACTS
+# ============================================================
+
+*.apk
+*.aab
+*.ipa
+
+
+# ============================================================
+# 24. ARCHIVES / LARGE LOCAL PACKAGES
+# ============================================================
+
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Exception:
+# Explicitly add intentional project archives with:
+# git add -f path/to/file.zip
+
+
+# ============================================================
+# 25. NATIVE / COMPILED ARTIFACTS
+# ============================================================
+
+*.exe
+*.dll
+*.so
+*.dylib
+
+
+# ============================================================
+# 26. LOCAL NOTES
+# ============================================================
+
+*.local.md
+NOTES.local.md
+README.local.md
+TODO.local.md
+
+private/
+personal/
+
+
+# ============================================================
+# 27. GITHUB LOCAL ARTIFACTS
+# ============================================================
+
+.github/coverage/
+.github/artifacts/
+
+# GitHub Actions workflow files remain tracked:
+# .github/workflows/*
+
+
+# ============================================================
+# 28. OPTIONAL LOCAL DEVELOPMENT OVERRIDES
+# ============================================================
+
+docker-compose.override.yml
+docker-compose.local.yml
+
+local.settings.json
+appsettings.Local.json
+
+
+# ============================================================
+# END OF FILE
+# ============================================================
