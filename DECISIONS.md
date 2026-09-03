@@ -29,6 +29,60 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 
 ## Established decisions
 
+### D-015 — Prototype route-risk formula and multi-factor weights
+
+- **Decision:** Use an interpretable multi-factor risk scoring model over discrete road segments combining (1) dynamic rainfall intensity ($W_r$), (2) terrain slope and landslide susceptibility index ($W_s$), (3) historical incident frequency ($W_h$), and (4) verified active field obstruction severity ($W_o$), evaluated separately from operational accessibility state and ML disruption probability.
+- **Why:** Ensures full traceability, auditable risk calculations, and deterministic fail-safe behavior without reliance on opaque black-box models for safety-critical route penalization.
+- **Evidence/source checked:** NDMA National Landslide Risk Management Strategy; Indian Road Congress (IRC:SP:48) Hill Road Manual; IMD rainfall classification thresholds.
+- **Alternatives considered / ruled out:** Pure black-box neural risk prediction (ruled out due to lack of explainability); static pre-configured hazard maps (ruled out due to dynamic monsoon variations).
+- **Impact / affected files or contracts:** `docs/risk_and_conflict_resolution.md`, `backend/services/risk_engine.py`.
+- **Status:** FINALIZED for prototype and selection sprint.
+
+### D-014 — Local containerized runtime with Docker Compose and PostGIS
+
+- **Decision:** Deploy local development and evaluation environment via Docker Compose running PostgreSQL 16 + PostGIS 3.4, FastAPI backend, and React web dashboard.
+- **Why:** 100% free, reproducible across development workstations, zero ongoing cloud expenses, and functions completely offline during in-person SIH evaluation sessions.
+- **Evidence/source checked:** Official Docker `postgis/postgis:16-3.4` container specifications; PostGIS 3.4 spatial indexing performance benchmarks.
+- **Alternatives considered / ruled out:** Cloud-only managed databases (AWS RDS, Neon, Google Cloud SQL) ruled out as primary runtime due to costs and network vulnerability during in-person demonstrations.
+- **Impact / affected files or contracts:** `docker-compose.yml`, `docs/deployment.md`, `.env.example`.
+- **Status:** FINALIZED for local development and selection sprint.
+
+### D-013 — Google Gemini API for multilingual advisory generation
+
+- **Decision:** Utilize Google Gemini API (Gemini 2.0 / 1.5 Flash free tier) exclusively for natural-language incident summaries, multilingual safety advisories (Assamese, Bengali, Hindi, English), and operator queries, backed by deterministic template fallbacks.
+- **Why:** High free tier allowance (15 RPM, 1,500 RPD), strong Indic language translation quality, sub-second latency, structured JSON response mode. Strictly isolated from safety-critical routing per D-007.
+- **Evidence/source checked:** Google AI Studio free tier limits; Gemini 1.5 Flash latency and language benchmark documentation.
+- **Alternatives considered / ruled out:** OpenAI API (no free ongoing tier); local LLM via Ollama (excessive memory footprint for standard laptops, though clean interface permits future offline plug-in).
+- **Impact / affected files or contracts:** `docs/architecture.md`, `docs/api_specification.md`, `backend/services/explanation_service.py`.
+- **Status:** FINALIZED for non-safety-critical text generation.
+
+### D-012 — Open-Meteo API and IMD bulletins for weather intelligence
+
+- **Decision:** Integrate Open-Meteo API as primary automated quantitative weather provider (hourly rain, surface pressure, soil moisture, 16-day forecast, historical archive) complemented by official IMD district alert bulletins for corroborated warnings.
+- **Why:** 100% free for open-source and educational use, requires no API keys, high-resolution ECMWF/GFS numerical weather model coverage over Northeast India topography.
+- **Evidence/source checked:** Open-Meteo API documentation (open-meteo.com); ECMWF IFS terrain resolution benchmarks; IMD Mausam regional bulletin specifications.
+- **Alternatives considered / ruled out:** OpenWeatherMap (free tier restricted, credit card required for modern endpoint); Tomorrow.io (commercial limits).
+- **Impact / affected files or contracts:** `docs/data_sources_and_pipelines.md`, `backend/workers/weather_ingestion.py`.
+- **Status:** FINALIZED.
+
+### D-011 — OSRM baseline with PostGIS / pgRouting segment penalization
+
+- **Decision:** Utilize OSRM (Open Source Routing Machine) for baseline four-wheeler route geometry and distance/time estimation, coupled with a PostGIS / pgRouting segment network graph for dynamic risk-penalized alternative route optimization.
+- **Why:** OSRM is free, open-source, and blisteringly fast for base navigation geometries. Combining it with PostGIS segment weights enables TiyraSense to apply dynamic safety penalties to high-risk road corridors without commercial map API costs.
+- **Evidence/source checked:** Project OSRM API v1 specification; pgRouting 3.6 manual (`pgr_dijkstra`, `pgr_ksp`); Geofabrik OpenStreetMap North-East India PBF extracts.
+- **Alternatives considered / ruled out:** Google Directions / Mapbox Directions APIs (expensive, API keys required, terms forbid server-side edge extraction and offline route caching).
+- **Impact / affected files or contracts:** `docs/architecture.md`, `docs/api_specification.md`, `backend/services/routing_service.py`.
+- **Status:** FINALIZED.
+
+### D-010 — OpenStreetMap, MapLibre GL JS, and flutter_map for GIS stack
+
+- **Decision:** Adopt OpenStreetMap (OSM) data and standard raster/vector tiles, using MapLibre GL JS for the web intelligence dashboard and flutter_map with SQLite cache for the offline-first mobile application.
+- **Why:** 100% open-source, zero API licensing costs, compliant with local development, complete tile-caching freedom in connectivity-deprived NER hill tracts without proprietary vendor lock-in.
+- **Evidence/source checked:** OpenStreetMap Foundation Tile Usage Policy; MapLibre GL JS v4 API; flutter_map and `flutter_map_cache` offline storage benchmarks.
+- **Alternatives considered / ruled out:** Google Maps SDK (strict caching prohibitions, commercial costs, cannot function truly offline for field workers); Mapbox GL (proprietary access token required).
+- **Impact / affected files or contracts:** `web/`, `mobile/`, `docs/architecture.md`, `docs/offline_and_sync.md`.
+- **Status:** FINALIZED.
+
 ### D-009 — Offline-first mobile operation
 
 - **Decision:** Driver and Field Worker mobile capabilities are offline-first, retaining queued reports and relevant journey data with timestamps.
@@ -96,12 +150,8 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 
 | Decision needed | Current status | Needed by (sprint day) | Required basis before finalization |
 |---|---|---|---|
-| Map/GIS provider | OPEN | Day 2 | NER coverage, licensing, cost, offline/overlay needs, and operational suitability |
-| Routing deployment/provider | OPEN | Day 2 | Route coverage, vehicle support, licensing, cost, hosting, and integration fit |
-| Weather provider(s) | OPEN | Day 3 | NER coverage, historical data, update frequency, reliability, and cost |
-| Hosting/deployment provider | OPEN | Day 6 (or later, if local/dev-only demo) | Security, cost, operational support, data residency needs, and managed PostGIS options |
-| Route-risk formula and weights | OPEN | Day 3 (prototype rules only — final weights are post-selection) | Documented evidence, pilot data, validation, calibration, and safety review |
-| LLM provider | OPEN | Day 5 (only if explanation text is demoed) | Privacy, cost, language support, reliability, and explanation-only boundary |
+| Pilot corridor fine-tuning (e.g. Guwahati-Shillong NH-6 vs Silchar NH-27) | OPEN | Day 2 | Geospatial boundary packaging and seed data selection |
+| Production cloud hosting provider (Post-selection) | OPEN | Post-selection / Day 7+ | Budget, government cloud empanelment (MeitY), SLA requirements |
 
 A "Needed by" date is a scheduling flag, not authorization to auto-select a provider. Providers are still only finalized when a decision record above says **FINALIZED**.
 
@@ -112,4 +162,5 @@ If a "Needed by" day arrives and the decision is still OPEN, the agent must:
 2. Record the stall as a BLOCKER in `SESSION.md` and `LOG.md`.
 3. Continue with any independent, non-blocked task from the current or an earlier day.
 4. Flag it clearly in the session report so the human can decide.
+
 

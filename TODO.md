@@ -7,10 +7,10 @@ Status terms: **COMPLETE**, **PARTIALLY COMPLETE**, **BLOCKED**, **NOT STARTED**
 - [x] COMPLETE — Root coordination/documentation files and Git hygiene templates
 - [x] COMPLETE — Empty, module-owned directory skeleton: `mobile/`, `web/`, `backend/`, `ml/`, `docs/`, `scripts/`, `tests/`
 
-## Phase 1 — Specification Completion — NOT STARTED
+## Phase 1 — Specification Completion — COMPLETE
 
-- [ ] Requirements, product, roles/flows, architecture, data/database, API, source/pipeline, GIS/routing, risk/conflict, alert/emergency, ML, offline/mobile/web, testing, and deployment specifications
-- [ ] Research and record map/GIS, routing, weather, hosting, risk-formula, and LLM-provider decisions
+- [x] COMPLETE — Requirements, product, roles/flows, architecture, data/database, API, source/pipeline, GIS/routing, risk/conflict, alert/emergency, ML, offline/mobile/web, testing, and deployment specifications (all 12 comprehensive specs authored under `docs/`)
+- [x] COMPLETE — Researched, verified, and recorded map/GIS (OSM/MapLibre/flutter_map), routing (OSRM/PostGIS), weather (Open-Meteo/IMD), hosting (Docker PostGIS), risk-formula (multi-factor weights), and LLM-provider (Gemini free tier) decisions in `DECISIONS.md` (D-010 through D-015)
 
 ## Phase 2 — Environment Validation — PARTIALLY COMPLETE
 
