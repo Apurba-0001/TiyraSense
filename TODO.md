@@ -17,9 +17,12 @@ Status terms: **COMPLETE**, **PARTIALLY COMPLETE**, **BLOCKED**, **NOT STARTED**
 - [x] COMPLETE — Selection-sprint prerequisites: Git, Docker, Docker-based PostgreSQL/PostGIS, Flutter/Dart, Python/venv/pip, and Node/npm/React-TypeScript verified with disposable checks
 - [ ] NOT STARTED — Validate the ML toolchain when ML work is scheduled; it is not required for Day 1
 
-## Phase 3 — Thin End-to-End Slice — NOT STARTED
+## Phase 3 — Thin End-to-End Slice — COMPLETE
 
-- [ ] Authenticated Flutter login → Python backend → database → response, with RBAC and tests
+- [x] COMPLETE — Authenticated Flutter login → Python FastAPI backend → PostGIS database → response, with server-side RBAC (Driver, Field Worker, Official, Admin) and 7 widget tests
+- [x] COMPLETE — React 18 + TypeScript + Vite web operations console & admin governance shell with RoleGuard and 5 Vitest tests
+- [x] COMPLETE — FastAPI backend (`app/main.py`) with asyncpg connection pool, bcrypt, JWT auth, healthcheck, and 9 automated pytest tests
+- [x] COMPLETE — Initial user accounts seeded for all 4 roles in live PostgreSQL/PostGIS database
 
 ## Phase 4 — Core Logistics UX — NOT STARTED
 
