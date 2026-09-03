@@ -79,3 +79,12 @@ PARTIALLY COMPLETE
 COMPLETE
 BLOCKED
 ```
+
+## Documentation / Reproducibility
+
+- [ ] The demo path is documented at the level another agent can reproduce it
+- [ ] External provider/library assumptions used by the demo were checked against current official documentation
+- [ ] Finalized provider/architecture choices are recorded in `DECISIONS.md`
+- [ ] Current behavior/specification disagreements are resolved or explicitly logged
+- [ ] `SESSION.md`, `TODO.md`, and `LOG.md` match the verified repository state
+- [ ] No scratch/debug files or undocumented setup steps are required for the demo

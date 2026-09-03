@@ -21,11 +21,17 @@ Map/GIS, routing, weather, hosting, and LLM providers are intentionally undecide
 
 ## Current project state
 
-The project is in **Phase 0: documentation and coordination setup**. No application code or detailed `docs/` specification tree has been created yet.
+- **Phase 0 — Repository & Coordination Setup:** complete.
+- **Selection Sprint Day 0 — Environment Verification:** complete. Local Flutter, Python, React/TypeScript, and PostgreSQL/PostGIS prerequisites were verified with disposable checks; nothing application-level was added.
+- The project is ready to begin **Selection Sprint Day 1 — Working Foundation**.
+- No application code or detailed `docs/` specification tree has been created yet.
+- Map/GIS, routing, weather, hosting, and LLM providers remain open — see `DECISIONS.md` for what is finalized versus still to be researched.
+
+See `SESSION.md` for the current handoff and next task, `TODO.md` for the full phase-by-phase status board, and `LOG.md` for historical verified work. Status files are evidence to verify, not substitutes for inspecting the repository.
 
 ## Documentation index
 
-- `AGENTS.md` — mandatory working rules for agents
+- `AGENTS.md` — mandatory working rules for agents, including document authority
 - `PROJECT_CONTEXT.md` — permanent product knowledge
 - `SESSION.md` — current handoff and next task
 - `LOG.md` — historical development record
@@ -33,8 +39,13 @@ The project is in **Phase 0: documentation and coordination setup**. No applicat
 - `DECISIONS.md` — architectural decision rationale and open decisions
 - `BUILD_GUIDE.md` — phased build order and exit conditions
 - `SECURITY.md` — root security policy
+- `TiyraSense_7_DAY_SELECTION_SPRINT.md` — active day-to-day selection-sprint execution plan
+- `TiyraSense_MASTER_AGENT_PROMPT.md` — orchestration entry point for AI agents
+- `FIRST_SESSION.md` — protocol for starting a new AI agent session
+- `CONTINUE_SESSION.md` — protocol for continuing existing work
+- `FIRST_SESSION.md` / `CONTINUE_SESSION.md` are the canonical session protocols; use the existing suffixed copies only if explicitly needed for archival reference.
 - `.env.example` — placeholder-only configuration template
 
 ## Source of truth
 
-Current user-approved requirements take precedence. `PROJECT_CONTEXT.md` and future specifications describe the intended system; code describes what exists today. When they disagree, record the resolution in `DECISIONS.md` before changing implementation.
+Current user-approved requirements take precedence. `PROJECT_CONTEXT.md` and future specifications describe the intended system; code describes what exists today. When they disagree, record the resolution in `DECISIONS.md` before changing implementation. See `AGENTS.md` → "Document authority" for the full hierarchy.

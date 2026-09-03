@@ -30,7 +30,7 @@ Driver
 
 ## Source of Truth
 
-This sprint plan is a temporary execution priority. It does not replace:
+This sprint plan is a temporary execution priority and is the **active day-to-day plan during the selection sprint**. See `BUILD_GUIDE.md` → "Relationship to the 7-Day Selection Sprint" for the day-to-phase mapping; keep both files in sync if the mapping changes. This sprint plan does not replace:
 
 - `PROJECT_CONTEXT.md`
 - `AGENTS.md`

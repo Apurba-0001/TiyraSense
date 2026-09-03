@@ -2,6 +2,35 @@
 
 Build incrementally. Do not attempt to generate the entire platform in one AI session, and do not start a later phase until its predecessor has a credible exit condition.
 
+## Build discipline
+
+These rules apply to every phase:
+
+- Read `AGENTS.md` and `SECURITY.md` before implementation, and read only the task-relevant specifications after that.
+- Verify current official documentation for any external library, API, model, provider, or platform behavior used by the phase.
+- Inspect existing code before adding new code and search for reusable implementations first.
+- Keep each change targeted. Do not rewrite working files wholesale when a focused change is sufficient.
+- After implementation, run proportionate tests/checks, inspect the diff, remove scratch files, and update `SESSION.md`, `TODO.md`, and `LOG.md`.
+- Update `DECISIONS.md` for durable choices and update affected specifications whenever behavior, contracts, architecture, or operational assumptions change.
+- Do not mark a phase complete from compilation alone. The exit condition must be evidenced by the relevant test, workflow, or operational check.
+
+## Relationship to the 7-Day Selection Sprint
+
+During the SIH selection sprint, `TiyraSense_7_DAY_SELECTION_SPRINT.md` is the active execution plan and takes priority day-to-day. It maps to these phases as follows — update both files together if this mapping changes:
+
+| Sprint day | Phase(s) here | Note |
+|---|---|---|
+| Day 0 | — | Audit only, no phase work |
+| Day 1 | Phase 3 (+ start of Phase 2 wrap-up) | Thin end-to-end slice |
+| Day 2 | Phase 4 | Core logistics UX / routing integration |
+| Day 3 | Phase 5 + Phase 6 (prototype only) | Real data + rule-based risk v0 |
+| Day 4 | Phase 7 | Field reporting + conflict resolution |
+| Day 5 | Phase 9 | Alerts, affected journeys, emergency mode |
+| Day 6 | Phase 7 (offline hardening) + Phase 10 | Offline sync + dashboard |
+| Day 7 | Phase 11 | Integration, reliability, demo polish |
+
+Phase 1 (full specification writing) and Phase 8 (validated ML) are **not** required for the selection sprint — see the sprint plan's "Deferred" and "Stretch Goal" sections. Post-selection work resumes the full phase sequence, including any phase steps skipped or done at prototype level during the sprint.
+
 ## Phase 0 — Repository & Coordination Setup
 
 Create the root documentation, Git hygiene, environment template, and module skeleton only. **No application implementation belongs here.**

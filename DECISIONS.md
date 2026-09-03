@@ -2,6 +2,31 @@
 
 This is the reasoning trail for durable project choices, not a status log. Newest records appear first. No provider is selected unless its record says **FINALIZED**.
 
+# Template
+
+Use this for each durable decision:
+
+**Date:**  
+**Decision:**  
+**Why:**  
+**Evidence/source checked:** official documentation, tests, benchmarks, operational evidence, or other supporting basis; include version/release date where relevant  
+**Alternatives considered / ruled out:**  
+**Impact / affected files or contracts:**  
+**Status:** `FINALIZED` or `OPEN`
+
+## Decision hygiene
+
+A decision record is for a durable architectural, security, product, provider, or operational choice. Do not use it as a scratchpad for routine implementation details.
+
+For decisions involving a library, SDK, API, provider, model, platform, or deployment service:
+1. Verify current official documentation and compatibility before finalizing.
+2. Record the relevant version/release date and the evidence used.
+3. Record meaningful alternatives and why they were rejected.
+4. Update the affected specification and implementation after finalization.
+5. If evidence is insufficient, keep the decision `OPEN` rather than guessing.
+
+A decision marked `OPEN` is not permission to implement. A decision becomes binding only when its record says `FINALIZED`.
+
 ## Established decisions
 
 ### D-009 — Offline-first mobile operation
@@ -69,12 +94,22 @@ This is the reasoning trail for durable project choices, not a status log. Newes
 
 ## Open decisions — do not assume an answer
 
-| Decision needed | Current status | Required basis before finalization |
-|---|---|---|
-| Map/GIS provider | OPEN | NER coverage, licensing, cost, offline/overlay needs, and operational suitability |
-| Routing deployment/provider | OPEN | Route coverage, vehicle support, licensing, cost, hosting, and integration fit |
-| Weather provider(s) | OPEN | NER coverage, historical data, update frequency, reliability, and cost |
-| Hosting/deployment provider | OPEN | Security, cost, operational support, data residency needs, and managed PostGIS options |
-| Route-risk formula and weights | OPEN | Documented evidence, pilot data, validation, calibration, and safety review |
-| LLM provider | OPEN | Privacy, cost, language support, reliability, and explanation-only boundary |
+| Decision needed | Current status | Needed by (sprint day) | Required basis before finalization |
+|---|---|---|---|
+| Map/GIS provider | OPEN | Day 2 | NER coverage, licensing, cost, offline/overlay needs, and operational suitability |
+| Routing deployment/provider | OPEN | Day 2 | Route coverage, vehicle support, licensing, cost, hosting, and integration fit |
+| Weather provider(s) | OPEN | Day 3 | NER coverage, historical data, update frequency, reliability, and cost |
+| Hosting/deployment provider | OPEN | Day 6 (or later, if local/dev-only demo) | Security, cost, operational support, data residency needs, and managed PostGIS options |
+| Route-risk formula and weights | OPEN | Day 3 (prototype rules only — final weights are post-selection) | Documented evidence, pilot data, validation, calibration, and safety review |
+| LLM provider | OPEN | Day 5 (only if explanation text is demoed) | Privacy, cost, language support, reliability, and explanation-only boundary |
+
+A "Needed by" date is a scheduling flag, not authorization to auto-select a provider. Providers are still only finalized when a decision record above says **FINALIZED**.
+
+## Blocker escalation
+
+If a "Needed by" day arrives and the decision is still OPEN, the agent must:
+1. Not silently pick a provider to keep moving.
+2. Record the stall as a BLOCKER in `SESSION.md` and `LOG.md`.
+3. Continue with any independent, non-blocked task from the current or an earlier day.
+4. Flag it clearly in the session report so the human can decide.
 

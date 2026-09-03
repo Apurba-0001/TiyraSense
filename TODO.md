@@ -53,6 +53,10 @@ Status terms: **COMPLETE**, **PARTIALLY COMPLETE**, **BLOCKED**, **NOT STARTED**
 
 - [ ] Repeatable, clearly labelled demo scenario and end-to-end checks
 
+## Status evidence rule
+
+Statuses in this file must reflect the repository as verified in the current session. Do not mark work complete from documentation, compilation, or UI appearance alone. Record the verification evidence in `SESSION.md` and `LOG.md`; use `BLOCKED` when an open decision or dependency genuinely prevents the next task.
+
 ## Current blockers for later phases
 
 - **BLOCKED:** Provider selections require research and an explicit decision: map/GIS, routing deployment, weather, hosting/deployment, LLM provider.

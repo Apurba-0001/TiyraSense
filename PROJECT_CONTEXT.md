@@ -49,6 +49,7 @@ Drivers and field workers are both **consumers** of intelligence and **sources**
 Safety takes priority over shortest time — but the system never hides the fastest option.
 
 ```
+(example — not a spec'd threshold)
 Route A: ETA 5h20m, disruption 78%, risk HIGH
 Route B: ETA 6h05m, disruption 14%, risk LOW
 → Recommended: Route B   |   Fastest available: Route A
