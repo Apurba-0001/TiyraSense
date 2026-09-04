@@ -11,7 +11,7 @@ from backend.app.core.security import (
     verify_password,
 )
 from backend.app.models.user import User, UserRole
-from backend.app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut
+from backend.app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut, RegistrationRole
 
 router = APIRouter()
 
@@ -59,7 +59,12 @@ async def register(
     user_in: UserCreate,
     db: AsyncSession = Depends(get_db_session),
 ):
-    """Register a new user account (defaults to DRIVER role)."""
+    """Register a new user account.
+
+    Only DRIVER and FIELD_WORKER are accepted via this endpoint — enforced
+    at the schema level by RegistrationRole.  OFFICIAL and ADMIN roles can
+    only be assigned directly in the database by an administrator.
+    """
     stmt = select(User).where(User.email == user_in.email.lower().strip())
     existing_user = (await db.execute(stmt)).scalar_one_or_none()
     if existing_user:
@@ -68,11 +73,14 @@ async def register(
             detail="User with this email address already exists",
         )
 
+    # Map RegistrationRole → UserRole for the database column
+    db_role = UserRole(user_in.role.value)
+
     new_user = User(
         email=user_in.email.lower().strip(),
         password_hash=get_password_hash(user_in.password),
         full_name=user_in.full_name.strip(),
-        role=user_in.role,
+        role=db_role,
         phone_number=user_in.phone_number,
         organization=user_in.organization,
     )

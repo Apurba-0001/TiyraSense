@@ -122,3 +122,83 @@ async def test_rbac_official_allowed_on_official_endpoint():
         )
         assert res.status_code == 200
         assert res.json()["access"] == "granted"
+
+
+# ── Registration role restriction tests ──────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_register_driver_succeeds():
+    """Public registration creates a DRIVER account when role is omitted."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "newdriver_test@tiyrasense.in",
+                "password": "TestDriver2026!",
+                "full_name": "Test Driver",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["role"] == "DRIVER"
+
+
+@pytest.mark.asyncio
+async def test_register_field_worker_succeeds():
+    """Public registration creates a FIELD_WORKER account when role is FIELD_WORKER."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "newworker_test@tiyrasense.in",
+                "password": "TestWorker2026!",
+                "full_name": "Test Field Worker",
+                "role": "FIELD_WORKER",
+            },
+        )
+        assert response.status_code == 201
+        assert response.json()["role"] == "FIELD_WORKER"
+
+
+@pytest.mark.asyncio
+async def test_register_official_rejected():
+    """Attempting to self-register as OFFICIAL is rejected with HTTP 422 Unprocessable Entity.
+
+    The restriction is enforced at the schema level (RegistrationRole enum) before
+    any database logic runs.  OFFICIAL and ADMIN can only be assigned by a database
+    administrator via a direct UPDATE on the users table.
+    """
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "impostor@tiyrasense.in",
+                "password": "Impostor2026!",
+                "full_name": "Impostor Official",
+                "role": "OFFICIAL",
+            },
+        )
+        assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_register_admin_rejected():
+    """Attempting to self-register as ADMIN is rejected with HTTP 422 Unprocessable Entity."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        response = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "fakeadmin@tiyrasense.in",
+                "password": "FakeAdmin2026!",
+                "full_name": "Fake Admin",
+                "role": "ADMIN",
+            },
+        )
+        assert response.status_code == 422

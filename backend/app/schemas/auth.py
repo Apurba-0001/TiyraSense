@@ -1,7 +1,20 @@
+import enum
 from uuid import UUID
 from typing import Optional
 from pydantic import BaseModel, EmailStr, Field
 from backend.app.models.user import UserRole
+
+
+class RegistrationRole(str, enum.Enum):
+    """Roles available for self-service registration.
+
+    OFFICIAL and ADMIN are intentionally excluded; those roles can only
+    be granted by a database administrator via a direct UPDATE on the
+    users table. A caller cannot escalate privileges through this endpoint.
+    """
+
+    DRIVER = "DRIVER"
+    FIELD_WORKER = "FIELD_WORKER"
 
 
 class UserLogin(BaseModel):
@@ -28,9 +41,17 @@ class TokenResponse(BaseModel):
 
 
 class UserCreate(BaseModel):
+    """Payload for public account registration.
+
+    Only DRIVER and FIELD_WORKER are accepted.  Any attempt to submit
+    OFFICIAL or ADMIN is rejected at deserialization by Pydantic before
+    the endpoint logic runs.
+    """
+
     email: EmailStr
     password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=2, max_length=128)
-    role: UserRole = UserRole.DRIVER
+    # RegistrationRole ensures callers cannot self-assign OFFICIAL or ADMIN
+    role: RegistrationRole = RegistrationRole.DRIVER
     phone_number: Optional[str] = None
     organization: Optional[str] = None
