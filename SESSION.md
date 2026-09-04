@@ -22,7 +22,39 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 - **Status:** COMPLETE. FastAPI backend with asyncpg/PostGIS database connection, bcrypt, JWT authentication, and database-authoritative RBAC implemented and passing 23 pytest tests. React 18 + TypeScript + Vite web operations and admin dashboard implemented with RoleGuard and passing 5 Vitest tests and clean production build. Flutter mobile application implemented with role-aware Driver and Field Worker shells, encrypted session persistence via flutter_secure_storage, and passing 10 Flutter widget tests with zero analyze warnings. PostGIS schema initialized with 18 tables and 4 seed roles.
 - **Branch:** `main`
 
-## Latest session — 2026-09-05 — Backend Restart & Android compileSdk 37 Upgrade
+## Latest session — 2026-09-05 — Android App Launcher Icon & In-App Brand Identity Integration
+
+**Did:**
+- Replaced default Flutter system launcher icons with the official TiyraSense brand icon across all 5 Android density mipmap folders (`mipmap-mdpi`, `mipmap-hdpi`, `mipmap-xhdpi`, `mipmap-xxhdpi`, `mipmap-xxxhdpi` in `mobile/android/app/src/main/res/`).
+- Generated and configured native Android launch splash screen assets (`splash_image.png` in `drawable/` and `drawable-v21/`), updating `launch_background.xml` in both folders to display the centered brand emblem before Flutter initial render.
+- Replaced generic placeholder icon (`Icons.alt_route_rounded` inside linear gradient box) in [`mobile/lib/screens/login_screen.dart`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/lib/screens/login_screen.dart) with the official TiyraSense brand logo (`assets/icon/app_icon.png`).
+- Added official brand icon emblem to the `AppBar` leading slot in both [`mobile/lib/screens/driver_home_screen.dart`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/lib/screens/driver_home_screen.dart) and [`mobile/lib/screens/field_worker_home_screen.dart`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/lib/screens/field_worker_home_screen.dart).
+- Verified with `flutter analyze --no-fatal-infos` (0 issues) and `flutter test` (10/10 passed).
+
+**State:** Official TiyraSense launcher icon, native splash emblem, and in-app brand headers are fully integrated and verified across the Flutter mobile app.
+**Files touched:**
+- `mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.png`
+- `mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png`
+- `mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png`
+- `mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png`
+- `mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`
+- `mobile/android/app/src/main/res/drawable/splash_image.png`
+- `mobile/android/app/src/main/res/drawable/launch_background.xml`
+- `mobile/android/app/src/main/res/drawable-v21/splash_image.png`
+- `mobile/android/app/src/main/res/drawable-v21/launch_background.xml`
+- `mobile/lib/screens/login_screen.dart`
+- `mobile/lib/screens/driver_home_screen.dart`
+- `mobile/lib/screens/field_worker_home_screen.dart`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes.
+**Next:** Re-run/reinstall app on Android emulator to display updated launcher icon on the Android home screen, then proceed to Phase 4 routing engine.
+**Blockers/open questions:** None.
+**Verification evidence:** `flutter analyze --no-fatal-infos` → 0 issues; `flutter test` → 10/10 passed.
+**External docs checked:** Android Developer Guide — App shortcuts and launcher icons; Android Splash Screens.
+**Verify by:** Run `flutter test` in `mobile/`. To see launcher icon on emulator home screen, stop existing `flutter run` process and restart `flutter run -d emulator-5554`.
+
+## 2026-09-05 — Backend Restart & Android compileSdk 37 Upgrade
 
 **Did:**
 - Stopped stale Uvicorn process on port 8000 and restarted FastAPI backend daemon fresh via `uvicorn backend.app.main:app --host 0.0.0.0 --port 8000`. Verified `/api/v1/health` responding with live PostGIS 3.4 status.

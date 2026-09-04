@@ -129,14 +129,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   // Brand Hero Icon
                   Center(
                     child: Container(
-                      width: 68,
-                      height: 68,
+                      width: 72,
+                      height: 72,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF0284C7), Color(0xFF0F172A)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
@@ -146,10 +141,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.alt_route_rounded,
-                        color: Colors.white,
-                        size: 36,
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          'assets/icon/app_icon.png',
+                          width: 72,
+                          height: 72,
+                          fit: BoxFit.cover,
+                        ),
                       ),
                     ),
                   ),

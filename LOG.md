@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-05 — Android App Launcher Icon & In-App Brand Identity Integration
+- Work: Replaced default Flutter launcher icons with official TiyraSense brand icon across all 5 Android density mipmap directories (mdpi, hdpi, xhdpi, xxhdpi, xxxhdpi). Generated centered splash screen drawables (`splash_image.png`) in `drawable/` and `drawable-v21/`, and updated `launch_background.xml` in both directories to display the native brand launch emblem. Replaced placeholder generic route icon on `LoginScreen` (`mobile/lib/screens/login_screen.dart`) with official TiyraSense brand icon (`assets/icon/app_icon.png`). Added brand icon emblem to AppBar leading slot in `DriverHomeScreen` and `FieldWorkerHomeScreen`.
+- Files: `mobile/android/app/src/main/res/mipmap-mdpi/ic_launcher.png`, `mobile/android/app/src/main/res/mipmap-hdpi/ic_launcher.png`, `mobile/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png`, `mobile/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png`, `mobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png`, `mobile/android/app/src/main/res/drawable/splash_image.png`, `mobile/android/app/src/main/res/drawable/launch_background.xml`, `mobile/android/app/src/main/res/drawable-v21/splash_image.png`, `mobile/android/app/src/main/res/drawable-v21/launch_background.xml`, `mobile/lib/screens/login_screen.dart`, `mobile/lib/screens/driver_home_screen.dart`, `mobile/lib/screens/field_worker_home_screen.dart`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `flutter analyze --no-fatal-infos` → 0 issues; `flutter test` → 10/10 passed.
+- Decisions: Generated Android standard mipmap launcher icons and native launch drawables directly from high-resolution master asset (`app_icon.png`).
+- Problems: None.
+- External docs: None.
+- Result: Official TiyraSense brand icon and logos are now wired to the Android launcher, native splash screen, and in-app screens.
+- Next: Re-run `flutter run -d emulator-5554` to re-install APK with new launcher icon and test on emulator; proceed to Phase 4 routing engine.
+- Verify: Run `flutter test` in `mobile/` and inspect launcher icon and in-app screens.
+
 ## 2026-09-05 — Backend Restart & Android compileSdk 37 Upgrade
 - Work: Terminated previous Uvicorn background process on port 8000 and cleanly restarted FastAPI backend server (`uvicorn backend.app.main:app --host 0.0.0.0 --port 8000`). Verified health endpoint returning live PostGIS 3.4 connectivity. Fixed Android build error where `flutter_secure_storage` v11 required Android compileSdk >= 37 (updated `compileSdk = 37` in `mobile/android/app/build.gradle.kts`). Added `backend/app/schemas/__init__.py` and `__all__` in `backend/app/schemas/auth.py`.
 - Files: `mobile/android/app/build.gradle.kts`, `backend/app/schemas/__init__.py`, `backend/app/schemas/auth.py`, `SESSION.md`, `LOG.md`.
