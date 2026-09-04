@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-04 — Complete Google Stitch Master Prompt Pack & Asset Integration
+- Work: Extracted, organized, and linked all 5 reference image assets into `Images/` (`TiyraSense.svg`, `TiyraSense.png`, `login.webp`, `app.webp`, `signup.webp`, `mapview.webp`, `bg.webp`). Completed `TiyraSense_Stitch_Prompts.md` as the authoritative master design pack for Google Stitch, covering: (1) Reference image mapping table with explicit instructions on what structural components to extract and what colors to discard; (2) Global Light Theme Design System specification; (3) Complete Mermaid screen flow diagram connecting all mobile and web user paths; (4) Copy-paste-ready Stitch generation prompts for all 11 screens: Screen 0 (Splash), Screen 0A (Sign In & Demo Presets), Screen 0B (Role-Restricted Sign Up), Screen 1A (Origin/Destination Hub Journey Planner), Screen 1 (Dual-Route Comparison), Screen 1B (Full-Screen Turn Navigation), Screen 2 (In-Transit Hazard Alert), Screen 3 (Rapid Offline Hazard Reporter), Screen 4 (Field Evidence Collector), Screen 5 (Geotechnical Sensor Monitor), Screen 6 (Web Regional GIS Command Center), Screen 7 (Web Incident Verification & Override), and Screen 8 (Web Admin System Health & ML Monitor). Mirrored `STITCH_PROMPTS.md` to point to the master file.
+- Files: `TiyraSense_Stitch_Prompts.md`, `STITCH_PROMPTS.md`, `Images/`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: Verified documentation completeness, markdown rendering, and presence of all image assets in `Images/`.
+- Decisions: Integrated user reference images into repo `Images/` and mapped each to specific screen layout roles.
+- Problems: None.
+- External docs: Google Stitch prompt engineering guidelines.
+- Result: Master Stitch prompt pack is fully completed and ready for iterative UI generation.
+- Next: Generate screens in Google Stitch or begin Phase 4 OSRM routing backend implementation.
+- Verify: Open `TiyraSense_Stitch_Prompts.md` and check all 11 screen prompts and Mermaid diagram.
+
 ## 2026-09-04 — Mobile Persistent Authentication & Offline-First Session Resilience
 - Work: Migrated mobile credential persistence from basic `shared_preferences` to `flutter_secure_storage` (backed by Android Keystore, iOS Keychain, and Windows DPAPI). Both JWT auth token and user profile model are now encrypted and stored locally upon login. Updated `main.dart` to await `authProvider.initialize()` before the first frame and resolve the start route to `DriverHomeScreen` or `FieldWorkerHomeScreen` when valid credentials exist, preventing the login screen from appearing on app restarts. Engineered offline resilience in `AuthProvider.initialize()`: transient network failures, timeouts, and unreachable servers during startup do NOT wipe the user's cached credentials (vital for drivers in remote North Eastern Region areas with intermittent connectivity). Only an explicit user "Sign Out" tap or an authoritative server 401/403 clears the stored credentials. Added 3 new widget tests covering persistent cold boot, offline restarts, and 401 expiration handling.
 - Files: `mobile/lib/state/auth_provider.dart`, `mobile/lib/main.dart`, `mobile/pubspec.yaml`, `mobile/pubspec.lock`, `mobile/test/widget_test.dart`, `SESSION.md`, `LOG.md`.
