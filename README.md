@@ -21,11 +21,17 @@ Map/GIS, routing, weather, hosting, and LLM providers are intentionally undecide
 
 ## Current project state
 
-- **Phase 0 — Repository & Coordination Setup:** complete.
-- **Selection Sprint Day 0 — Environment Verification:** complete. Local Flutter, Python, React/TypeScript, and PostgreSQL/PostGIS prerequisites were verified with disposable checks; nothing application-level was added.
-- The project is ready to begin **Selection Sprint Day 1 — Working Foundation**.
-- No application code or detailed `docs/` specification tree has been created yet.
-- Map/GIS, routing, weather, hosting, and LLM providers remain open — see `DECISIONS.md` for what is finalized versus still to be researched.
+- **Phase 0 — Repository & Coordination Setup:** COMPLETE.
+- **Phase 1 — Specification Completion:** COMPLETE. All 12 comprehensive architecture, API, data, risk, and deployment specifications authored in `docs/`.
+- **Phase 2 — Environment Validation:** COMPLETE for sprint runtime dependencies (Docker PostGIS, Python/venv, Flutter/Dart, Node/npm/React-Vite).
+- **Phase 3 / Selection Sprint Day 1 — Thin End-to-End Slice & Security Hardening:** COMPLETE.
+  - FastAPI backend with PostGIS database connection, bcrypt, JWT auth, database-authoritative RBAC, SQL/control-character defenses, and security headers (23/23 pytest tests passing).
+  - Flutter mobile app with role-aware Driver & Field Worker shells and encrypted session persistence via `flutter_secure_storage` (10/10 widget tests passing, 0 analyze warnings).
+  - React 18 + TypeScript + Vite web operations console & admin governance portal with RoleGuard (5/5 Vitest tests passing, clean production build).
+  - PostGIS schema with 18 tables initialized (`backend/migrations/init.sql`) and 4 seed roles (`scripts/seed_users.py`).
+  - Google Stitch Master Prompt Pack completed (`TiyraSense_Stitch_Prompts.md`).
+- **Architectural decisions D-010 through D-017 FINALIZED in `DECISIONS.md`:** OSM/MapLibre/flutter_map GIS, OSRM routing, Open-Meteo weather, Gemini advisory LLM, Docker Compose runtime, prototype route-risk weights, registration role restriction (Driver & Field Worker only), and mobile secure enclave session persistence.
+- **Next Phase:** **Phase 4 / Selection Sprint Day 2 — Core Logistics UX (Dynamic Route Planning & GIS)**.
 
 See `SESSION.md` for the current handoff and next task, `TODO.md` for the full phase-by-phase status board, and `LOG.md` for historical verified work. Status files are evidence to verify, not substitutes for inspecting the repository.
 

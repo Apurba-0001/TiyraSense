@@ -23,6 +23,18 @@ TiyraSense enforces a strict multi-tier testing pyramid to guarantee determinist
 
 ---
 
+## 1.1 Current Implemented Test Suites (Phase 3 Verified)
+
+The repository currently maintains 3 passing test suites across all 3 technology layers:
+
+| Layer | Path | Framework | Test Count | Scope Verified | Command |
+|---|---|---|:---:|---|---|
+| **Backend** | `backend/tests/` | pytest 9.1 + pytest-asyncio | 23 | Healthcheck, DB PostGIS connectivity, Auth login/registration, Database-authoritative RBAC, SQL/Control-char sanitation, HTTP Security Headers | `pytest -v` |
+| **Mobile** | `mobile/test/` | Flutter Test / WidgetTester | 10 | Login UI rendering, Input validation, Driver/Field Worker navigation, Error banners, Secure storage session persistence across cold restarts, Offline resilience, 401 token invalidation | `flutter test` |
+| **Web** | `web/src/test/` | Vitest 1.4 + RTL + jsdom | 5 | Accessible login inputs, Password masking toggle, Error rendering, Form submission, Role-aware routing & token storage | `npm test -- --run` |
+
+---
+
 ## 2. Unit Testing Suite (`backend/tests/unit/`)
 
 Unit tests execute hermetically in $< 5\text{ seconds}$ without external network dependencies.

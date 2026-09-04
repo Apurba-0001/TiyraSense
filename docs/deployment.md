@@ -37,6 +37,9 @@ For the SIH 2026 Selection Sprint and jury evaluation, TiyraSense runs in a self
 
 ## 2. Docker Compose Configuration Structure
 
+> [!NOTE]
+> **Environment Modes:** In the local sprint development setup, `docker-compose.yml` provides the containerized PostgreSQL 16 + PostGIS 3.4 spatial database (`tiyrasense-db`), while the FastAPI backend runs on the host via Python `.venv` and the React frontend runs via Vite for sub-second hot reloading. The complete 3-service configuration below represents the target evaluation and production deployment.
+
 ```yaml
 version: '3.8'
 

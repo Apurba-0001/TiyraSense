@@ -17,6 +17,15 @@ Mountain logistics in the North Eastern Region routinely pass through deep river
 
 ---
 
+## 1.1 Client Credential & Session Persistence Architecture (Decision D-017)
+
+To ensure operational reliability when starting the mobile application in areas with zero network connectivity:
+1. **OS Secure Enclave Encryption:** The JWT token and cached `UserModel` are stored via `flutter_secure_storage` backed by the Android Keystore (AES-GCM encryption) and iOS Keychain. Plaintext disk storage (`shared_preferences`) is banned for sensitive auth data.
+2. **Cold-Start Pre-Frame Restoration:** The app awaits credential restoration during `main()` before rendering the initial widget tree. If a valid cached session exists, the app navigates immediately to `DriverHomeScreen` or `FieldWorkerHomeScreen`.
+3. **Offline Launch Resilience:** If the device boots without cellular reception or the backend is unreachable, the cached session is preserved. Local credentials are only cleared upon an explicit user "Sign Out" tap or an authoritative HTTP 401/403 status code from the server.
+
+---
+
 ## 2. Client-Side SQLite Storage Architecture
 
 The mobile client maintains a persistent local SQLite database containing five core tables:

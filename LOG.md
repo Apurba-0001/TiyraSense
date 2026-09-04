@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-04 — Full Forensic Codebase Audit & Documentation Reconciliation
+- Work: Conducted forensic audit of codebase vs. documentation across backend, mobile, web, and test suites. Added `pytest.ini` with `pythonpath = .` and `asyncio_mode = auto` to enable direct `pytest -v` execution from any terminal. Reconciled documentation mismatches across 6 files: (1) `README.md` updated to accurately reflect completed Phases 0–3, finalized decisions D-010–D-017, and active Phase 4 next step; (2) `TODO.md` updated to clear stale Phase 0 blocker notes and reflect accurate test metrics; (3) `docs/api_specification.md` updated with an explicit Implementation Status Matrix distinguishing LIVE Phase 3 endpoints from PLANNED Phase 4–10 contracts; (4) `docs/architecture.md` corrected from Tailwind CSS to Vanilla CSS custom tokens; (5) `docs/testing_strategy.md` updated with current 3-tier test suite table; (6) `docs/deployment.md` updated with environment notes for local Docker PostGIS vs production containerization; (7) Cleaned up git typo asset `Images/sogn up.webp`. Verified 100% passing tests across all 3 stacks.
+- Files: `pytest.ini`, `README.md`, `TODO.md`, `docs/api_specification.md`, `docs/architecture.md`, `docs/testing_strategy.md`, `docs/deployment.md`, `Images/sogn up.webp`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `pytest -v` → 23/23 passed; `flutter test` → 10/10 passed; `flutter analyze --no-fatal-infos` → 0 issues; `npm test -- --run` → 5/5 passed; `npm run build` → clean production build.
+- Decisions: Created `pytest.ini` for automatic pythonpath resolution without manual shell env vars; removed git typo asset.
+- Problems: None. All documentation is now strictly aligned with the actual codebase.
+- External docs: None.
+- Result: Codebase and documentation are 100% synchronized with zero discrepancies.
+- Next: Phase 4 / Selection Sprint Day 2: Implement dynamic Origin & Destination Hub selection and OSRM routing engine integration (`/api/v1/routes/evaluate`).
+- Verify: Run `pytest -v` at root, `flutter test` in `mobile/`, and `npm test -- --run` in `web/`. Check `git status` and inspect modified documentation.
+
 ## 2026-09-04 — Complete Google Stitch Master Prompt Pack & Asset Integration
 - Work: Extracted, organized, and linked all 5 reference image assets into `Images/` (`TiyraSense.svg`, `TiyraSense.png`, `login.webp`, `app.webp`, `signup.webp`, `mapview.webp`, `bg.webp`). Completed `TiyraSense_Stitch_Prompts.md` as the authoritative master design pack for Google Stitch, covering: (1) Reference image mapping table with explicit instructions on what structural components to extract and what colors to discard; (2) Global Light Theme Design System specification; (3) Complete Mermaid screen flow diagram connecting all mobile and web user paths; (4) Copy-paste-ready Stitch generation prompts for all 11 screens: Screen 0 (Splash), Screen 0A (Sign In & Demo Presets), Screen 0B (Role-Restricted Sign Up), Screen 1A (Origin/Destination Hub Journey Planner), Screen 1 (Dual-Route Comparison), Screen 1B (Full-Screen Turn Navigation), Screen 2 (In-Transit Hazard Alert), Screen 3 (Rapid Offline Hazard Reporter), Screen 4 (Field Evidence Collector), Screen 5 (Geotechnical Sensor Monitor), Screen 6 (Web Regional GIS Command Center), Screen 7 (Web Incident Verification & Override), and Screen 8 (Web Admin System Health & ML Monitor). Mirrored `STITCH_PROMPTS.md` to point to the master file.
 - Files: `TiyraSense_Stitch_Prompts.md`, `STITCH_PROMPTS.md`, `Images/`, `SESSION.md`, `LOG.md`.

@@ -29,6 +29,12 @@ TiyraSense enforces strict server-side Role-Based Access Control (RBAC). Client-
 | `alerts:broadcast_manual` | ❌ | ❌ | ✅ | ✅ |
 | `admin:manage_network` | ❌ | ❌ | ❌ | ✅ |
 
+### User Registration & Access Provisioning Policy (SIH Security Requirement)
+
+1. **Self-Service Registration:** Only `DRIVER` and `FIELD_WORKER` roles are permitted to register via public interfaces (`POST /api/v1/auth/register`). Schema validation via `RegistrationRole` strictly enforces this, immediately returning HTTP 422 if an unauthorized role is requested.
+2. **Elevated Role Provisioning:** `OFFICIAL` (Regional Disaster Authority) and `ADMIN` (System Administrator) roles **cannot** self-register. They are exclusively provisioned through direct, audited administrative database entries (`UPDATE users SET role = 'OFFICIAL' WHERE ...`).
+3. **Database-Authoritative RBAC:** Dependency role-checks query the database row directly, ensuring that forged or stale JWT claims cannot grant elevated access.
+
 ---
 
 ## 2. Interaction Flows

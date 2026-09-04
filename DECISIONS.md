@@ -29,6 +29,24 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 
 ## Established decisions
 
+### D-017 — OS-level encrypted mobile session persistence and offline-first launch resilience
+
+- **Decision:** Replace plaintext SharedPreferences with `flutter_secure_storage` (backed by Android Keystore AES-GCM, iOS Keychain, and Windows DPAPI) for persisting the JWT authentication token and cached `UserModel` profile. On app cold starts, credentials are automatically restored before rendering the first frame, routing authenticated users directly to their role-specific home console without showing the login screen. Furthermore, transient network failures or offline starts in remote North Eastern Region (NER) valleys do NOT clear the session; local credentials are only wiped upon an explicit user "Sign Out" tap or an authoritative HTTP 401/403 status code from the server.
+- **Why:** Plaintext local storage leaks sensitive JWTs. Drivers operating in dead zones with zero cellular connectivity would be locked out if network validation errors wiped their login state on app restart.
+- **Evidence/source checked:** `flutter_secure_storage` v11 API specifications (Android Keystore AES-GCM by default); OWASP Mobile Top 10 (M1: Improper Platform Usage, M2: Insecure Data Storage).
+- **Alternatives considered / ruled out:** `shared_preferences` (rejected: unencrypted plaintext XML/JSON on disk); online-only authentication check on every boot (rejected: fails SIH offline-first requirement for NER connectivity).
+- **Impact / affected files or contracts:** `mobile/lib/state/auth_provider.dart`, `mobile/lib/main.dart`, `mobile/pubspec.yaml`, `docs/offline_and_sync.md`.
+- **Status:** FINALIZED.
+
+### D-016 — Self-service registration role restriction and DB-authoritative RBAC
+
+- **Decision:** Restrict public self-service user registration (`POST /api/v1/auth/register`) exclusively to `DRIVER` and `FIELD_WORKER` roles via a dedicated `RegistrationRole` schema enum. Requests attempting to self-register as `OFFICIAL` or `ADMIN` are rejected at the Pydantic schema validation layer with HTTP 422 before any database queries execute. Government Official and System Administrator accounts can only be provisioned manually in the database by a database administrator. Furthermore, all role checks at API dependencies query the database row directly rather than trusting the JWT role claim.
+- **Why:** Prevents self-elevation of privilege, unauthorized dashboard surveillance, and illicit road closure overrides. Eliminates token forgery vectors where a compromised secret key could be used to manufacture administrative JWT claims.
+- **Evidence/source checked:** OWASP API Security Top 10 (API1: Broken Object Level Authorization, API5: Broken Function Level Authorization); FastAPI Pydantic v2 validation contracts.
+- **Alternatives considered / ruled out:** Trusting JWT `role` claims for authorization (ruled out: stale claims or forged tokens could escalate privileges); open registration with approval flags (ruled out: adds unneeded complexity for selection sprint).
+- **Impact / affected files or contracts:** `backend/app/schemas/auth.py`, `backend/app/api/deps.py`, `backend/app/api/v1/endpoints/auth.py`, `docs/user_roles_and_flows.md`, `docs/api_specification.md`.
+- **Status:** FINALIZED.
+
 ### D-015 — Prototype route-risk formula and multi-factor weights
 
 - **Decision:** Use an interpretable multi-factor risk scoring model over discrete road segments combining (1) dynamic rainfall intensity ($W_r$), (2) terrain slope and landslide susceptibility index ($W_s$), (3) historical incident frequency ($W_h$), and (4) verified active field obstruction severity ($W_o$), evaluated separately from operational accessibility state and ML disruption probability.

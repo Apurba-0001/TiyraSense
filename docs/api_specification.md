@@ -5,6 +5,27 @@
 **Base URL:** `/api/v1`  
 **Authentication Scheme:** Bearer JWT in `Authorization` header (`Bearer <token>`)
 
+### Implementation Status Matrix
+
+| Method | Endpoint | Phase | Status | Purpose |
+|---|---|:---:|:---:|---|
+| `GET` | `/` | Phase 3 | **LIVE** | Root service identity, provenance, and discovery |
+| `GET` | `/api/v1/health` | Phase 3 | **LIVE** | Database connectivity & PostGIS extension probe |
+| `POST` | `/api/v1/auth/login` | Phase 3 | **LIVE** | JWT authentication token issuance |
+| `POST` | `/api/v1/auth/register` | Phase 3 | **LIVE** | Role-restricted registration (`DRIVER` & `FIELD_WORKER` only) |
+| `GET` | `/api/v1/auth/me` | Phase 3 | **LIVE** | Authenticated user profile and role verification |
+| `GET` | `/api/v1/auth/official-access` | Phase 3 | **LIVE** | RBAC verification gate for `OFFICIAL` and `ADMIN` |
+| `GET` | `/api/v1/auth/admin-access` | Phase 3 | **LIVE** | RBAC verification gate for `ADMIN` |
+| `POST` | `/api/v1/routes/evaluate` | Phase 4 | *PLANNED* | Multi-factor route comparison (Safest vs Fastest) |
+| `POST` | `/api/v1/journeys` | Phase 4 | *PLANNED* | Start tracked logistics journey |
+| `POST` | `/api/v1/journeys/{id}/telemetry` | Phase 4 | *PLANNED* | In-transit driver breadcrumbs |
+| `POST` | `/api/v1/journeys/{id}/reroute` | Phase 9 | *PLANNED* | Accept emergency route diversion |
+| `POST` | `/api/v1/field-reports` | Phase 7 | *PLANNED* | Submit validated field hazard report |
+| `GET` | `/api/v1/alerts/active` | Phase 9 | *PLANNED* | Query active hazard alerts for journey/corridor |
+| `GET` | `/api/v1/official/dashboard/overview` | Phase 10 | *PLANNED* | Aggregate regional GIS overview |
+| `PATCH` | `/api/v1/segments/{id}/state` | Phase 7 | *PLANNED* | Official manual accessibility override |
+
+
 ---
 
 ## 1. Global Request / Response Standards
@@ -38,7 +59,7 @@ Authenticates a user and issues access and refresh tokens.
 - **Request Body:**
 ```json
 {
-  "email": "driver.borah@logistics.ner",
+  "email": "driver@tiyrasense.in",
   "password": "SecurePassword123!"
 }
 ```
@@ -50,10 +71,79 @@ Authenticates a user and issues access and refresh tokens.
   "expires_in_seconds": 3600,
   "user": {
     "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "email": "driver.borah@logistics.ner",
+    "email": "driver@tiyrasense.in",
     "full_name": "Ramen Borah",
     "role": "DRIVER"
   }
+}
+```
+
+### `POST /api/v1/auth/register`
+Self-service user registration. **Strict Security Constraint (SIH Policy):** Only `DRIVER` and `FIELD_WORKER` roles can be registered via this public endpoint. Attempts to register as `OFFICIAL` or `ADMIN` are rejected at the schema level with `422 Unprocessable Entity`. Official and Admin accounts must be provisioned directly by database administrators.
+
+- **Request Body:**
+```json
+{
+  "email": "new.driver@tiyrasense.in",
+  "password": "StrongPassword2026!",
+  "full_name": "Biren Roy",
+  "role": "DRIVER",
+  "phone_number": "+91-98640-99887",
+  "organization": "Barak Valley Transport"
+}
+```
+- **Response (201 Created):**
+```json
+{
+  "id": "e4f5a6b7-c8d9-0123-ef45-6789abcdef01",
+  "email": "new.driver@tiyrasense.in",
+  "full_name": "Biren Roy",
+  "role": "DRIVER",
+  "phone_number": "+91-98640-99887",
+  "organization": "Barak Valley Transport"
+}
+```
+- **Error Response (422 Unprocessable Entity — Role Escalation Attempt):**
+```json
+{
+  "detail": [
+    {
+      "type": "enum",
+      "loc": ["body", "role"],
+      "msg": "Input should be 'DRIVER' or 'FIELD_WORKER'"
+    }
+  ]
+}
+```
+
+### `GET /api/v1/auth/me`
+Retrieves the currently authenticated user's profile. Validates the JWT and fetches the latest profile and role state directly from the database row.
+
+- **Headers:** `Authorization: Bearer <access_token>`
+- **Response (200 OK):**
+```json
+{
+  "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "email": "driver@tiyrasense.in",
+  "full_name": "Ramen Borah",
+  "role": "DRIVER",
+  "phone_number": "+91-98640-12345",
+  "organization": "All Assam Commercial Truckers Union"
+}
+```
+
+### `GET /api/v1/health`
+System health probe verifying PostgreSQL connectivity and PostGIS extension status.
+
+- **Response (200 OK):**
+```json
+{
+  "status": "healthy",
+  "app_name": "TiyraSense",
+  "environment": "development",
+  "data_label": "LIVE",
+  "database": "connected",
+  "postgis_version": "3.4 USE_GEOS=1 USE_PROJ=1 USE_STATS=1"
 }
 ```
 

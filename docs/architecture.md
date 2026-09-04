@@ -17,7 +17,7 @@ TiyraSense employs a decoupled, service-oriented architecture designed to operat
 |   |         Flutter Mobile App            |   |       React Web Dashboard     |   |
 |   |   (Driver & Field Worker Modes)       |   |    (Dispatcher & Official)    |   |
 |   |  - flutter_map (OpenStreetMap)        |   |  - MapLibre GL JS             |   |
-|   |  - SQLite (Offline Cache & Sync Queue)|   |  - TypeScript + Tailwind CSS  |   |
+|   |  - SQLite (Offline Cache & Sync Queue)|   |  - TypeScript + Vanilla CSS   |   |
 |   |  - Location & Camera Services         |   |  - Real-time Alert Monitor    |   |
 |   +---------------------------------------+   +-------------------------------+   |
 +---------------------------------------+-------------------------------------------+
