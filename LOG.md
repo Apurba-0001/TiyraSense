@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-04 — Mobile Persistent Authentication & Offline-First Session Resilience
+- Work: Migrated mobile credential persistence from basic `shared_preferences` to `flutter_secure_storage` (backed by Android Keystore, iOS Keychain, and Windows DPAPI). Both JWT auth token and user profile model are now encrypted and stored locally upon login. Updated `main.dart` to await `authProvider.initialize()` before the first frame and resolve the start route to `DriverHomeScreen` or `FieldWorkerHomeScreen` when valid credentials exist, preventing the login screen from appearing on app restarts. Engineered offline resilience in `AuthProvider.initialize()`: transient network failures, timeouts, and unreachable servers during startup do NOT wipe the user's cached credentials (vital for drivers in remote North Eastern Region areas with intermittent connectivity). Only an explicit user "Sign Out" tap or an authoritative server 401/403 clears the stored credentials. Added 3 new widget tests covering persistent cold boot, offline restarts, and 401 expiration handling.
+- Files: `mobile/lib/state/auth_provider.dart`, `mobile/lib/main.dart`, `mobile/pubspec.yaml`, `mobile/pubspec.lock`, `mobile/test/widget_test.dart`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: 10/10 Flutter widget tests passing in `mobile/test/widget_test.dart`. Zero warnings in `flutter analyze --no-fatal-infos`. 23/23 pytest tests passing in `backend/tests/`.
+- Decisions: Upgraded mobile credential storage to `flutter_secure_storage` for OS-level secure enclave encryption and offline-first cached profile persistence.
+- Problems: In FlutterSecureStorage v11 `encryptedSharedPreferences` argument was deprecated/removed in favor of default Android Keystore AES-GCM; adjusted constructor parameters accordingly.
+- External docs: `flutter_secure_storage` v11 API reference.
+- Result: Mobile application keeps users securely logged in across app closures, phone restarts, and offline launches until explicit user logout or server 401/403.
+- Next: Integrate Google Stitch frontend design system and proceed to Phase 4 (origin/destination route planner).
+- Verify: Run `cd mobile; flutter test` (10/10 pass) and `cd mobile; flutter analyze` (0 issues).
+
 ## 2026-09-04 — Mandatory Continuous Logging Rule Added to AGENTS.md
 - Work: Added the **Mandatory continuous logging rule** section to `AGENTS.md` requiring `SESSION.md` and `LOG.md` to be updated immediately after every completed task, not only at session end. A "completed task" is explicitly defined as writing/editing/deleting a source file, running a state-changing command, completing a feature/fix/security change, recording a decision, or pushing a commit. Updated the Session close-out section to be a confirmation step rather than the first-time write. Practiced the rule immediately by updating `SESSION.md` and `LOG.md`.
 - Files: `AGENTS.md`, `SESSION.md`, `LOG.md`.
