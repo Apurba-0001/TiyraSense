@@ -5,6 +5,7 @@ import { Input } from '../components/Input';
 import { Button } from '../components/Button';
 import { StatusBadge } from '../components/StatusBadge';
 import { ShieldCheck, AlertCircle, Compass, Truck, Users, Activity, Lock } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -108,6 +109,10 @@ export const Login: React.FC = () => {
       >
         {/* Top Header Branding */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
+            <img src={logo} alt="TiyraSense" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
+          </div>
+
           <div
             style={{
               display: 'inline-flex',

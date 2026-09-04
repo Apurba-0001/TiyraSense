@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-04 — Brand Asset Integration & Icon Wiring across Web and Mobile
+- Work: Integrated official TiyraSense brand assets into project. Copied horizontal logo mark to `web/src/assets/logo.png`, `web/public/assets/logo.png`, `mobile/assets/images/logo.png`, and `Images/TiyraSense_horizontal.png`. Verified user-provided icons (`mobile/assets/icon/app_icon.png`, `mobile/assets/images/splash_logo.png`, `web/public/favicon.ico`, `web/public/apple-touch-icon.png`, `web/public/icon-192.png`, `web/public/icon-512.png`). Created `web/src/vite-env.d.ts` for asset typing. Created `web/public/manifest.json` for PWA icons. Updated `web/index.html` to link favicon, apple-touch-icon, and manifest. Updated `web/src/components/Header.tsx` and `web/src/pages/Login.tsx` to render official brand logo. Registered `assets/images/` and `assets/icon/` in `mobile/pubspec.yaml`.
+- Files: `web/src/assets/logo.png`, `web/public/assets/logo.png`, `web/public/manifest.json`, `web/index.html`, `web/src/components/Header.tsx`, `web/src/pages/Login.tsx`, `web/src/vite-env.d.ts`, `mobile/pubspec.yaml`, `mobile/assets/images/logo.png`, `Images/TiyraSense_horizontal.png`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `npm run build` → clean production bundle with `logo-KZw1Qe6m.png`; `npm test -- --run` → 5/5 passed; `flutter test` → 10/10 passed.
+- Decisions: Adopted user's official horizontal logo mark for web header and mobile asset pack.
+- Problems: None.
+- External docs: None.
+- Result: Web and mobile asset packs are fully integrated and wired up.
+- Next: Phase 4 / Selection Sprint Day 2: Implement dynamic Origin & Destination Hub selection and OSRM routing engine integration (`/api/v1/routes/evaluate`).
+- Verify: Run `npm run build` in `web/` and `flutter test` in `mobile/`. Inspect `web/index.html` and `web/src/components/Header.tsx`.
+
 ## 2026-09-04 — Full Forensic Codebase Audit & Documentation Reconciliation
 - Work: Conducted forensic audit of codebase vs. documentation across backend, mobile, web, and test suites. Added `pytest.ini` with `pythonpath = .` and `asyncio_mode = auto` to enable direct `pytest -v` execution from any terminal. Reconciled documentation mismatches across 6 files: (1) `README.md` updated to accurately reflect completed Phases 0–3, finalized decisions D-010–D-017, and active Phase 4 next step; (2) `TODO.md` updated to clear stale Phase 0 blocker notes and reflect accurate test metrics; (3) `docs/api_specification.md` updated with an explicit Implementation Status Matrix distinguishing LIVE Phase 3 endpoints from PLANNED Phase 4–10 contracts; (4) `docs/architecture.md` corrected from Tailwind CSS to Vanilla CSS custom tokens; (5) `docs/testing_strategy.md` updated with current 3-tier test suite table; (6) `docs/deployment.md` updated with environment notes for local Docker PostGIS vs production containerization; (7) Cleaned up git typo asset `Images/sogn up.webp`. Verified 100% passing tests across all 3 stacks.
 - Files: `pytest.ini`, `README.md`, `TODO.md`, `docs/api_specification.md`, `docs/architecture.md`, `docs/testing_strategy.md`, `docs/deployment.md`, `Images/sogn up.webp`, `SESSION.md`, `LOG.md`.

@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../state/AuthContext';
 import { StatusBadge } from './StatusBadge';
 import { LogOut, Radio, User as UserIcon } from 'lucide-react';
+import logo from '../assets/logo.png';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuth();
@@ -25,36 +26,27 @@ export const Header: React.FC = () => {
       }}
     >
       {/* Brand & Provenance */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <div
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <img
+            src={logo}
+            alt="TiyraSense"
             style={{
-              width: '32px',
               height: '32px',
-              borderRadius: 'var(--radius-sm)',
-              backgroundColor: 'var(--primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '1rem',
+              width: 'auto',
+              display: 'block',
+              objectFit: 'contain',
             }}
-          >
-            T
-          </div>
-          <div>
-            <h1 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
-              TiyraSense
-            </h1>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-              NER Logistics & Accessibility Intelligence
+          />
+          <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '0.85rem', display: 'flex', flexDirection: 'column' }}>
+            <span style={{ fontSize: '0.70rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+              NER Logistics Intelligence
             </span>
           </div>
         </div>
 
         {/* Live Data Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: '0.25rem' }}>
           <Radio size={14} color="var(--success)" style={{ animation: 'pulse 2s infinite' }} />
           <StatusBadge label="LIVE DATA" variant="LIVE" size="sm" />
         </div>

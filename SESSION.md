@@ -22,7 +22,29 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 - **Status:** COMPLETE. FastAPI backend with asyncpg/PostGIS database connection, bcrypt, JWT authentication, and database-authoritative RBAC implemented and passing 23 pytest tests. React 18 + TypeScript + Vite web operations and admin dashboard implemented with RoleGuard and passing 5 Vitest tests and clean production build. Flutter mobile application implemented with role-aware Driver and Field Worker shells, encrypted session persistence via flutter_secure_storage, and passing 10 Flutter widget tests with zero analyze warnings. PostGIS schema initialized with 18 tables and 4 seed roles.
 - **Branch:** `main`
 
-## Latest session — 2026-09-04 — Full Forensic Codebase Audit & Documentation Reconciliation
+## Latest session — 2026-09-04 — Brand Asset Integration & Icon Wiring across Web and Mobile
+
+**Did:**
+- Integrated official TiyraSense brand assets provided by user across both Web and Mobile apps:
+  * Copied horizontal logo mark to `web/src/assets/logo.png`, `web/public/assets/logo.png`, `mobile/assets/images/logo.png`, and `Images/TiyraSense_horizontal.png`.
+  * Verified user-provided icons: `mobile/assets/icon/app_icon.png`, `mobile/assets/images/splash_logo.png`, `web/public/favicon.ico`, `web/public/apple-touch-icon.png`, `web/public/icon-192.png`, `web/public/icon-512.png`.
+- Created [`web/src/vite-env.d.ts`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/src/vite-env.d.ts) to provide TypeScript module declarations for image assets (`.png`, `.svg`, `.webp`).
+- Created [`web/public/manifest.json`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/public/manifest.json) linking PWA web app icons (`icon-192.png`, `icon-512.png`).
+- Updated [`web/index.html`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/index.html) to link `/favicon.ico`, `/apple-touch-icon.png`, and `/manifest.json`.
+- Updated [`web/src/components/Header.tsx`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/src/components/Header.tsx) and [`web/src/pages/Login.tsx`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/src/pages/Login.tsx) to render the official brand logo.
+- Registered `assets/images/` and `assets/icon/` in [`mobile/pubspec.yaml`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/pubspec.yaml).
+- Ran all verification tests across web and mobile: 10/10 Flutter tests passing, 5/5 web Vitest tests passing, clean Vite production build.
+
+**State:** Brand identity, icons, and logo assets are active and rendering in web and registered in Flutter.
+**Files touched:** `web/src/assets/logo.png`, `web/public/assets/logo.png`, `web/public/manifest.json`, `web/index.html`, `web/src/components/Header.tsx`, `web/src/pages/Login.tsx`, `web/src/vite-env.d.ts`, `mobile/pubspec.yaml`, `mobile/assets/images/logo.png`, `Images/TiyraSense_horizontal.png`, `SESSION.md`, `LOG.md`.
+**Scratch files cleaned up:** Yes.
+**Next:** Phase 4 / Selection Sprint Day 2: Implement dynamic Origin & Destination Hub selection and OSRM routing engine integration (`/api/v1/routes/evaluate`).
+**Blockers/open questions:** None.
+**Verification evidence:** `npm run build` → clean production bundle with `logo-KZw1Qe6m.png`; `npm test -- --run` → 5/5 passed; `flutter test` → 10/10 passed.
+**External docs checked:** Vite static asset handling & PWA web app manifests.
+**Verify by:** Run `npm run build` in `web/` and `flutter test` in `mobile/`. Inspect `web/index.html` and `web/src/components/Header.tsx`.
+
+## 2026-09-04 — Full Forensic Codebase Audit & Documentation Reconciliation
 
 **Did:**
 - Executed a forensic audit comparing actual codebase implementation across backend, mobile, web, and tests against all project documentation.
