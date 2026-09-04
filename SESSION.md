@@ -22,16 +22,33 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 - **Status:** COMPLETE. FastAPI backend with asyncpg/PostGIS database connection, bcrypt, JWT authentication, and server-side RBAC implemented and passing 9 pytest tests. React 18 + TypeScript + Vite web operations and admin dashboard implemented with RoleGuard and passing 5 Vitest tests and clean production build. Flutter mobile application implemented with role-aware Driver and Field Worker shells, offline sync awareness, and passing 7 Flutter widget tests with zero analyze warnings.
 - **Branch:** `main`
 
-## Latest session — 2026-09-04 — Interactive Frontend Elevation & Light Theme Polish
-**Did:** Deepened the frontend UI polish across both Mobile and Web before proceeding to Phase 4. On Mobile, added interactive modal bottom sheets: a **Journey Planning sheet** allowing the driver to select between Recommended Safest (NH-06) and Fastest (NH-29) routes with live state updates, an interactive **Field Hazard Reporting sheet** with GPS autotag, impact selection, and optimistic queue insertion, an expandable Geological Sensor Feed accordion (pore pressure, acoustic sensors, seepage gauge), and functional modal dialogs for Corridor Advisories, Doppler Weather Radar, and SOS Emergency mode. Retained 100% test pass rate across all suites.
-**State:** Mobile and Web frontends polished with interactive workflows, clean light mode styling, and 100% passing tests.
-**Files touched:** `mobile/lib/screens/driver_home_screen.dart`, `mobile/lib/screens/field_worker_home_screen.dart`, `mobile/lib/theme/app_theme.dart`, `SESSION.md`, `LOG.md`.
-**Scratch files cleaned up:** Yes. All temporary test artifacts cleaned up.
-**Next:** Phase 4 (Selection Sprint Day 2) — Core Logistics UX: Origin/destination geocoding, OSRM routing engine integration (`/api/v1/routes/plan`), candidate route computation, and dynamic road corridor endpoints.
+## Latest session — 2026-09-04 — Security Hardening, Role Restriction & Continuous Logging Rule
+
+**Did:**
+
+**Task 1 — Registration role restriction:** Introduced `RegistrationRole` enum in `backend/app/schemas/auth.py` limiting public self-service registration to `DRIVER` and `FIELD_WORKER`. Any attempt to POST `OFFICIAL` or `ADMIN` is rejected by Pydantic with HTTP 422 before any database query runs. Updated `auth.py` endpoint to map `RegistrationRole → UserRole` explicitly. Added 4 new pytest tests.
+
+**Task 2 — Comprehensive security hardening:**
+- `schemas/auth.py`: Added `field_validator` on all string inputs rejecting null bytes (`\x00`) and ASCII control characters (SQL/log injection vectors). Added phone number format validation (`^\+?[\d\s\-]{6,20}$`) blocking SQL-style strings. Enforced `max_length` on optional fields.
+- `api/deps.py`: Role decisions made strictly DB-authoritative — role is now always re-read from the DB row, never from the JWT claim. Added defensive guard rejecting requests where the DB row's role is an unrecognized enum value. Added strict UUID parsing on JWT `sub` claim.
+- `main.py`: Replaced single provenance header with unified security middleware adding `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, and `Referrer-Policy: strict-origin-when-cross-origin`. Narrowed CORS `allow_methods` and `allow_headers` from wildcard to explicit allowlists.
+- `core/config.py`: Added startup validator that refuses to run in non-development environments with the default weak JWT secret key. Enforces minimum 32-character key length.
+- `tests/test_security.py`: 10 new security tests covering null-byte injection, control-char injection, phone SQL injection, oversized payloads, role escalation (including case-variation attacks), and presence of security response headers on every response.
+- `tests/test_auth.py`: Fixed registration success tests to use unique per-run emails to prevent 409 conflicts on repeated test runs.
+
+All 23 backend tests passing. Committed (`e9de981`) and pushed to `main`.
+
+**Task 3 — Mandatory continuous logging rule:** Added the **Mandatory continuous logging rule** section to `AGENTS.md` requiring `SESSION.md` and `LOG.md` to be updated immediately after every completed task, not only at session end. Updated the Session close-out section to be a confirmation step rather than the first time logging happens.
+
+**State:** Security hardened. Registration role restriction enforced. Continuous logging rule in AGENTS.md. 23/23 backend tests passing.
+**Files touched:** `backend/app/schemas/auth.py`, `backend/app/api/deps.py`, `backend/app/main.py`, `backend/app/core/config.py`, `backend/app/api/v1/endpoints/auth.py`, `backend/tests/test_auth.py`, `backend/tests/test_security.py` (new), `AGENTS.md`, `SESSION.md`, `LOG.md`.
+**Scratch files cleaned up:** Yes. No temporary files left behind.
+**Next:** Begin frontend work — incorporate user's Google Stitch project design into the Flutter mobile and React web UIs, then proceed to Phase 4 (OSRM/PostGIS route generation, `/api/v1/routes/plan`).
 **Blockers/open questions:** None.
-**Verification evidence:** 7/7 widget tests and `flutter analyze` passing in `mobile/`; 5/5 Vitest tests and `npm run build` passing in `web/`; 9/9 pytest tests passing in `backend/`.
-**External docs checked:** Flutter ModalBottomSheet and StatefulBuilder API specifications.
-**Verify by:** Run `flutter test` and `flutter analyze` in `mobile/`, run `npm test` and `npm run build` in `web/`, and run `pytest backend/tests/ -v` using `.venv`.
+**Verification evidence:** `pytest backend/tests/ -v` → 23/23 passed. Commits `81288a0` and `e9de981` pushed to `main`.
+**External docs checked:** Pydantic v2 `field_validator` API; FastAPI middleware docs.
+**Verify by:** Run `pytest backend/tests/ -v` in `.venv`. Check `AGENTS.md` for the "Mandatory continuous logging rule" section.
+
 
 ## 2026-09-04 — Phase 1 Specification Completion & Provider Decisions
 **Did:** Authored all 12 core specification documents under `docs/` defining product requirements, user roles and flows, system architecture with strict LLM/routing boundaries, complete 18-table PostGIS data model, multi-factor risk and conflict resolution algorithms, REST API contracts, alert lifecycle, ML disruption forecasting, offline-first mobile sync protocols, QA/testing strategy, containerized Docker deployment, and upstream data pipelines. Researched, verified, and recorded finalized architectural decisions D-010 through D-015 in `DECISIONS.md` (OpenStreetMap/MapLibre/flutter_map, OSRM/PostGIS routing, Open-Meteo/IMD weather, Gemini free-tier advisory, Docker Compose runtime, and multi-factor risk weights). Updated `TODO.md` to mark Phase 1 COMPLETE.

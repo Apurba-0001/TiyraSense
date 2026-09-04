@@ -18,6 +18,42 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-04 — Mandatory Continuous Logging Rule Added to AGENTS.md
+- Work: Added the **Mandatory continuous logging rule** section to `AGENTS.md` requiring `SESSION.md` and `LOG.md` to be updated immediately after every completed task, not only at session end. A "completed task" is explicitly defined as writing/editing/deleting a source file, running a state-changing command, completing a feature/fix/security change, recording a decision, or pushing a commit. Updated the Session close-out section to be a confirmation step rather than the first-time write. Practiced the rule immediately by updating `SESSION.md` and `LOG.md`.
+- Files: `AGENTS.md`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: No automated test for a documentation rule; rule is verified by reading `AGENTS.md` "Mandatory continuous logging rule" section.
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: AGENTS.md now enforces continuous logging as a non-negotiable rule for all agents.
+- Next: Begin frontend work incorporating Stitch project design, then Phase 4 OSRM routing.
+- Verify: Read `AGENTS.md` and confirm the "Mandatory continuous logging rule" section exists before "Session close-out".
+
+## 2026-09-04 — Comprehensive Security Hardening (SQL Injection, XSS, Privilege Escalation)
+- Work: Full security audit of backend attack surface. (1) Schema layer: added `field_validator` on all user-supplied string fields in `auth.py` rejecting null bytes and ASCII control characters; added phone number format validation blocking SQL-style strings; enforced `max_length` on optional fields. (2) RBAC layer: `deps.py` now reads role exclusively from the database row — never from JWT claim — so a forged token cannot escalate privileges; added defensive guard for invalid DB role values; strict UUID parsing on `sub` claim. (3) Security headers middleware in `main.py`: `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'`, `Referrer-Policy: strict-origin-when-cross-origin`; CORS narrowed from wildcards to explicit allowlists. (4) Config startup guard in `config.py` refusing to boot in production with the default weak JWT secret. (5) New `test_security.py` with 10 tests; fixed registration tests in `test_auth.py` to use unique emails.
+- Files: `backend/app/schemas/auth.py`, `backend/app/api/deps.py`, `backend/app/main.py`, `backend/app/core/config.py`, `backend/tests/test_auth.py`, `backend/tests/test_security.py` (new).
+- Scratch: None.
+- Tests: 23/23 pytest tests passing (13 existing + 10 new security tests). Commit `e9de981` pushed to `main`.
+- Decisions: None.
+- Problems: Two registration tests initially failed with 409 (email already in DB from previous run); fixed by generating unique UUIDs per run.
+- External docs: Pydantic v2 `field_validator` docs; FastAPI middleware docs.
+- Result: Backend hardened against SQL injection, XSS, and privilege escalation. Four independent enforcement layers for role restriction.
+- Next: Frontend Stitch integration, then Phase 4 route planning endpoint.
+- Verify: Run `pytest backend/tests/ -v`. All 23 tests must pass.
+
+## 2026-09-04 — Registration Role Restriction (DRIVER and FIELD_WORKER only)
+- Work: Introduced `RegistrationRole` enum in `schemas/auth.py` limiting public self-service registration to `DRIVER` and `FIELD_WORKER`. Any request body with `role=OFFICIAL` or `role=ADMIN` is rejected by Pydantic with HTTP 422 before any DB query runs. Updated `auth.py` endpoint to explicitly map `RegistrationRole → UserRole` for the DB column. Added 4 new pytest tests. Fixed registration tests to use unique per-run emails.
+- Files: `backend/app/schemas/auth.py`, `backend/app/api/v1/endpoints/auth.py`, `backend/tests/test_auth.py`.
+- Scratch: None.
+- Tests: 13/13 pytest tests passing. Commit `81288a0` pushed to `main`.
+- Decisions: None (rule already specified by user; this is an enforcement implementation).
+- Problems: None.
+- External docs: None.
+- Result: OFFICIAL and ADMIN roles can only be assigned by a database administrator via direct SQL (`UPDATE users SET role = 'OFFICIAL' WHERE email = ...`). No API path exists.
+- Next: Security hardening (SQL injection, XSS defenses).
+- Verify: `pytest backend/tests/ -v` — `test_register_official_rejected` and `test_register_admin_rejected` must pass.
+
 ## 2026-09-04 — Interactive Frontend Elevation & Light Mode Polish
 - Work: Elevated frontend ergonomics and interactivity across mobile screens. Built a modal Journey Planning bottom sheet for the Driver console with interactive route selection (NH-06 Recommended Safest vs NH-29 Fastest), an expandable geological sensor telemetry accordion (pore pressure, acoustic sensors, seepage gauge), and actionable quick-action modals (Corridor Advisories, Doppler Weather Radar, SOS Emergency). Enhanced the Field Worker console with an interactive hazard dispatch sheet featuring GPS autotag, passage impact selector, and optimistic queue insertion into the recent reports list.
 - Files: `mobile/lib/screens/driver_home_screen.dart`, `mobile/lib/screens/field_worker_home_screen.dart`, `SESSION.md`, `LOG.md`.

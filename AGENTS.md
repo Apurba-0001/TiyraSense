@@ -288,12 +288,37 @@ Requirement → Design → Implementation → Integration → Error handling
 
 For mobile work, explicitly consider offline behavior and recovery. For intelligence work, preserve data provenance, timestamps, confidence, and the version of the model/risk logic used. A compiling screen, endpoint, or isolated function is not a completed feature. Before marking a feature done, also complete the "Final code review" pass in "Code quality standards" above — passing tests does not by itself satisfy that pass.
 
+## Mandatory continuous logging rule
+
+This rule is non-negotiable and applies to every agent, every task, every session.
+
+**After completing any task that changes code, configuration, documentation, tests, data, or project state — regardless of size — the agent MUST immediately update both `SESSION.md` and `LOG.md` before responding to the next request or stopping work.**
+
+A "completed task" is any of the following:
+- Writing, editing, or deleting a source file
+- Running a command that changes repository or database state
+- Completing a feature, fix, refactor, or security change
+- Recording an architectural or security decision
+- Pushing a commit to any branch
+
+"Immediately" means in the same response turn, before the next user request is processed.
+
+Specifically:
+- Append a new entry to `LOG.md` following the established entry format.
+- Update the **Latest session** block in `SESSION.md` to reflect the current actual state, files touched, test results, and next step.
+- Do not batch multiple tasks into a single log entry written only at session end. Each task gets its own log entry when it is completed.
+- Do not summarize or omit information to save space. LOG.md is a forensic record.
+- If a task was attempted and failed or was blocked, record that too — do not only log successes.
+
+This rule cannot be deferred to "session close-out." Session close-out is for final review, not for writing the log for the first time.
+
 ## Session close-out
 
-Before ending a work session:
+Before ending a work session (in addition to the continuous logging already required above):
 
 1. Run proportionate checks and record their results.
-2. Update `SESSION.md` with the exact state, files changed, verification, blockers, and one next task.
-3. Update `TODO.md` statuses and append a factual entry to `LOG.md`.
-4. Record durable architectural/security decisions in `DECISIONS.md`.
-5. Inspect `git status`; do not stage, discard, or overwrite unrelated user changes.
+2. Confirm `SESSION.md` reflects the final state of this session, including files changed, verification results, blockers, and exactly one next task.
+3. Confirm `LOG.md` has a complete entry for every task completed in this session.
+4. Update `TODO.md` statuses.
+5. Record durable architectural/security decisions in `DECISIONS.md`.
+6. Inspect `git status`; do not stage, discard, or overwrite unrelated user changes.
