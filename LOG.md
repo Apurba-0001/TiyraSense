@@ -18,6 +18,18 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 
 ---
 
+## 2026-09-05 — Backend Restart & Android compileSdk 37 Upgrade
+- Work: Terminated previous Uvicorn background process on port 8000 and cleanly restarted FastAPI backend server (`uvicorn backend.app.main:app --host 0.0.0.0 --port 8000`). Verified health endpoint returning live PostGIS 3.4 connectivity. Fixed Android build error where `flutter_secure_storage` v11 required Android compileSdk >= 37 (updated `compileSdk = 37` in `mobile/android/app/build.gradle.kts`). Added `backend/app/schemas/__init__.py` and `__all__` in `backend/app/schemas/auth.py`.
+- Files: `mobile/android/app/build.gradle.kts`, `backend/app/schemas/__init__.py`, `backend/app/schemas/auth.py`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `GET /api/v1/health` → `200 OK` (database: connected, postgis_version: 3.4); `pytest -v` → 23/23 passed.
+- Decisions: Upgraded `compileSdk` to 37 in Android Gradle build script to match installed Android 17 emulator and dependency AAR metadata requirement.
+- Problems: None.
+- External docs: None.
+- Result: Backend running cleanly on port 8000; Android build configured for API 37.
+- Next: Launch Flutter app on Android emulator (`flutter run -d emulator-5554`), then proceed to Phase 4 routing engine.
+- Verify: Run `curl http://localhost:8000/api/v1/health` and `flutter run -d emulator-5554` in `mobile/`.
+
 ## 2026-09-04 — Brand Asset Integration & Icon Wiring across Web and Mobile
 - Work: Integrated official TiyraSense brand assets into project. Copied horizontal logo mark to `web/src/assets/logo.png`, `web/public/assets/logo.png`, `mobile/assets/images/logo.png`, and `Images/TiyraSense_horizontal.png`. Verified user-provided icons (`mobile/assets/icon/app_icon.png`, `mobile/assets/images/splash_logo.png`, `web/public/favicon.ico`, `web/public/apple-touch-icon.png`, `web/public/icon-192.png`, `web/public/icon-512.png`). Created `web/src/vite-env.d.ts` for asset typing. Created `web/public/manifest.json` for PWA icons. Updated `web/index.html` to link favicon, apple-touch-icon, and manifest. Updated `web/src/components/Header.tsx` and `web/src/pages/Login.tsx` to render official brand logo. Registered `assets/images/` and `assets/icon/` in `mobile/pubspec.yaml`.
 - Files: `web/src/assets/logo.png`, `web/public/assets/logo.png`, `web/public/manifest.json`, `web/index.html`, `web/src/components/Header.tsx`, `web/src/pages/Login.tsx`, `web/src/vite-env.d.ts`, `mobile/pubspec.yaml`, `mobile/assets/images/logo.png`, `Images/TiyraSense_horizontal.png`, `SESSION.md`, `LOG.md`.

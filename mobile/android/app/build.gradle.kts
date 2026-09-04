@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "in.tiyrasense.tiyrasense_mobile"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

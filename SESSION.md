@@ -22,7 +22,23 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 - **Status:** COMPLETE. FastAPI backend with asyncpg/PostGIS database connection, bcrypt, JWT authentication, and database-authoritative RBAC implemented and passing 23 pytest tests. React 18 + TypeScript + Vite web operations and admin dashboard implemented with RoleGuard and passing 5 Vitest tests and clean production build. Flutter mobile application implemented with role-aware Driver and Field Worker shells, encrypted session persistence via flutter_secure_storage, and passing 10 Flutter widget tests with zero analyze warnings. PostGIS schema initialized with 18 tables and 4 seed roles.
 - **Branch:** `main`
 
-## Latest session — 2026-09-04 — Brand Asset Integration & Icon Wiring across Web and Mobile
+## Latest session — 2026-09-05 — Backend Restart & Android compileSdk 37 Upgrade
+
+**Did:**
+- Stopped stale Uvicorn process on port 8000 and restarted FastAPI backend daemon fresh via `uvicorn backend.app.main:app --host 0.0.0.0 --port 8000`. Verified `/api/v1/health` responding with live PostGIS 3.4 status.
+- Resolved Android Gradle build failure: `flutter_secure_storage` v11 requires compiling against Android API 37 or later. Updated [`mobile/android/app/build.gradle.kts`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/android/app/build.gradle.kts) to set `compileSdk = 37`, matching the installed Android SDK and emulator target.
+- Added [`backend/app/schemas/__init__.py`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/backend/app/schemas/__init__.py) and `__all__` in [`backend/app/schemas/auth.py`](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/backend/app/schemas/auth.py) for clean module exports and IDE type-checking resolution.
+
+**State:** Backend active and healthy on port 8000. Android build configured for API 37.
+**Files touched:** `mobile/android/app/build.gradle.kts`, `backend/app/schemas/__init__.py`, `backend/app/schemas/auth.py`, `SESSION.md`, `LOG.md`.
+**Scratch files cleaned up:** Yes.
+**Next:** Run Flutter app on Android emulator (`flutter run -d emulator-5554`), then proceed to Phase 4 routing engine.
+**Blockers/open questions:** None.
+**Verification evidence:** `GET /api/v1/health` → `200 OK` (database: connected, postgis_version: 3.4); `pytest -v` → 23/23 passed.
+**External docs checked:** Android Gradle Plugin & Android 17 (API 37) compileSdk guidelines.
+**Verify by:** Run `curl http://localhost:8000/api/v1/health` and run `flutter run -d emulator-5554` in `mobile/`.
+
+## 2026-09-04 — Brand Asset Integration & Icon Wiring across Web and Mobile
 
 **Did:**
 - Integrated official TiyraSense brand assets provided by user across both Web and Mobile apps:
