@@ -129,13 +129,15 @@ async def test_rbac_official_allowed_on_official_endpoint():
 @pytest.mark.asyncio
 async def test_register_driver_succeeds():
     """Public registration creates a DRIVER account when role is omitted."""
+    import uuid
+    unique_email = f"driver_{uuid.uuid4().hex[:8]}@tiyrasense.in"
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
             "/api/v1/auth/register",
             json={
-                "email": "newdriver_test@tiyrasense.in",
+                "email": unique_email,
                 "password": "TestDriver2026!",
                 "full_name": "Test Driver",
             },
@@ -147,13 +149,15 @@ async def test_register_driver_succeeds():
 @pytest.mark.asyncio
 async def test_register_field_worker_succeeds():
     """Public registration creates a FIELD_WORKER account when role is FIELD_WORKER."""
+    import uuid
+    unique_email = f"worker_{uuid.uuid4().hex[:8]}@tiyrasense.in"
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as client:
         response = await client.post(
             "/api/v1/auth/register",
             json={
-                "email": "newworker_test@tiyrasense.in",
+                "email": unique_email,
                 "password": "TestWorker2026!",
                 "full_name": "Test Field Worker",
                 "role": "FIELD_WORKER",
