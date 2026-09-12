@@ -18,11 +18,38 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 38 — Mobile Profile Details & Password Database Persistence (COMPLETE)
-- **Status:** COMPLETE. Profile updates made in the mobile app (full name, phone number, organization, and password) now immediately persist to the backend database (PostgreSQL and Supabase PostgREST), synchronize in-memory state, and return updated records to all services.
+- **Phase:** Phase 39 — Cross-Stack Data Persistence Until Deleted (Mobile Secure Storage, Web Profile Sync, and Deleted ID Tombstones) (COMPLETE)
+- **Status:** COMPLETE. Profile details and field reports now persist locally and remotely across mobile restarts and browser refreshes until explicitly deleted, preventing deleted records from resurfacing.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence (COMPLETE)
+## Latest session — 2026-09-12 — Phase 39: Cross-Stack Data Persistence Until Deleted (COMPLETE)
+**Did:**
+- **`backend/app/api/v1/endpoints/field_reports.py`**: Added `_DELETED_REPORT_IDS` tombstone set; updated `list_field_reports` (for Supabase, PostgreSQL, and in-memory lists) and `delete_field_report` to ensure deleted reports remain permanently suppressed.
+- **`web/src/services/api.ts`**: Implemented `updateCurrentUserProfile` sending `PATCH /api/v1/auth/me` with Bearer token.
+- **`web/src/state/AuthContext.tsx`**: Updated `updateUserProfile` to asynchronously sync changes to backend database and update `localStorage`.
+- **`web/src/components/AccountDetailsModal.tsx`**: Connected profile editing and password updates to `updateUserProfile` with submission state and error feedback.
+- **`mobile/lib/services/api_service.dart`**: Added `fetchFieldReports` to retrieve active reports with Supabase PostgREST fallback.
+- **`mobile/lib/services/report_service.dart`**: Implemented `toJson`/`fromJson` on `ReportItem`, integrated `FlutterSecureStorage` caching (`tiyrasense_stored_reports_v1`), added `_deletedReportIds` tracking (`tiyrasense_deleted_report_ids_v1`), background `syncLiveReports()`, and asynchronous `deleteReport` dispatching to backend.
+- **Verification Evidence:**
+  - Backend: `pytest backend/tests/` passed (all 45/45 tests passing).
+  - Mobile: `flutter test` passed (all 53/53 tests passing).
+  - Web: `npm test -- --run` passed (all 26/26 tests passing), `npm run build` compiled with zero TypeScript errors.
+**State:** COMPLETE & VERIFIED.
+**Files touched:**
+- `backend/app/api/v1/endpoints/field_reports.py`
+- `mobile/lib/services/api_service.dart`
+- `mobile/lib/services/report_service.dart`
+- `web/src/components/AccountDetailsModal.tsx`
+- `web/src/services/api.ts`
+- `web/src/state/AuthContext.tsx`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes (no temporary files created).
+**Next:** Commit and push changes to GitHub `origin main`.
+**Blockers/open questions:** None.
+**Verify by:** Run `pytest backend/tests/`, `flutter test` in `mobile/`, and `npm test` in `web/`.
+
+## Previous session — 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence (COMPLETE)
 **Did:**
 - **`backend/app/schemas/auth.py`**: Added `UserUpdate` schema with strict control-character and null-byte sanitization and phone format validation.
 - **`backend/app/services/supabase_service.py`**: Added `update_user_profile` method to patch user metadata in Supabase PostgREST.

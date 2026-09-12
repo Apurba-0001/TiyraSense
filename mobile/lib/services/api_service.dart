@@ -644,6 +644,45 @@ class ApiService {
     return null;
   }
 
+  /// Fetch all active field reports from the backend and Supabase
+  Future<List<Map<String, dynamic>>> fetchFieldReports([String? token]) async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/reports');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+        return _client.get(url, headers: headers);
+      });
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+    } catch (_) {}
+
+    // Fallback direct to Supabase Cloud DB
+    if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+      try {
+        final res = await _client.get(
+          Uri.parse('$supabaseUrl/rest/v1/field_reports?select=*&order=created_at.desc&limit=50'),
+          headers: _supabaseHeaders,
+        );
+        if (res.statusCode == 200) {
+          final list = jsonDecode(res.body);
+          if (list is List) {
+            return list.cast<Map<String, dynamic>>();
+          }
+        }
+      } catch (_) {}
+    }
+
+    return [];
+  }
+
   /// Create and submit a new field hazard report to the backend API
   Future<Map<String, dynamic>?> createFieldReport(Map<String, dynamic> reportData, [String? token]) async {
     try {

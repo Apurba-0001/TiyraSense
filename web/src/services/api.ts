@@ -57,6 +57,33 @@ export async function fetchCurrentUser(): Promise<User> {
   return res.json();
 }
 
+export async function updateCurrentUserProfile(payload: {
+  full_name?: string;
+  phone_number?: string;
+  organization?: string;
+  current_password?: string;
+  new_password?: string;
+}): Promise<User> {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    method: 'PATCH',
+    headers: getHeaders(true),
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    let errorDetail = 'Failed to update profile';
+    try {
+      const err = await res.json();
+      errorDetail = err.detail || errorDetail;
+    } catch {
+      // fallback
+    }
+    throw new ApiErrorResponse(errorDetail, res.status);
+  }
+
+  return res.json();
+}
+
 export async function fetchHealthStatus(): Promise<{
   status: string;
   database: string;

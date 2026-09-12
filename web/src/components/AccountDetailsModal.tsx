@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../state/AuthContext';
 import {
   X,
@@ -33,37 +33,68 @@ export const AccountDetailsModal: React.FC<AccountDetailsModalProps> = ({ isOpen
   const [emailDigest, setEmailDigest] = useState(true);
   const [audioBeacon, setAudioBeacon] = useState(true);
 
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  useEffect(() => {
+    if (user) {
+      if (user.full_name) setFullName(user.full_name);
+      if (user.organization) setOrganization(user.organization);
+      if (user.phone_number) setPhone(user.phone_number);
+    }
+  }, [user]);
+
   if (!isOpen || !user) return null;
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
 
     if (activeTab === 'security') {
-      if (newPassword && newPassword.length < 8) {
-        setErrorMsg('New password must be at least 8 characters.');
-        return;
-      }
-      if (newPassword && newPassword !== confirmPassword) {
-        setErrorMsg('New passwords do not match.');
-        return;
+      if (newPassword) {
+        if (!currentPassword) {
+          setErrorMsg('Current password is required to change password.');
+          return;
+        }
+        if (newPassword.length < 8) {
+          setErrorMsg('New password must be at least 8 characters.');
+          return;
+        }
+        if (newPassword !== confirmPassword) {
+          setErrorMsg('New passwords do not match.');
+          return;
+        }
       }
     }
 
-    updateUserProfile({
-      full_name: fullName.trim(),
-      organization: organization.trim(),
-      phone_number: phone.trim(),
-    });
+    setIsSubmitting(true);
+    try {
+      await updateUserProfile({
+        full_name: fullName.trim(),
+        organization: organization.trim(),
+        phone_number: phone.trim(),
+        ...(activeTab === 'security' && newPassword ? {
+          current_password: currentPassword,
+          new_password: newPassword,
+        } : {}),
+      });
 
-    setSaveSuccess(true);
-    setTimeout(() => {
-      setSaveSuccess(false);
-      onClose();
-    }, 1200);
+      setSaveSuccess(true);
+      if (activeTab === 'security') {
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      }
+      setTimeout(() => {
+        setSaveSuccess(false);
+        onClose();
+      }, 1200);
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to save changes to database.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const getInitials = (name?: string) => {
@@ -588,25 +619,26 @@ export const AccountDetailsModal: React.FC<AccountDetailsModalProps> = ({ isOpen
 
             <button
               type="submit"
+              disabled={isSubmitting}
               style={{
                 height: '38px',
                 padding: '0 20px',
                 borderRadius: 'var(--radius-sm)',
-                backgroundColor: 'var(--color-primary)',
+                backgroundColor: isSubmitting ? 'var(--color-border)' : 'var(--color-primary)',
                 color: '#FFFFFF',
                 fontSize: '13px',
                 fontWeight: 700,
-                cursor: 'pointer',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
                 transition: 'background-color var(--transition-fast)',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)';
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'var(--color-primary)';
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--color-primary)';
               }}
             >
-              Save Profile Changes
+              {isSubmitting ? 'Saving to Database...' : 'Save Profile Changes'}
             </button>
           </div>
         </form>

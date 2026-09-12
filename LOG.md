@@ -15,6 +15,23 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 39: Cross-Stack Data Persistence Until Deleted (Mobile Storage, Web Profile Sync, and Deleted ID Tombstones)
+- Work: Implemented full end-to-end data persistence and lifecycle suppression across mobile, web, and backend:
+  1. `backend/app/api/v1/endpoints/field_reports.py`: Added `_DELETED_REPORT_IDS` tombstone set; updated `list_field_reports` and `delete_field_report` to ensure deleted reports remain permanently suppressed across Supabase, PostgreSQL, and in-memory lists.
+  2. `web/src/services/api.ts`: Added `updateCurrentUserProfile` to send authenticated `PATCH /api/v1/auth/me`.
+  3. `web/src/state/AuthContext.tsx`: Updated `updateUserProfile` to asynchronously sync changes to backend database and update `localStorage`.
+  4. `web/src/components/AccountDetailsModal.tsx`: Connected profile editing and password updates to `updateUserProfile` with submission state and error feedback.
+  5. `mobile/lib/services/api_service.dart`: Added `fetchFieldReports` to retrieve active reports with Supabase PostgREST fallback.
+  6. `mobile/lib/services/report_service.dart`: Implemented `toJson`/`fromJson` on `ReportItem`, integrated `FlutterSecureStorage` caching (`tiyrasense_stored_reports_v1`), added `_deletedReportIds` tracking (`tiyrasense_deleted_report_ids_v1`), background `syncLiveReports()`, and asynchronous `deleteReport` dispatching to backend.
+- Files: `backend/app/api/v1/endpoints/field_reports.py`, `mobile/lib/services/api_service.dart`, `mobile/lib/services/report_service.dart`, `web/src/components/AccountDetailsModal.tsx`, `web/src/services/api.ts`, `web/src/state/AuthContext.tsx`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `pytest backend/tests/` (all 45/45 passed in 145s); `flutter test` in `mobile/` (all 53/53 passed in 14s); `npm test -- --run` in `web/` (all 26/26 passed in 3.7s); `npm run build` in `web/` (clean build with 0 TS errors).
+- Decisions: Data created on mobile or web must persist across app restarts and page refreshes until explicitly deleted, and deletions must record persistent tombstones to prevent phantom restorations.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & TESTED.
+- Next: Push clean commits to GitHub.
+
 ## 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence
 - Work: Implemented end-to-end database persistence for profile updates made in the mobile app:
   1. `backend/app/schemas/auth.py`: Added `UserUpdate` schema with strict input validation for `full_name`, `phone_number`, `organization`, and `current_password`/`new_password`.

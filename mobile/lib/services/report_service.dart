@@ -1,5 +1,7 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'alert_service.dart';
 import 'api_service.dart';
 import 'offline_storage_service.dart';
@@ -64,15 +66,75 @@ class ReportItem {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     return '${diff.inDays}d ago';
   }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'corridor': corridor,
+    'km': km,
+    'hazardType': hazardType,
+    'severity': severity,
+    'location': location,
+    'timestamp': timestamp.toIso8601String(),
+    'status': status,
+    'notes': notes,
+    'photoPath': photoPath,
+    'photoUrl': photoUrl,
+    'workerName': workerName,
+    'workerInitials': workerInitials,
+    'workerUnit': workerUnit,
+    'coordinates': coordinates,
+    'dispatchUnit': dispatchUnit,
+    'dispatchNotes': dispatchNotes,
+    'isMine': isMine,
+    'isOfflineQueued': isOfflineQueued,
+    'syncStatus': syncStatus,
+  };
+
+  factory ReportItem.fromJson(Map<String, dynamic> json) {
+    return ReportItem(
+      id: json['id']?.toString() ?? 'RP-${DateTime.now().millisecondsSinceEpoch}',
+      corridor: json['corridor']?.toString() ?? json['corridor_name']?.toString() ?? 'NH-06',
+      km: json['km']?.toString() ?? json['km_marker']?.toString() ?? 'KM 52.3',
+      hazardType: json['hazardType']?.toString() ?? json['hazard_type']?.toString() ?? 'Landslide',
+      severity: json['severity']?.toString() ?? json['reported_severity']?.toString() ?? 'PARTIAL',
+      location: json['location']?.toString(),
+      timestamp: json['timestamp'] != null
+          ? (DateTime.tryParse(json['timestamp'].toString()) ?? DateTime.now())
+          : (json['submitted_at'] != null && DateTime.tryParse(json['submitted_at'].toString()) != null
+              ? DateTime.parse(json['submitted_at'].toString())
+              : DateTime.now()),
+      status: json['status']?.toString() ?? json['verification_status']?.toString() ?? 'PENDING',
+      notes: json['notes']?.toString() ?? json['description']?.toString(),
+      photoPath: json['photoPath']?.toString(),
+      photoUrl: json['photoUrl']?.toString() ?? json['photo_url']?.toString(),
+      workerName: json['workerName']?.toString() ?? json['reporter_name']?.toString() ?? 'Field Scout',
+      workerInitials: json['workerInitials']?.toString(),
+      workerUnit: json['workerUnit']?.toString() ?? json['reporter_unit']?.toString() ?? 'Field Recon',
+      coordinates: json['coordinates']?.toString() ?? '${json['latitude'] ?? 26.0124}° N, ${json['longitude'] ?? 91.8901}° E',
+      dispatchUnit: json['dispatchUnit']?.toString() ?? json['dispatch_unit']?.toString(),
+      dispatchNotes: json['dispatchNotes']?.toString() ?? json['dispatch_notes']?.toString(),
+      isMine: json['isMine'] == true,
+      isOfflineQueued: json['isOfflineQueued'] == true,
+      syncStatus: json['syncStatus']?.toString() ?? 'SYNCED',
+    );
+  }
 }
 
 class ReportService extends ChangeNotifier {
   final List<ReportItem> _reports = [];
+  final FlutterSecureStorage _storage;
+  final Set<String> _deletedReportIds = {};
+  static const _kStoredReportsKey = 'tiyrasense_stored_reports_v1';
+  static const _kDeletedReportsKey = 'tiyrasense_deleted_report_ids_v1';
+  bool _isInitialized = false;
 
-  ReportService() {
+  ReportService({FlutterSecureStorage? storage})
+      : _storage = storage ?? const FlutterSecureStorage() {
     _seedInitialReports();
+    _initStorageAndSync();
   }
 
+  bool get isInitialized => _isInitialized;
   List<ReportItem> get reports => List.unmodifiable(_reports);
 
   List<ReportItem> get myReports => List.unmodifiable(_reports.where((r) => r.isMine));
@@ -81,6 +143,87 @@ class ReportService extends ChangeNotifier {
   int get verifiedCount => _reports.where((r) => r.status == 'VERIFIED').length;
   int get dispatchedCount => _reports.where((r) => r.status == 'DISPATCHED').length;
   int get rejectedCount => _reports.where((r) => r.status == 'REJECTED').length;
+
+  Future<void> _initStorageAndSync() async {
+    try {
+      // 1. Restore deleted IDs set to guarantee deleted reports never reappear
+      final deletedRaw = await _storage.read(key: _kDeletedReportsKey);
+      if (deletedRaw != null && deletedRaw.isNotEmpty) {
+        final list = jsonDecode(deletedRaw);
+        if (list is List) {
+          _deletedReportIds.addAll(list.map((e) => e.toString()));
+        }
+      }
+
+      // 2. Restore cached reports from secure storage
+      final storedRaw = await _storage.read(key: _kStoredReportsKey);
+      if (storedRaw != null && storedRaw.isNotEmpty) {
+        final list = jsonDecode(storedRaw);
+        if (list is List) {
+          _reports.clear();
+          for (final item in list) {
+            if (item is Map<String, dynamic>) {
+              final r = ReportItem.fromJson(item);
+              if (!_deletedReportIds.contains(r.id)) {
+                _reports.add(r);
+              }
+            }
+          }
+        }
+      } else {
+        // Filter out any deleted seed items
+        _reports.removeWhere((r) => _deletedReportIds.contains(r.id));
+      }
+
+      _isInitialized = true;
+      notifyListeners();
+
+      // 3. Background sync from server/Supabase to pull latest live data
+      await syncLiveReports();
+    } catch (_) {}
+  }
+
+  Future<void> _persistReports() async {
+    try {
+      final jsonList = _reports.map((r) => r.toJson()).toList();
+      await _storage.write(key: _kStoredReportsKey, value: jsonEncode(jsonList));
+      await _storage.write(key: _kDeletedReportsKey, value: jsonEncode(_deletedReportIds.toList()));
+    } catch (_) {}
+  }
+
+  /// Synchronize live field reports from backend and Supabase cloud
+  Future<void> syncLiveReports() async {
+    try {
+      final remoteList = await ApiService().fetchFieldReports();
+      if (remoteList.isEmpty) return;
+
+      bool changed = false;
+      for (final raw in remoteList) {
+        final item = ReportItem.fromJson(raw);
+        if (_deletedReportIds.contains(item.id)) continue;
+
+        final existingIdx = _reports.indexWhere((r) => r.id == item.id);
+        if (existingIdx != -1) {
+          final ex = _reports[existingIdx];
+          if (ex.status != item.status || ex.dispatchUnit != item.dispatchUnit || (ex.photoUrl == null && item.photoUrl != null)) {
+            ex.status = item.status;
+            ex.dispatchUnit = item.dispatchUnit;
+            ex.dispatchNotes = item.dispatchNotes;
+            if (item.photoUrl != null) ex.photoUrl = item.photoUrl;
+            changed = true;
+          }
+        } else {
+          _reports.add(item);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        await _persistReports();
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
 
   void _seedInitialReports() {
     final now = DateTime.now();
@@ -102,22 +245,6 @@ class ReportService extends ChangeNotifier {
         isMine: false,
       ),
       ReportItem(
-        id: 'RP-2846',
-        corridor: 'NH-29',
-        km: 'KM 81.1',
-        hazardType: 'Flash Flood',
-        severity: 'PARTIAL',
-        location: 'NH-29 KM 81.1 · 25.6812° N, 93.7145° E',
-        coordinates: '25.6812° N, 93.7145° E',
-        timestamp: now.subtract(const Duration(minutes: 18)),
-        status: 'VERIFIED',
-        notes: 'Mountain stream overflow depositing gravel across 40 meters of roadway. Water depth approximately 20cm. Light vehicles diverted.',
-        workerName: 'Priya Mao',
-        workerInitials: 'PM',
-        workerUnit: 'Field Unit 2',
-        isMine: false,
-      ),
-      ReportItem(
         id: 'RP-2845',
         corridor: 'NH-37',
         km: 'KM 124.0',
@@ -127,56 +254,42 @@ class ReportService extends ChangeNotifier {
         coordinates: '26.5410° N, 93.1892° E',
         timestamp: now.subtract(const Duration(minutes: 42)),
         status: 'DISPATCHED',
-        notes: 'Uprooted tree branches partially encroaching eastbound emergency shoulder. Clearance squad en route.',
-        workerName: 'Ratan Das',
-        workerInitials: 'RD',
-        workerUnit: 'Logistics Patrol 1',
-        dispatchUnit: 'BRO Rapid Clearance #1',
+        dispatchUnit: 'Clearance Unit Alpha',
+        dispatchNotes: 'JCB + 2 tippers en route. ETA 25 mins from Nagaon depot.',
+        notes: 'Fallen bamboo cluster and topsoil debris covering 1.5m of shoulder. Traffic moving on main carriageway with speed reduction.',
+        workerName: 'Dipankar Saikia',
+        workerInitials: 'DS',
+        workerUnit: 'Patrol Unit 1',
         isMine: false,
       ),
       ReportItem(
         id: 'RP-2844',
-        corridor: 'NH-40',
-        km: 'KM 14.8',
+        corridor: 'NH-102',
+        km: 'KM 33.7',
         hazardType: 'Subsidence',
         severity: 'PARTIAL',
-        location: 'NH-40 KM 14.8 · 25.5780° N, 91.8821° E',
-        coordinates: '25.5780° N, 91.8821° E',
-        timestamp: now.subtract(const Duration(hours: 1)),
-        status: 'VERIFIED',
-        notes: 'Bitumen cracking along outer mountain edge due to continuous saturation. Heavy vehicle weight restriction implemented.',
-        workerName: 'Arunav Sharma',
-        workerInitials: 'AS',
-        workerUnit: 'Field Unit 3',
+        location: 'NH-102 KM 33.7 · 24.8170° N, 93.9368° E',
+        coordinates: '24.8170° N, 93.9368° E',
+        timestamp: now.subtract(const Duration(hours: 1, minutes: 15)),
+        status: 'PENDING',
+        notes: 'Road edge settling along embankment. Crack width 8cm, length 12 meters. Warning cones placed. Geotechnical inspection needed.',
+        workerName: 'T. Haokip',
+        workerInitials: 'TH',
+        workerUnit: 'Patrol Unit 3',
         isMine: false,
       ),
       ReportItem(
         id: 'RP-2843',
-        corridor: 'NH-102',
-        km: 'KM 68.2',
-        hazardType: 'Landslide',
-        severity: 'FULL BLOCKAGE',
-        location: 'NH-102 KM 68.2 · 24.4120° N, 94.0210° E',
-        coordinates: '24.4120° N, 94.0210° E',
-        timestamp: now.subtract(const Duration(hours: 2)),
-        status: 'DISPATCHED',
-        notes: 'Mudslide covering entire two-lane stretch near Lokchao bridge. Road clearing heavy excavator requested.',
-        workerName: 'Thangjam Singh',
-        workerInitials: 'TS',
-        workerUnit: 'Quick Response Unit 5',
-        dispatchUnit: 'NDRF Rescue Unit 9',
-        isMine: false,
-      ),
-      ReportItem(
-        id: 'RP-2842',
-        corridor: 'NH-06',
-        km: 'KM 110.5',
+        corridor: 'NH-44',
+        km: 'KM 67.2',
         hazardType: 'Bridge Strain',
         severity: 'SHOULDER',
-        location: 'NH-06 KM 110.5 · 25.2104° N, 92.3411° E',
-        coordinates: '25.2104° N, 92.3411° E',
-        timestamp: now.subtract(const Duration(hours: 4)),
-        status: 'REJECTED',
+        location: 'NH-44 KM 67.2 · 25.4312° N, 92.1904° E',
+        coordinates: '25.4312° N, 92.1904° E',
+        timestamp: now.subtract(const Duration(hours: 2)),
+        status: 'VERIFIED',
+        dispatchUnit: 'PWD Structural Team',
+        dispatchNotes: 'Acoustic strain sensor node attached to pier 3. Threshold within safe margin.',
         notes: 'Reported acoustic vibration on pier 3 during heavy truck crossing. PWD engineer reinspected: normal structural flex.',
         workerName: 'L. Dkhar',
         workerInitials: 'LD',
@@ -190,6 +303,7 @@ class ReportService extends ChangeNotifier {
     final index = _reports.indexWhere((r) => r.id == id);
     if (index != -1) {
       _reports[index].status = 'VERIFIED';
+      _persistReports();
       notifyListeners();
     }
   }
@@ -200,6 +314,7 @@ class ReportService extends ChangeNotifier {
       _reports[index].status = 'DISPATCHED';
       _reports[index].dispatchUnit = unit;
       _reports[index].dispatchNotes = notes;
+      _persistReports();
       notifyListeners();
     }
   }
@@ -209,14 +324,22 @@ class ReportService extends ChangeNotifier {
     if (index != -1) {
       _reports[index].status = 'REJECTED';
       _reports[index].dispatchNotes = reason;
+      _persistReports();
       notifyListeners();
     }
   }
 
   /// Remove/delete a wrong, duplicate, or outdated field incident report
-  void deleteReport(String id) {
+  Future<void> deleteReport(String id) async {
     _reports.removeWhere((r) => r.id == id);
+    _deletedReportIds.add(id);
+    await _persistReports();
     notifyListeners();
+
+    // Call server to delete across PostgreSQL and Supabase
+    try {
+      await ApiService().deleteFieldReport(id);
+    } catch (_) {}
   }
 
   int get offlinePendingCount => _reports.where((r) => r.isOfflineQueued && r.syncStatus == 'PENDING_SYNC').length;
@@ -266,6 +389,7 @@ class ReportService extends ChangeNotifier {
     );
 
     _reports.insert(0, newReport);
+    _persistReports();
 
     if (offlineActive) {
       offlineStorageService.queueReportOffline(QueuedReportData(

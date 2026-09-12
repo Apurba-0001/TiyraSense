@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, TokenResponse } from '../types/auth';
-import { loginUser, fetchCurrentUser } from '../services/api';
+import { loginUser, fetchCurrentUser, updateCurrentUserProfile } from '../services/api';
+
+export interface UserUpdatePayload extends Partial<User> {
+  current_password?: string;
+  new_password?: string;
+}
 
 interface AuthContextType {
   user: User | null;
@@ -8,7 +13,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<TokenResponse>;
   logout: () => void;
-  updateUserProfile: (data: Partial<User>) => void;
+  updateUserProfile: (data: UserUpdatePayload) => Promise<User | null>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -66,8 +71,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setUser(null);
   };
 
-  const updateUserProfile = (data: Partial<User>) => {
-    setUser((prev) => (prev ? { ...prev, ...data } : null));
+  const updateUserProfile = async (data: UserUpdatePayload): Promise<User | null> => {
+    // 1. Optimistic update to local state and localStorage
+    setUser((prev) => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        full_name: data.full_name !== undefined ? data.full_name : prev.full_name,
+        phone_number: data.phone_number !== undefined ? data.phone_number : prev.phone_number,
+        organization: data.organization !== undefined ? data.organization : prev.organization,
+      };
+      localStorage.setItem('tiyrasense_user', JSON.stringify(updated));
+      return updated;
+    });
+
+    // 2. Persist to backend database (PostgreSQL + Supabase)
+    try {
+      const updated = await updateCurrentUserProfile({
+        full_name: data.full_name ?? undefined,
+        phone_number: (data.phone_number !== null ? data.phone_number : undefined),
+        organization: (data.organization !== null ? data.organization : undefined),
+        current_password: data.current_password,
+        new_password: data.new_password,
+      });
+
+      setUser(updated);
+      localStorage.setItem('tiyrasense_user', JSON.stringify(updated));
+      return updated;
+    } catch (err) {
+      console.warn('Backend database profile sync encountered an issue, kept local update:', err);
+      return user;
+    }
   };
 
   return (

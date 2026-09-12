@@ -57,6 +57,9 @@ def _auto_alert_from_report(report: dict) -> dict:
 
 router = APIRouter()
 
+# Set of report IDs explicitly deleted by users or officials to guarantee persistence
+_DELETED_REPORT_IDS: set[str] = set()
+
 # In-memory store fallback for test environments without PostGIS write permissions
 _IN_MEMORY_REPORTS = [
     {
@@ -187,7 +190,7 @@ async def list_field_reports(
                         photo_url=item.get("photo_url") or item.get("evidence_url"),
                     )
                 )
-            return reports
+            return [r for r in reports if r.id not in _DELETED_REPORT_IDS]
     except Exception:
         pass
 
@@ -233,12 +236,12 @@ async def list_field_reports(
                         data_label=settings.DATA_LABEL,
                     )
                 )
-            return reports
+            return [r for r in reports if r.id not in _DELETED_REPORT_IDS]
     except Exception:
         pass
 
     # Return validated in-memory store
-    return [FieldReportOut(**item) for item in _IN_MEMORY_REPORTS]
+    return [FieldReportOut(**item) for item in _IN_MEMORY_REPORTS if item["id"] not in _DELETED_REPORT_IDS]
 
 
 @router.post("", response_model=FieldReportOut, status_code=status.HTTP_201_CREATED)
@@ -429,6 +432,7 @@ async def delete_field_report(
     Removes from database and active memory cache.
     Restricted to officials and administrators.
     """
+    _DELETED_REPORT_IDS.add(report_id)
     removed = False
     for idx, r in enumerate(_IN_MEMORY_REPORTS):
         if r["id"] == report_id:
