@@ -15,6 +15,28 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (Checkpoint)
+- Work: Implemented complete cross-platform pipeline allowing field scouts and drivers to take authentic photos on mobile phones and submit them with geo-tagged incident reports, streaming photos to server storage / Cloudinary and reflecting immediately across all web user dashboards:
+  1. `backend/app/schemas/reports.py`: Added `photo_url: Optional[str] = None` to `FieldReportOut`.
+  2. `backend/app/api/v1/endpoints/field_reports.py`: Added photo evidence URLs to seed reports, updated `create_field_report` and `list_field_reports` to accept and persist `photo_url` across in-memory and Supabase tables.
+  3. `backend/app/api/v1/endpoints/evidence.py`: Added `POST /api/v1/evidence/upload` supporting multipart image uploads (JPEG, PNG, WebP) with optional Cloudinary CDN upload and local `/static/uploads/` persistent fallback.
+  4. `backend/app/main.py`: Mounted `StaticFiles` at `/static/uploads` with Content-Security-Policy allowances.
+  5. `backend/tests/test_reports_alerts.py`: Added unit test `test_upload_photo_and_create_report_with_photo` verifying image upload and report association.
+  6. `mobile/lib/services/api_service.dart`: Added `uploadEvidencePhoto` (direct Cloudinary upload with backend upload fallback) and `createFieldReport` in Flutter client.
+  7. `mobile/lib/services/report_service.dart`: Added `photoUrl` to `ReportItem`, seed reports, and `_dispatchReportToServer` on report creation.
+  8. `mobile/lib/services/offline_storage_service.dart`: Added `Completer<int>` to `syncPendingData` to prevent concurrent race conditions during network recovery.
+  9. `web/src/services/api.ts`: Added `photo_url?: string` to `WebFieldReport` and `createFieldReport`, implemented `uploadEvidencePhoto(file: File)`.
+  10. `web/src/pages/FieldReports.tsx`: Added file upload picker and preview to modal; added high-resolution lightbox modal with geo-verification badge; updated detail side panel to render authentic evidence photos.
+  11. `web/src/pages/Dashboard.tsx`: Connected `Field Incident Verification Queue` to live `fetchFieldReports()` with periodic polling (12s); added evidence thumbnail with `[ON-SITE PHOTO EVIDENCE]` badge and full-screen lightbox modal.
+- Files: `backend/app/schemas/reports.py`, `backend/app/api/v1/endpoints/field_reports.py`, `backend/app/api/v1/endpoints/evidence.py`, `backend/app/main.py`, `backend/tests/test_reports_alerts.py`, `mobile/lib/services/api_service.dart`, `mobile/lib/services/report_service.dart`, `mobile/lib/services/offline_storage_service.dart`, `web/src/services/api.ts`, `web/src/pages/FieldReports.tsx`, `web/src/pages/Dashboard.tsx`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `npm test -- --run` in `web/` (all 26/26 passed in 3.59s); `npm run build` in `web/` (Vite production bundle built cleanly with zero TypeScript errors); `flutter test` in `mobile/` (all 53/53 passed); `pytest backend/tests/` (all 43/43 passed).
+- Decisions: Field photos must be verifiable, geo-tagged, and accessible in high-resolution without altering underlying risk calculations; Cloudinary CDN prioritized with local static fallback for air-gapped or offline-first deployment resilience.
+- Problems: None. All compilation, lint, and test suites passing.
+- External docs: None.
+- Result: CHECKPOINT COMPLETE & VERIFIED. Safe state saved for system shutdown.
+- Next: Upon startup, run `git status`, commit changes, and push to GitHub `origin main`.
+
 ## 2026-09-12 — Phase 36: Vehicle Naming Cleanup & Complete Map Zoom Isolation
 - Work: Fixed vehicle naming throughout the web operations console and GIS map, and implemented complete map zoom isolation so zooming over the map canvas never zooms the website window or scrolls the page.
   1. `backend/app/schemas/journeys.py`: Added `vehicle_name`, `vehicle_number`, and `callsign` optional fields to `ActiveJourneySummary`.

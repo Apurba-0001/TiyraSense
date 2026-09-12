@@ -36,3 +36,4 @@ class FieldReportOut(BaseModel):
     data_label: str = "LIVE"
     dispatch_unit: Optional[str] = None
     dispatch_notes: Optional[str] = None
+    photo_url: Optional[str] = None

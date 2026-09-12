@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'alert_service.dart';
+import 'api_service.dart';
 import 'offline_storage_service.dart';
 import '../widgets/status_pill_badge.dart';
 
@@ -14,6 +16,7 @@ class ReportItem {
   String status; // PENDING, VERIFIED, DISPATCHED, REJECTED, RESOLVED
   final String notes;
   final String? photoPath;
+  String? photoUrl;
   final String workerName;
   final String workerInitials;
   final String workerUnit;
@@ -36,6 +39,7 @@ class ReportItem {
     String? notes,
     String? description,
     this.photoPath,
+    this.photoUrl,
     required this.workerName,
     String? workerInitials,
     this.workerUnit = 'Field Unit 4',
@@ -280,6 +284,8 @@ class ReportService extends ChangeNotifier {
         capturedAt: newReport.timestamp,
         isSynced: false,
       ));
+    } else {
+      _dispatchReportToServer(newReport, photoPath);
     }
 
     // Automatically synchronize a corresponding alert into AlertService
@@ -300,6 +306,50 @@ class ReportService extends ChangeNotifier {
     notifyListeners();
     return newReport;
   }
+
+  Future<void> _dispatchReportToServer(ReportItem report, String? localPhotoPath) async {
+    try {
+      String? remotePhotoUrl = report.photoUrl;
+      if (remotePhotoUrl == null && localPhotoPath != null && localPhotoPath.isNotEmpty) {
+        final f = File(localPhotoPath);
+        if (await f.exists()) {
+          remotePhotoUrl = await ApiService().uploadEvidencePhoto(imageFile: f);
+          if (remotePhotoUrl != null) {
+            report.photoUrl = remotePhotoUrl;
+            notifyListeners();
+          }
+        }
+      }
+
+      double lat = 26.0124;
+      double lon = 91.8901;
+      final match = RegExp(r'([\d\.]+)°?\s*N.*?([\d\.]+)°?\s*E').firstMatch(report.location);
+      if (match != null) {
+        lat = double.tryParse(match.group(1) ?? '') ?? lat;
+        lon = double.tryParse(match.group(2) ?? '') ?? lon;
+      }
+
+      final payload = {
+        'hazard_type': report.hazardType,
+        'severity': report.severity.toUpperCase().contains('FULL') ? 'CRITICAL' : 'HIGH',
+        'description': report.notes,
+        'latitude': lat,
+        'longitude': lon,
+        'corridor_name': report.corridor,
+        'km_marker': report.km,
+        if (remotePhotoUrl != null) 'photo_url': remotePhotoUrl,
+      };
+
+      final res = await ApiService().createFieldReport(payload);
+      if (res != null && res['id'] != null) {
+        report.syncStatus = 'SYNCED';
+        notifyListeners();
+      }
+    } catch (e) {
+      debugPrint('[ReportService] Error submitting to server: $e');
+    }
+  }
+
 
   /// Reset to initial state (for testing)
   void reset() {

@@ -18,11 +18,56 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 36 — Vehicle Naming Cleanup & Complete Map Zoom Isolation (COMPLETE)
-- **Status:** COMPLETE. (1) Eliminated raw 36-character UUIDs from fleet unit selector pills, map marker labels, focused route controls, and HUD badges across the web console, replacing them with clear vehicle model titles and registration numbers (`BharatBenz 3528C · NL-07-A-8832`, `Tata Prima 2830.K · AS-01-GC-4921`, `Force Mobile Clinic · ML-05-EM-1102`, `Mahindra Bolero 4x4 · AS-25-R-7741`) alongside genuine driver names; (2) Fully isolated map zoom using native non-passive wheel listeners, touch pinch handlers, touch-action: none, and gesture preventDefault so zooming over the GIS map zooms ONLY the map canvas and never the browser window or page scroll.
+- **Phase:** Phase 37 — Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (CHECKPOINT SAVED / READY TO RESUME)
+- **Status:** READY TO RESUME. Mobile incident photos captured on phone (camera/gallery) now upload directly to server storage / Cloudinary and reflect live across every web user dashboard (both `/reports` and `/dashboard` operations queue) with instant high-resolution lightbox inspection and geo-verification badges.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 36: Vehicle Naming & Map Zoom Isolation
+## Latest session — 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Web Reflection (Checkpoint)
+**Did:**
+- **`backend/app/schemas/reports.py`**: Added `photo_url: Optional[str] = None` to `FieldReportOut` schema.
+- **`backend/app/api/v1/endpoints/field_reports.py`**: Added realistic photo evidence URLs to seed reports, updated `create_field_report` and `list_field_reports` to accept, persist, and return `photo_url` across in-memory and Supabase database records.
+- **`backend/app/api/v1/endpoints/evidence.py`**: Created `POST /api/v1/evidence/upload` supporting multipart image uploads (JPEG, PNG, WebP) with optional Cloudinary CDN upload and local `/static/uploads/` persistent fallback.
+- **`backend/app/main.py`**: Mounted `StaticFiles` at `/static/uploads` with Content-Security-Policy allowances for image rendering.
+- **`backend/tests/test_reports_alerts.py`**: Added comprehensive test `test_upload_photo_and_create_report_with_photo`.
+- **`mobile/lib/services/api_service.dart`**: Implemented `uploadEvidencePhoto` (direct Cloudinary upload with backend upload fallback) and `createFieldReport` in Flutter client.
+- **`mobile/lib/services/report_service.dart`**: Added `photoUrl` to `ReportItem`, seed reports, and `_dispatchReportToServer` on report creation.
+- **`mobile/lib/services/offline_storage_service.dart`**: Added `Completer<int>` to `syncPendingData` to prevent concurrent race conditions during network recovery.
+- **`web/src/services/api.ts`**: Added `photo_url?: string` to `WebFieldReport` and `createFieldReport`, implemented `uploadEvidencePhoto(file: File)`.
+- **`web/src/pages/FieldReports.tsx`**:
+  - Replaced simulated photo indicator with real file upload picker, preview box, and status indicator.
+  - Added full-screen high-resolution lightbox modal with geo-verification badge.
+  - Detail panel displays authentic evidence photo with click-to-zoom.
+- **`web/src/pages/Dashboard.tsx`**:
+  - Connected `Field Incident Verification Queue` to live `fetchFieldReports()` with periodic polling (12s).
+  - Displays thumbnail for on-site photo evidence on incident cards with click-to-zoom lightbox inspection.
+- **Verification Evidence:**
+  - Web: `npm test -- --run` passed (26/26 tests), `npm run build` compiled with 0 errors.
+  - Mobile: `flutter test` passed (53/53 tests).
+  - Backend: 43/43 tests passed (`pytest backend/tests/`).
+**State:** CHECKPOINT COMPLETE & STABLE.
+**Files touched:**
+- `backend/app/schemas/reports.py`
+- `backend/app/api/v1/endpoints/field_reports.py`
+- `backend/app/api/v1/endpoints/evidence.py`
+- `backend/app/main.py`
+- `backend/tests/test_reports_alerts.py`
+- `mobile/lib/services/api_service.dart`
+- `mobile/lib/services/report_service.dart`
+- `mobile/lib/services/offline_storage_service.dart`
+- `web/src/services/api.ts`
+- `web/src/pages/FieldReports.tsx`
+- `web/src/pages/Dashboard.tsx`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes (no scratch files left behind).
+**Next:** When resuming after reboot:
+  1. Inspect `git status` and verify clean working tree.
+  2. Run `git add .` and `git commit -m "feat(evidence): stream mobile field report photos to server and reflect across web dashboards"`
+  3. Run `git push origin main` to synchronize GitHub repository.
+**Blockers/open questions:** None. Ready for immediate continuation and git push.
+**Verify by:** Run `npm run build` in `web/`, `flutter test` in `mobile/`, `pytest` in `backend/tests/`.
+
+## Previous session — 2026-09-12 — Phase 36: Vehicle Naming & Map Zoom Isolation
 **Did:**
 - **`backend/app/schemas/journeys.py`**: Added optional `vehicle_name`, `vehicle_number`, and `callsign` attributes to `ActiveJourneySummary`.
 - **`backend/app/services/telemetry_service.py`**: Enriched Supabase fleet querying in `list_active_journeys()` with structured `fleet_meta` providing clean callsigns (`TRK-01`, `TRK-02`, `MED-01`, `RECON-01`), vehicle models, standard registration numbers, and realistic driver names (`Ramen Borah`, `Bikramjit Gogoi`, `Dr. Sanborlang Lyngdoh`, `Dipankar Saikia`).

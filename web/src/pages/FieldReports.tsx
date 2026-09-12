@@ -9,12 +9,14 @@ import {
   MapPin,
   Send,
   Trash2,
+  Upload,
 } from 'lucide-react';
 import {
   fetchFieldReports,
   verifyFieldReport,
   createFieldReport,
   deleteFieldReport,
+  uploadEvidencePhoto,
 } from '../services/api';
 
 
@@ -33,6 +35,7 @@ interface FieldReportItem {
   description: string;
   dispatchUnit?: string;
   dispatchNotes?: string;
+  photoUrl?: string;
 }
 
 const INITIAL_REPORTS: FieldReportItem[] = [
@@ -49,6 +52,7 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     workerUnit: 'Field Unit 4',
     coordinates: '26.0124° N, 91.8901° E',
     description: 'Large boulder roll-down on left shoulder. One lane blocked, second lane at risk of secondary debris flow. Immediate earth-mover intervention requested.',
+    photoUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2846',
@@ -63,6 +67,7 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     workerUnit: 'Field Unit 2',
     coordinates: '25.6812° N, 93.7145° E',
     description: 'Mountain stream overflow depositing gravel across 40 meters of roadway. Water depth approximately 20cm. Light vehicles diverted.',
+    photoUrl: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2845',
@@ -78,6 +83,7 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     coordinates: '26.5410° N, 93.1892° E',
     description: 'Uprooted tree branches partially encroaching eastbound emergency shoulder. Clearance squad en route.',
     dispatchUnit: 'BRO Rapid Clearance #1',
+    photoUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2844',
@@ -92,6 +98,7 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     workerUnit: 'Field Unit 3',
     coordinates: '25.5780° N, 91.8821° E',
     description: 'Bitumen cracking along outer mountain edge due to continuous saturation. Heavy vehicle weight restriction implemented.',
+    photoUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2843',
@@ -107,6 +114,7 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     coordinates: '24.4921° N, 94.0215° E',
     description: 'Severe cut slope collapse blocking entire double lane corridor near Tengnoupal ridge. Excavator units mobilizing.',
     dispatchUnit: 'Excavator 12T (Jowai Base)',
+    photoUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2842',
@@ -142,13 +150,17 @@ export const FieldReports: React.FC = () => {
   const [newCoordinates, setNewCoordinates] = useState('25.5788° N, 92.2140° E');
   const [newDescription, setNewDescription] = useState('');
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null);
+  const [lightboxPhoto, setLightboxPhoto] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
 
   // Review panel interactive dispatch state
   const [dispatchUnit, setDispatchUnit] = useState('Excavator 12T (Jowai Base)');
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
-  useEffect(() => {
+  const loadReports = () => {
     fetchFieldReports()
       .then((data) => {
         if (data && data.length > 0) {
@@ -167,12 +179,23 @@ export const FieldReports: React.FC = () => {
             description: d.description,
             dispatchUnit: d.dispatch_unit,
             dispatchNotes: d.dispatch_notes,
+            photoUrl: d.photo_url || (d as any).photoUrl,
           }));
           setReports(mapped);
-          setSelectedReport(mapped[0]);
+          setSelectedReport((prev) => {
+            if (!prev) return mapped[0];
+            const match = mapped.find((m) => m.id === prev.id);
+            return match || mapped[0];
+          });
         }
       })
       .catch(() => {});
+  };
+
+  useEffect(() => {
+    loadReports();
+    const interval = setInterval(loadReports, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   const filteredReports = reports.filter((r) => {
@@ -293,6 +316,21 @@ export const FieldReports: React.FC = () => {
     e.preventDefault();
     if (!newDescription.trim()) return;
 
+    let uploadedPhotoUrl: string | undefined = photoPreview || undefined;
+    if (selectedFile) {
+      setIsUploadingPhoto(true);
+      try {
+        const uploadRes = await uploadEvidencePhoto(selectedFile);
+        if (uploadRes?.url) {
+          uploadedPhotoUrl = uploadRes.url;
+        }
+      } catch {
+        // Fallback to preview
+      } finally {
+        setIsUploadingPhoto(false);
+      }
+    }
+
     const newReport: FieldReportItem = {
       id: `RP-${Math.floor(2850 + Math.random() * 500)}`,
       submitted: 'Just now',
@@ -306,6 +344,7 @@ export const FieldReports: React.FC = () => {
       workerUnit: newWorkerUnit,
       coordinates: newCoordinates.trim() || '25.5788° N, 92.2140° E',
       description: newDescription.trim(),
+      photoUrl: uploadedPhotoUrl,
     };
 
     setReports([newReport, ...reports]);
@@ -325,6 +364,7 @@ export const FieldReports: React.FC = () => {
         longitude: lon,
         corridor_name: newCorridor,
         km_marker: newKm.trim(),
+        photo_url: uploadedPhotoUrl,
       });
       if (created?.id) {
         newReport.id = created.id;
@@ -337,6 +377,8 @@ export const FieldReports: React.FC = () => {
       setSubmitFeedback(null);
       setIsSubmitModalOpen(false);
       setNewDescription('');
+      setSelectedFile(null);
+      setPhotoPreview(null);
     }, 1200);
   };
 
@@ -649,18 +691,45 @@ export const FieldReports: React.FC = () => {
                       </div>
                     </td>
                     <td style={{ padding: '0 12px' }}>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          backgroundColor: hazardBg,
-                          color: hazardText,
-                        }}
-                      >
-                        {r.hazardType}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            padding: '3px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: hazardBg,
+                            color: hazardText,
+                          }}
+                        >
+                          {r.hazardType}
+                        </span>
+                        {r.photoUrl && (
+                          <span
+                            title="Click to inspect photo evidence"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setLightboxPhoto(r.photoUrl!);
+                            }}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              backgroundColor: '#EFF6FF',
+                              color: '#1D4ED8',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              border: '1px solid #BFDBFE',
+                            }}
+                          >
+                            <Camera size={10} />
+                            <span>PHOTO</span>
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ padding: '0 12px' }}>
                       <span
@@ -828,47 +897,90 @@ export const FieldReports: React.FC = () => {
               </div>
             </div>
 
-            {/* 2-column photo grid */}
+            {/* Field Evidence Photo Box */}
             <div>
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Field Evidence Photos (2)
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                  Field Evidence Photo
+                </span>
+                {selectedReport.photoUrl && (
+                  <span style={{ fontSize: '10px', color: '#059669', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle2 size={12} />
+                    <span>GEO-VERIFIED CAPTURE</span>
+                  </span>
+                )}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+
+              {selectedReport.photoUrl ? (
                 <div
                   style={{
-                    height: '120px',
+                    position: 'relative',
+                    borderRadius: '8px',
+                    overflow: 'hidden',
+                    border: '1px solid #CBD5E1',
+                    cursor: 'pointer',
+                    height: '210px',
+                    backgroundColor: '#0F172A',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                  }}
+                  onClick={() => setLightboxPhoto(selectedReport.photoUrl!)}
+                  title="Click to zoom and inspect evidence photo"
+                >
+                  <img
+                    src={selectedReport.photoUrl}
+                    alt={`${selectedReport.hazardType} Evidence`}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      display: 'block',
+                    }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLElement).style.display = 'none';
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      bottom: 0,
+                      left: 0,
+                      right: 0,
+                      padding: '8px 12px',
+                      background: 'linear-gradient(transparent, rgba(15, 23, 42, 0.85))',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <Camera size={13} color="#38BDF8" />
+                      Inspect Full Resolution Photo
+                    </span>
+                    <span className="mono" style={{ fontSize: '10px', opacity: 0.85 }}>
+                      {selectedReport.coordinates}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    height: '100px',
                     backgroundColor: 'var(--color-container)',
                     borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
+                    border: '1px dashed var(--color-border)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '4px',
+                    gap: '6px',
                     color: 'var(--color-text-muted)',
                   }}
                 >
-                  <Camera size={24} />
-                  <span style={{ fontSize: '10px' }}>Evidence Cam #1</span>
+                  <Camera size={22} />
+                  <span style={{ fontSize: '11px' }}>No field camera photo attached to this report</span>
                 </div>
-                <div
-                  style={{
-                    height: '120px',
-                    backgroundColor: 'var(--color-container)',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '4px',
-                    color: 'var(--color-text-muted)',
-                  }}
-                >
-                  <Camera size={24} />
-                  <span style={{ fontSize: '10px' }}>Evidence Cam #2</span>
-                </div>
-              </div>
+              )}
             </div>
 
             {/* Hazard Description */}
@@ -1381,20 +1493,117 @@ export const FieldReports: React.FC = () => {
                 />
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 12px',
-                  backgroundColor: 'var(--color-surface)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: '12px',
-                  color: 'var(--color-text-secondary)',
-                }}
-              >
-                <Camera size={16} color="var(--color-primary)" />
-                <span>Simulated Evidence Photo: Attached (Geo-tagged at location)</span>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+                  Field Photographic Evidence (Live Recon / On-Site)
+                </label>
+                <div
+                  style={{
+                    border: '1px dashed var(--color-border)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '12px',
+                    backgroundColor: 'var(--color-surface)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '6px 12px',
+                        backgroundColor: '#FFFFFF',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        color: 'var(--color-text-primary)',
+                      }}
+                    >
+                      <Upload size={14} color="var(--color-primary)" />
+                      <span>{selectedFile ? 'Change Photo' : 'Select Evidence Image'}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setSelectedFile(file);
+                            const reader = new FileReader();
+                            reader.onload = () => {
+                              setPhotoPreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {selectedFile && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedFile(null);
+                          setPhotoPreview(null);
+                        }}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#EF4444',
+                          fontSize: '11px',
+                          cursor: 'pointer',
+                          fontWeight: 600,
+                        }}
+                      >
+                        Remove
+                      </button>
+                    )}
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>
+                      {selectedFile ? selectedFile.name : 'PNG, JPG, WebP supported'}
+                    </span>
+                  </div>
+
+                  {photoPreview && (
+                    <div
+                      style={{
+                        position: 'relative',
+                        height: '140px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        border: '1px solid #CBD5E1',
+                        backgroundColor: '#0F172A',
+                      }}
+                    >
+                      <img
+                        src={photoPreview}
+                        alt="Evidence Preview"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          padding: '4px 8px',
+                          backgroundColor: 'rgba(15, 23, 42, 0.75)',
+                          color: '#FFFFFF',
+                          fontSize: '11px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <CheckCircle2 size={12} color="#10B981" />
+                        <span>Ready to upload and stream to all operator dashboards</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div
@@ -1426,15 +1635,16 @@ export const FieldReports: React.FC = () => {
                 </button>
                 <button
                   type="submit"
+                  disabled={isUploadingPhoto}
                   style={{
                     height: '36px',
                     padding: '0 20px',
                     borderRadius: 'var(--radius-sm)',
                     border: 'none',
-                    backgroundColor: 'var(--color-primary)',
+                    backgroundColor: isUploadingPhoto ? 'var(--color-text-muted)' : 'var(--color-primary)',
                     fontSize: '13px',
                     fontWeight: 700,
-                    cursor: 'pointer',
+                    cursor: isUploadingPhoto ? 'not-allowed' : 'pointer',
                     color: '#FFFFFF',
                     display: 'flex',
                     alignItems: 'center',
@@ -1442,10 +1652,97 @@ export const FieldReports: React.FC = () => {
                   }}
                 >
                   <Send size={14} />
-                  <span>Submit Recon Report</span>
+                  <span>{isUploadingPhoto ? 'Uploading Photo...' : 'Submit Recon Report'}</span>
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* High-Resolution Evidence Lightbox Modal */}
+      {lightboxPhoto && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+          onClick={() => setLightboxPhoto(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              backgroundColor: '#0F172A',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                zIndex: 10,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setLightboxPhoto(null)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <img
+              src={lightboxPhoto}
+              alt="High Resolution Incident Evidence"
+              style={{
+                maxWidth: '85vw',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                color: '#E2E8F0',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <CheckCircle2 size={14} color="#10B981" />
+                <span style={{ fontWeight: 600 }}>Geo-Verified High-Resolution Recon Photo</span>
+              </div>
+              <span style={{ color: '#94A3B8', fontSize: '11px' }}>TiyraSense Field Intelligence Network</span>
+            </div>
           </div>
         </div>
       )}

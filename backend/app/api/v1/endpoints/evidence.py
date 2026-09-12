@@ -3,7 +3,8 @@ import time
 import uuid
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from pathlib import Path
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -92,6 +93,110 @@ async def generate_upload_signature(
         folder=folder,
         upload_url=upload_url,
     )
+
+
+@router.post(
+    "/upload",
+    status_code=status.HTTP_201_CREATED,
+    summary="Direct upload evidence photo from mobile app or web console",
+)
+async def upload_evidence_photo(
+    file: UploadFile = File(...),
+    hazard_type: Optional[str] = None,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+    current_user: Optional[User] = Depends(get_optional_current_user),
+):
+    """
+    Accepts direct image uploads from mobile app or web dashboard.
+    Uploads to Cloudinary CDN if credentials exist; otherwise securely saves locally
+    under /static/uploads/ and returns the URL.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only image files (JPEG, PNG, WebP) are allowed as field evidence.",
+        )
+
+    file_bytes = await file.read()
+    if len(file_bytes) > 15 * 1024 * 1024:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Evidence photo exceeds maximum 15MB limit.",
+        )
+
+    # 1. Try uploading to Cloudinary CDN if credentials are provided
+    if settings.CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY and settings.CLOUDINARY_API_SECRET:
+        try:
+            import httpx
+            timestamp = int(time.time())
+            folder = "tiyrasense/evidence"
+            to_sign = f"folder={folder}&timestamp={timestamp}{settings.CLOUDINARY_API_SECRET}"
+            signature = hashlib.sha1(to_sign.encode("utf-8")).hexdigest()
+            upload_url = f"https://api.cloudinary.com/v1_1/{settings.CLOUDINARY_CLOUD_NAME}/image/upload"
+            async with httpx.AsyncClient(timeout=25.0) as client:
+                res = await client.post(
+                    upload_url,
+                    data={
+                        "api_key": settings.CLOUDINARY_API_KEY,
+                        "timestamp": timestamp,
+                        "signature": signature,
+                        "folder": folder,
+                    },
+                    files={"file": (file.filename or "evidence.jpg", file_bytes, file.content_type)},
+                )
+                if res.status_code == 200:
+                    data = res.json()
+                    secure_url = data.get("secure_url")
+                    if secure_url:
+                        _IN_MEMORY_EVIDENCE.insert(0, {
+                            "id": f"evi-{uuid.uuid4().hex[:8]}",
+                            "cloudinary_public_id": data.get("public_id"),
+                            "secure_url": secure_url,
+                            "bytes": len(file_bytes),
+                            "format": data.get("format", "jpeg"),
+                            "created_at": datetime.now(timezone.utc).isoformat(),
+                        })
+                        return {
+                            "url": secure_url,
+                            "secure_url": secure_url,
+                            "cloudinary_public_id": data.get("public_id"),
+                            "format": data.get("format", "jpeg"),
+                            "bytes": len(file_bytes),
+                        }
+        except Exception:
+            pass
+
+    # 2. Local Static Uploads Storage Fallback
+    uploads_dir = Path(__file__).resolve().parents[3] / "static" / "uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    orig_ext = Path(file.filename or "photo.jpg").suffix.lower()
+    if orig_ext not in [".jpg", ".jpeg", ".png", ".webp"]:
+        orig_ext = ".jpg"
+    filename = f"evidence_{uuid.uuid4().hex[:12]}{orig_ext}"
+    target_path = uploads_dir / filename
+
+    with open(target_path, "wb") as f:
+        f.write(file_bytes)
+
+    public_url = f"/static/uploads/{filename}"
+    _IN_MEMORY_EVIDENCE.insert(0, {
+        "id": f"evi-{uuid.uuid4().hex[:8]}",
+        "cloudinary_public_id": f"local/{filename}",
+        "secure_url": public_url,
+        "bytes": len(file_bytes),
+        "format": orig_ext.replace(".", "") or "jpeg",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+
+    return {
+        "url": public_url,
+        "secure_url": public_url,
+        "filename": filename,
+        "format": orig_ext.replace(".", "") or "jpeg",
+        "bytes": len(file_bytes),
+    }
+
 
 
 @router.post(

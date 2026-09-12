@@ -54,8 +54,11 @@ async def security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    # For Swagger UI docs (/docs), allow external CDN scripts and styles; otherwise enforce strict default-src 'none'
-    if request.url.path in ("/docs", "/redoc", "/openapi.json"):
+    if request.url.path.startswith("/static/"):
+        response.headers["Content-Security-Policy"] = (
+            "default-src 'self'; img-src 'self' data: blob: https:; frame-ancestors 'none'"
+        )
+    elif request.url.path in ("/docs", "/redoc", "/openapi.json"):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self' https://cdn.jsdelivr.net; "
             "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
@@ -71,6 +74,13 @@ async def security_headers(request: Request, call_next):
     response.headers["X-TiyraSense-Data-Label"] = settings.DATA_LABEL
     return response
 
+
+# Static files mount for uploaded evidence photos
+from fastapi.staticfiles import StaticFiles
+
+_UPLOADS_DIR = _ROOT_DIR / "backend" / "app" / "static" / "uploads"
+_UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/static/uploads", StaticFiles(directory=str(_UPLOADS_DIR)), name="static_uploads")
 
 # Register API v1 routes
 app.include_router(api_router, prefix="/api/v1")

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_service.dart';
@@ -89,6 +90,7 @@ class OfflineStorageService extends ChangeNotifier {
   final List<QueuedReportData> _pendingReports = [];
   bool _isOnline = true;
   bool _isSyncing = false;
+  Completer<int>? _syncCompleter;
   DateTime? _lastSyncTime;
 
   List<QueuedReportData> get pendingReports => List.unmodifiable(_pendingReports);
@@ -152,7 +154,10 @@ class OfflineStorageService extends ChangeNotifier {
 
   /// Synchronize all offline queued reports to the central database
   Future<int> syncPendingData({ApiService? apiService}) async {
-    if (_isSyncing) return 0;
+    if (_syncCompleter != null) {
+      return await _syncCompleter!.future;
+    }
+    _syncCompleter = Completer<int>();
     _isSyncing = true;
     notifyListeners();
 
@@ -163,6 +168,27 @@ class OfflineStorageService extends ChangeNotifier {
       for (final report in _pendingReports) {
         if (!report.isSynced) {
           // Send to backend if online
+          try {
+            final api = apiService ?? ApiService();
+            String? photoUrl;
+            if (report.photoPath != null && report.photoPath!.isNotEmpty) {
+              final f = File(report.photoPath!);
+              if (await f.exists()) {
+                photoUrl = await api.uploadEvidencePhoto(imageFile: f);
+              }
+            }
+            final payload = {
+              'hazard_type': report.hazardType,
+              'severity': report.severity.toUpperCase().contains('FULL') ? 'CRITICAL' : 'HIGH',
+              'description': report.notes,
+              'latitude': report.latitude,
+              'longitude': report.longitude,
+              'corridor_name': report.corridor,
+              'km_marker': report.km,
+              if (photoUrl != null) 'photo_url': photoUrl,
+            };
+            await api.createFieldReport(payload);
+          } catch (_) {}
           report.isSynced = true;
           syncedCount++;
         }
@@ -182,6 +208,10 @@ class OfflineStorageService extends ChangeNotifier {
       debugPrint('[OfflineStorage] Sync failed: $e');
     } finally {
       _isSyncing = false;
+      if (_syncCompleter != null && !_syncCompleter!.isCompleted) {
+        _syncCompleter!.complete(syncedCount);
+      }
+      _syncCompleter = null;
       notifyListeners();
     }
 

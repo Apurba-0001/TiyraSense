@@ -501,6 +501,72 @@ class ApiService {
     return null;
   }
 
+  /// Upload photo evidence directly to Cloudinary CDN or fallback to backend /api/v1/evidence/upload endpoint.
+  Future<String?> uploadEvidencePhoto({
+    required File imageFile,
+    String? cloudName,
+    String? uploadPreset,
+    bool autoCompress = true,
+  }) async {
+    // 1. Try Cloudinary first if configured
+    try {
+      final cloudUrl = await uploadEvidencePhotoToCloudinary(
+        imageFile: imageFile,
+        cloudName: cloudName,
+        uploadPreset: uploadPreset,
+        autoCompress: autoCompress,
+      );
+      if (cloudUrl != null && cloudUrl.isNotEmpty) {
+        return cloudUrl;
+      }
+    } catch (_) {}
+
+    // 2. Direct upload fallback to backend server
+    try {
+      File fileToUpload = imageFile;
+      if (autoCompress) {
+        fileToUpload = await ImageCompressorService.compressFile(imageFile);
+      }
+
+      final response = await _sendWithFallback((bUrl) async {
+        final uri = Uri.parse('$bUrl/evidence/upload');
+        final req = http.MultipartRequest('POST', uri)
+          ..files.add(await http.MultipartFile.fromPath('file', fileToUpload.path));
+        final streamed = await _client.send(req);
+        return http.Response.fromStream(streamed);
+      });
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        String? url = data['secure_url'] as String? ?? data['url'] as String?;
+        if (url != null && url.startsWith('/')) {
+          final hostRoot = _baseUrl.replaceAll('/api/v1', '');
+          url = '$hostRoot$url';
+        }
+        return url;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Create and submit a new field hazard report to the backend API
+  Future<Map<String, dynamic>?> createFieldReport(Map<String, dynamic> reportData, [String? token]) async {
+    try {
+      final response = await _sendWithFallback((bUrl) {
+        final url = Uri.parse('$bUrl/reports');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+        return _client.post(url, headers: headers, body: jsonEncode(reportData));
+      });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Delete a wrong, old, or unwanted field incident report (Official / Admin action)
   Future<bool> deleteFieldReport(String reportId, [String? token]) async {
     try {

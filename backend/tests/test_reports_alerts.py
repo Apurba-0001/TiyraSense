@@ -125,3 +125,34 @@ async def test_evidence_admin_stats_and_delete():
         assert del_data["success"] is True
         assert del_data["evidence_id"] == evidence_id
 
+
+@pytest.mark.anyio
+async def test_upload_photo_and_create_report_with_photo():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # 1. Upload mock photo
+        dummy_png = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+        files = {"file": ("test_slide.png", dummy_png, "image/png")}
+        up_res = await client.post("/api/v1/evidence/upload", files=files)
+        assert up_res.status_code == 201
+        up_data = up_res.json()
+        assert "url" in up_data
+        photo_url = up_data["url"]
+        assert photo_url.startswith("/static/uploads/") or photo_url.startswith("https://")
+
+        # 2. Create field report with the uploaded photo URL
+        payload = {
+            "hazard_type": "Rockfall",
+            "severity": "HIGH",
+            "description": "Evidence photo attached from field reconnaissance.",
+            "latitude": 25.9,
+            "longitude": 91.8,
+            "corridor_name": "NH-06",
+            "km_marker": "KM 44.2",
+            "photo_url": photo_url,
+        }
+        res = await client.post("/api/v1/reports", json=payload)
+        assert res.status_code == 201
+        report = res.json()
+        assert report["photo_url"] == photo_url
+        assert report["hazard_type"] == "Rockfall"
+

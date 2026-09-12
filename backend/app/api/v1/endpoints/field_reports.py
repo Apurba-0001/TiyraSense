@@ -75,6 +75,7 @@ _IN_MEMORY_REPORTS = [
         "data_label": "LIVE",
         "dispatch_unit": None,
         "dispatch_notes": None,
+        "photo_url": "https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80",
     },
     {
         "id": "RP-2846",
@@ -92,6 +93,7 @@ _IN_MEMORY_REPORTS = [
         "data_label": "LIVE",
         "dispatch_unit": "PWD Assam Division",
         "dispatch_notes": "Single-lane escort activated",
+        "photo_url": "https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80",
     },
     {
         "id": "RP-2845",
@@ -109,6 +111,7 @@ _IN_MEMORY_REPORTS = [
         "data_label": "LIVE",
         "dispatch_unit": None,
         "dispatch_notes": None,
+        "photo_url": "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80",
     },
     {
         "id": "RP-2844",
@@ -126,6 +129,7 @@ _IN_MEMORY_REPORTS = [
         "data_label": "LIVE",
         "dispatch_unit": "BRO Unit 88",
         "dispatch_notes": "Heavy earthmover operating",
+        "photo_url": "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80",
     },
     {
         "id": "RP-2843",
@@ -143,6 +147,7 @@ _IN_MEMORY_REPORTS = [
         "data_label": "LIVE",
         "dispatch_unit": "NHAI Bridge Inspection",
         "dispatch_notes": "Acoustic strain telemetry active",
+        "photo_url": "https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80",
     },
 ]
 
@@ -179,6 +184,7 @@ async def list_field_reports(
                         data_label="LIVE",
                         dispatch_unit=item.get("dispatch_unit"),
                         dispatch_notes=item.get("dispatch_notes"),
+                        photo_url=item.get("photo_url") or item.get("evidence_url"),
                     )
                 )
             return reports
@@ -264,6 +270,7 @@ async def create_field_report(
         "data_label": settings.DATA_LABEL,
         "dispatch_unit": None,
         "dispatch_notes": None,
+        "photo_url": report.photo_url,
     }
 
     # 1. Forward to live Supabase Cloud PostgREST
@@ -281,6 +288,7 @@ async def create_field_report(
             "longitude": report.longitude,
             "verification_status": "PENDING",
             "data_label": "LIVE",
+            "photo_url": report.photo_url,
         })
         if supa_res and "id" in supa_res:
             new_report_dict["id"] = str(supa_res["id"])

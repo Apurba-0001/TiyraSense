@@ -292,6 +292,7 @@ export interface WebFieldReport {
   data_label?: string;
   dispatch_unit?: string;
   dispatch_notes?: string;
+  photo_url?: string;
 }
 
 export async function fetchFieldReports(): Promise<WebFieldReport[]> {
@@ -312,6 +313,7 @@ export async function createFieldReport(report: {
   longitude: number;
   corridor_name?: string;
   km_marker?: string;
+  photo_url?: string;
 }): Promise<WebFieldReport> {
   const res = await fetch(`${API_BASE}/reports`, {
     method: 'POST',
@@ -320,6 +322,19 @@ export async function createFieldReport(report: {
   });
   if (!res.ok) {
     throw new ApiErrorResponse('Failed to create field report', res.status);
+  }
+  return res.json();
+}
+
+export async function uploadEvidencePhoto(file: File): Promise<{ url: string; secure_url: string; filename: string }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch(`${API_BASE}/evidence/upload`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!res.ok) {
+    throw new ApiErrorResponse('Failed to upload evidence photo', res.status);
   }
   return res.json();
 }

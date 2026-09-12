@@ -24,6 +24,8 @@ import {
   HardDrive,
   Eye,
   X,
+  Camera,
+  ZoomIn,
 } from 'lucide-react';
 import { useAuth } from '../state/AuthContext';
 import { VectorGisMap, FleetVehicle } from '../components/VectorGisMap';
@@ -36,6 +38,8 @@ import {
   acknowledgeAlert,
   fetchActiveJourneys,
   fetchRegionalWeather,
+  fetchFieldReports,
+  WebFieldReport,
   RegionalWeatherObservation,
 } from '../services/api';
 
@@ -229,6 +233,8 @@ export const Dashboard: React.FC = () => {
   const [corridorQuery, setCorridorQuery] = useState('');
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditBreakdown, setAuditBreakdown] = useState<DistanceBreakdown | null>(null);
+  const [fieldReports, setFieldReports] = useState<WebFieldReport[]>([]);
+  const [dashboardLightbox, setDashboardLightbox] = useState<string | null>(null);
 
   const filteredVehicles = React.useMemo(() => {
     return fleetVehicles.filter((veh) => {
@@ -324,12 +330,17 @@ export const Dashboard: React.FC = () => {
   const loadDashboardData = async () => {
     setIsRefreshing(true);
     try {
-      const [corridorRes, alertRes, journeysRes, weatherRes] = await Promise.allSettled([
+      const [corridorRes, alertRes, journeysRes, weatherRes, reportsRes] = await Promise.allSettled([
         fetchCorridors(),
         fetchAlerts(),
         fetchActiveJourneys(),
         fetchRegionalWeather(),
+        fetchFieldReports(),
       ]);
+
+      if (reportsRes.status === 'fulfilled' && reportsRes.value.length > 0) {
+        setFieldReports(reportsRes.value);
+      }
 
       if (corridorRes.status === 'fulfilled' && corridorRes.value.length > 0) {
         setCorridors(
@@ -479,7 +490,18 @@ export const Dashboard: React.FC = () => {
         .catch(() => {});
     }, 3500);
 
-    return () => clearInterval(interval);
+    const reportsInterval = setInterval(() => {
+      fetchFieldReports()
+        .then((reps) => {
+          if (reps && reps.length > 0) setFieldReports(reps);
+        })
+        .catch(() => {});
+    }, 12000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(reportsInterval);
+    };
   }, []);
 
   const displayedCorridors = corridors.filter(
@@ -2439,35 +2461,51 @@ export const Dashboard: React.FC = () => {
                 gap: '4px',
               }}
             >
-              <span>View All 6 Recon Reports →</span>
+              <span>View All {fieldReports.length > 0 ? fieldReports.length : 6} Recon Reports →</span>
             </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
-            {[
-              {
-                id: 'RP-2847',
-                corridor: 'NH-06',
-                km: 'KM 52.3',
-                hazard: 'Landslide',
-                severity: 'FULL BLOCKAGE',
-                status: 'PENDING',
-                worker: 'Sanjay Kumar (Field Unit 4)',
-                time: '6m ago',
-                desc: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
-              },
-              {
-                id: 'RP-2846',
-                corridor: 'NH-29',
-                km: 'KM 81.1',
-                hazard: 'Flash Flood',
-                severity: 'PARTIAL',
-                status: 'VERIFIED',
-                worker: 'Priya Mao (Field Unit 2)',
-                time: '18m ago',
-                desc: 'Mountain stream overflow depositing gravel across 40m. 20cm water depth.',
-              },
-            ].map((rep) => (
+            {(fieldReports.length > 0
+              ? fieldReports.slice(0, 4).map((r) => ({
+                  id: r.id,
+                  corridor: r.corridor_name || 'NH-06',
+                  km: r.km_marker || 'KM 00.0',
+                  hazard: r.hazard_type,
+                  severity: r.severity,
+                  status: r.status,
+                  worker: `${r.reporter_name} (${r.reporter_unit || 'Field Scout'})`,
+                  time: r.submitted_at || 'Just now',
+                  desc: r.description,
+                  photoUrl: r.photo_url,
+                }))
+              : [
+                  {
+                    id: 'RP-2847',
+                    corridor: 'NH-06',
+                    km: 'KM 52.3',
+                    hazard: 'Landslide',
+                    severity: 'FULL BLOCKAGE',
+                    status: 'PENDING',
+                    worker: 'Sanjay Kumar (Field Unit 4)',
+                    time: '6m ago',
+                    desc: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
+                    photoUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
+                  },
+                  {
+                    id: 'RP-2846',
+                    corridor: 'NH-29',
+                    km: 'KM 81.1',
+                    hazard: 'Flash Flood',
+                    severity: 'PARTIAL',
+                    status: 'VERIFIED',
+                    worker: 'Priya Mao (Field Unit 2)',
+                    time: '18m ago',
+                    desc: 'Mountain stream overflow depositing gravel across 40m. 20cm water depth.',
+                    photoUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
+                  },
+                ]
+            ).map((rep) => (
               <div
                 key={rep.id}
                 style={{
@@ -2512,6 +2550,69 @@ export const Dashboard: React.FC = () => {
                 <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
                   {rep.desc}
                 </div>
+
+                {rep.photoUrl && (
+                  <div
+                    style={{
+                      position: 'relative',
+                      height: '110px',
+                      borderRadius: '6px',
+                      overflow: 'hidden',
+                      border: '1px solid #CBD5E1',
+                      cursor: 'pointer',
+                      backgroundColor: '#0F172A',
+                      marginTop: '4px',
+                    }}
+                    onClick={() => setDashboardLightbox(rep.photoUrl!)}
+                    title="Click to zoom evidence photo"
+                  >
+                    <img
+                      src={rep.photoUrl}
+                      alt="Incident Evidence"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      onError={(e) => {
+                        (e.currentTarget as HTMLElement).style.display = 'none';
+                      }}
+                    />
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '6px',
+                        left: '6px',
+                        backgroundColor: 'rgba(15, 23, 42, 0.82)',
+                        color: '#34D399',
+                        fontSize: '9px',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <Camera size={10} />
+                      <span>ON-SITE PHOTO EVIDENCE</span>
+                    </div>
+                    <div
+                      style={{
+                        position: 'absolute',
+                        bottom: '6px',
+                        right: '6px',
+                        backgroundColor: 'rgba(0,0,0,0.65)',
+                        color: '#FFFFFF',
+                        fontSize: '10px',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}
+                    >
+                      <ZoomIn size={11} />
+                      <span>Inspect</span>
+                    </div>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                   <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
@@ -2718,6 +2819,86 @@ export const Dashboard: React.FC = () => {
         cargoName="FMCG Critical"
         routeName="NH-06 via Nongpoh (Safest)"
       />
+
+      {/* High-Resolution Field Evidence Lightbox Modal */}
+      {dashboardLightbox && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            backgroundColor: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+          }}
+          onClick={() => setDashboardLightbox(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '90vw',
+              maxHeight: '90vh',
+              borderRadius: '12px',
+              overflow: 'hidden',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.5)',
+              backgroundColor: '#0F172A',
+              border: '1px solid rgba(255,255,255,0.1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ position: 'absolute', top: '12px', right: '12px', zIndex: 10 }}>
+              <button
+                type="button"
+                onClick={() => setDashboardLightbox(null)}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <img
+              src={dashboardLightbox}
+              alt="High Resolution Incident Evidence"
+              style={{
+                maxWidth: '85vw',
+                maxHeight: '80vh',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+            <div
+              style={{
+                padding: '12px 16px',
+                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                color: '#E2E8F0',
+                fontSize: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Camera size={14} color="#10B981" />
+                <span style={{ fontWeight: 600 }}>Geo-Verified Field Recon Photo (Streamed from Mobile Scout)</span>
+              </div>
+              <span style={{ color: '#94A3B8', fontSize: '11px' }}>TiyraSense Ground Operations Network</span>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
