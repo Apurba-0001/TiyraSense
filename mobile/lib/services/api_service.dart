@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import 'image_compressor_service.dart';
@@ -623,10 +624,22 @@ class ApiService {
         fileToUpload = await ImageCompressorService.compressFile(imageFile);
       }
 
+      String filename = fileToUpload.path.split(Platform.pathSeparator).last;
+      if (!filename.toLowerCase().endsWith('.jpg') &&
+          !filename.toLowerCase().endsWith('.jpeg') &&
+          !filename.toLowerCase().endsWith('.png') &&
+          !filename.toLowerCase().endsWith('.webp')) {
+        filename = '$filename.jpg';
+      }
+
       final response = await _sendWithFallback((bUrl) async {
         final uri = Uri.parse('$bUrl/evidence/upload');
         final req = http.MultipartRequest('POST', uri)
-          ..files.add(await http.MultipartFile.fromPath('file', fileToUpload.path));
+          ..files.add(await http.MultipartFile.fromPath(
+            'file',
+            fileToUpload.path,
+            filename: filename,
+          ));
         final streamed = await _client.send(req);
         return http.Response.fromStream(streamed);
       });
@@ -640,7 +653,9 @@ class ApiService {
         }
         return url;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[ApiService] uploadEvidencePhoto error: $e');
+    }
     return null;
   }
 

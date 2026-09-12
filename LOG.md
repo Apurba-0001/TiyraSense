@@ -15,6 +15,22 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 42: Mobile Photo Evidence Ingestion, Supabase Schema & Dashboard Display
+- Work: Diagnosed and resolved end-to-end issues preventing photos submitted from mobile from appearing on the web dashboard:
+  1. `backend/app/api/v1/endpoints/evidence.py`: Upgraded `upload_evidence_photo` MIME detection to inspect filename extensions and magic bytes (`\xff\xd8\xff`, `\x89PNG`, `RIFF...WEBP`) when mobile sends `application/octet-stream`, eliminating 400 Bad Request rejection and allowing mobile photo uploads to succeed.
+  2. `mobile/lib/services/api_service.dart`: Guaranteed valid image filename extensions (`.jpg`, `.png`, etc.) on `MultipartFile.fromPath` and imported `package:flutter/foundation.dart` for `debugPrint`.
+  3. `backend/app/services/supabase_service.py`: Resolved Supabase PostgREST 400 error by mapping `photo_url` to `photo_urls` array matching `public.field_reports`, injecting PostGIS `POINT(lon lat)` geometry and ISO `client_captured_at` timestamps, and extracting `photo_urls[0]` back to `photo_url` when fetching.
+  4. `backend/app/api/v1/endpoints/field_reports.py`: Sorted merged report list by `_recency_score` so newly submitted mobile reports immediately appear at index 0 (within `Dashboard.tsx`'s 4-card live feed limit).
+  5. `web/src/services/api.ts`: Enhanced `getAssetUrl` to automatically convert `/static/uploads/...` URLs to relative paths, delegating to Vite proxy and preventing CORS/cross-origin or loopback issues when mobile passes `10.0.2.2:8000` or host IP.
+- Files: `backend/app/api/v1/endpoints/evidence.py`, `backend/app/api/v1/endpoints/field_reports.py`, `backend/app/services/supabase_service.py`, `mobile/lib/services/api_service.dart`, `web/src/services/api.ts`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `pytest backend/tests/test_reports_alerts.py` (6/6 passed in 33s); `npm test -- --run` in `web/` (26/26 passed in 2.3s); `flutter test` in `mobile/` (54/54 passed in 20s); end-to-end Python multipart upload & report creation test (verified 201 Created and image 200 OK via Vite proxy).
+- Decisions: Mobile multipart uploads often deliver generic octet-stream MIME types; server-side format detection via magic bytes ensures robust cross-platform ingestion without breaking security.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & TESTED.
+- Next: User visual test from mobile, commit, and push to GitHub.
+
 ## 2026-09-12 — Phase 41: End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos
 - Work: Ensured that field reports and evidence images submitted from the mobile app are committed into the database and reliably reflect on the web platform:
   1. `backend/app/api/v1/endpoints/field_reports.py`: Updated `create_field_report` to unconditionally call `await db.commit()` for both the `field_reports` row and `incident_evidence` record (with proper rollback handling on failure), and set `new_report_dict["id"]` to the true database/cloud UUID. Updated `list_field_reports` to merge reports across local PostgreSQL PostGIS (`field_reports` LEFT JOIN `incident_evidence`), Supabase Cloud PostgREST (`get_field_reports`), and session memory, ensuring no reports or evidence photo URIs are omitted.

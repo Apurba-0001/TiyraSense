@@ -112,18 +112,30 @@ async def upload_evidence_photo(
     Uploads to Cloudinary CDN if credentials exist; otherwise securely saves locally
     under /static/uploads/ and returns the URL.
     """
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only image files (JPEG, PNG, WebP) are allowed as field evidence.",
-        )
-
     file_bytes = await file.read()
     if len(file_bytes) > 15 * 1024 * 1024:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
             detail="Evidence photo exceeds maximum 15MB limit.",
         )
+
+    # Determine or infer image content type (handles mobile HTTP multipart octet-stream)
+    content_type = file.content_type or ""
+    if not content_type.startswith("image/"):
+        ext = Path(file.filename or "").suffix.lower()
+        if ext in [".jpg", ".jpeg", ".png", ".webp"]:
+            content_type = f"image/{'jpeg' if ext in ('.jpg', '.jpeg') else ext.replace('.', '')}"
+        elif file_bytes.startswith(b"\xff\xd8\xff"):
+            content_type = "image/jpeg"
+        elif file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+            content_type = "image/png"
+        elif file_bytes.startswith(b"RIFF") and b"WEBP" in file_bytes[:12]:
+            content_type = "image/webp"
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only image files (JPEG, PNG, WebP) are allowed as field evidence.",
+            )
 
     # 1. Try uploading to Cloudinary CDN if credentials are provided
     if settings.CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY and settings.CLOUDINARY_API_SECRET:

@@ -45,17 +45,43 @@ class SupabaseService:
         async with cls._client() as client:
             res = await client.get("/field_reports?select=*&order=server_received_at.desc")
             if res.status_code == 200:
-                return res.json()
+                reports = res.json()
+                for rep in reports:
+                    if not rep.get("photo_url") and rep.get("photo_urls") and isinstance(rep["photo_urls"], list) and len(rep["photo_urls"]) > 0:
+                        rep["photo_url"] = rep["photo_urls"][0]
+                return reports
             return []
 
     @classmethod
     async def create_field_report(cls, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        """Insert a live field report into Supabase."""
+        """Insert a live field report into Supabase with PostGIS geometry and photo array mapping."""
+        clean = dict(payload)
+        # 1. Map photo_url to photo_urls array for Supabase schema
+        photo = clean.pop("photo_url", None)
+        if photo:
+            clean["photo_urls"] = [photo]
+        elif "photo_urls" not in clean:
+            clean["photo_urls"] = []
+
+        # 2. Ensure PostGIS location geometry format
+        lat = clean.get("latitude")
+        lon = clean.get("longitude")
+        if lat is not None and lon is not None and "location" not in clean:
+            clean["location"] = f"POINT({lon} {lat})"
+
+        # 3. Ensure client_captured_at is set (required NOT NULL)
+        if "client_captured_at" not in clean:
+            from datetime import datetime, timezone
+            clean["client_captured_at"] = datetime.now(timezone.utc).isoformat()
+
         async with cls._client() as client:
-            res = await client.post("/field_reports", json=payload)
+            res = await client.post("/field_reports", json=clean)
             if res.status_code in (200, 201):
                 data = res.json()
-                return data[0] if isinstance(data, list) and data else payload
+                ret = data[0] if isinstance(data, list) and data else clean
+                if ret.get("photo_urls") and isinstance(ret["photo_urls"], list) and len(ret["photo_urls"]) > 0:
+                    ret["photo_url"] = ret["photo_urls"][0]
+                return ret
             return None
 
     @classmethod

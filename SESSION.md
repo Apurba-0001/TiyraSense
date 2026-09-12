@@ -18,11 +18,43 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 41 — End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos (COMPLETE)
-- **Status:** COMPLETE. Real reports and evidence photos submitted from the mobile app (or web) are unconditionally committed to PostgreSQL (`field_reports` & `incident_evidence`) and synced to Supabase Cloud. `list_field_reports` performs a unified merge so no reports are lost. The web platform (`FieldReports.tsx`, `Dashboard.tsx`) normalizes relative `/static/uploads/...` and Android emulator URLs via `getAssetUrl` and Vite proxy, seamlessly rendering report cards, thumbnails, and modal lightboxes.
+- **Phase:** Phase 42 — Mobile Photo Evidence Ingestion, Supabase PostGIS/Array Mapping, and Dashboard Feed Visibility (COMPLETE)
+- **Status:** COMPLETE. Mobile incident photos upload cleanly to `/api/v1/evidence/upload` (handling `application/octet-stream` via magic bytes & extension detection). Field reports persist to Supabase with `photo_urls` array mapping and PostGIS geometry. Newly submitted mobile reports sort to the top of the dashboard feed (`slice(0, 4)`) and photos render reliably with `getAssetUrl` relative paths via Vite proxy.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 41: End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos (COMPLETE)
+## Latest session — 2026-09-12 — Phase 42: Mobile Photo Evidence Ingestion, Supabase Schema & Dashboard Display (COMPLETE)
+**Did:**
+- **`backend/app/api/v1/endpoints/evidence.py`**:
+  - Enhanced MIME detection in `upload_evidence_photo` to handle mobile HTTP `application/octet-stream` multipart uploads by validating file extensions and magic bytes (`\xff\xd8\xff` for JPEG, `\x89PNG` for PNG, `RIFF...WEBP` for WebP), preventing 400 Bad Request errors that previously caused mobile photo uploads to silently fail.
+- **`mobile/lib/services/api_service.dart`**:
+  - Ensured `uploadEvidencePhoto` provides a valid file extension (`.jpg`, `.png`, `.webp`) in `MultipartFile.fromPath` and imported `package:flutter/foundation.dart` for `debugPrint`.
+- **`backend/app/services/supabase_service.py`**:
+  - Mapped `photo_url` to `photo_urls` (`_text[]`) to match Supabase Cloud `field_reports` schema.
+  - Automatically populated required NOT NULL columns `location = POINT(lon lat)` and `client_captured_at` for PostgREST insertion.
+  - Extracted `photo_urls[0]` as `photo_url` in both `create_field_report` and `get_field_reports` so photos are never lost.
+- **`backend/app/api/v1/endpoints/field_reports.py`**:
+  - Added `_recency_score` sorting in `list_field_reports` so newly submitted mobile reports immediately appear at index 0 (within `Dashboard.tsx`'s 4-card live feed limit).
+  - Preserved `photo_url` in `create_field_report` response when Supabase returns the created row.
+- **`web/src/services/api.ts`**:
+  - Enhanced `getAssetUrl` to detect `/static/uploads/` on any origin and return relative paths so Vite proxies directly to `http://127.0.0.1:8000` without cross-origin or loopback issues.
+- **Verification Evidence:**
+  - `pytest backend/tests/test_reports_alerts.py` (6/6 passed in 33s).
+  - `npm test -- --run` in `web/` (26/26 passed in 2.3s).
+  - `flutter test` in `mobile/` (54/54 passed in 20s).
+  - End-to-end Python script uploading multipart `application/octet-stream` photo, creating field report, and verifying it in `GET /api/v1/reports` at index 0 with HTTP 200 image response through `http://localhost:5173/static/uploads/...`.
+**State:** COMPLETE & VERIFIED.
+**Files touched:**
+- `backend/app/api/v1/endpoints/evidence.py`
+- `backend/app/api/v1/endpoints/field_reports.py`
+- `backend/app/services/supabase_service.py`
+- `mobile/lib/services/api_service.dart`
+- `web/src/services/api.ts`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes (no scratch files left).
+**Next:** User visual verification on mobile app and web dashboard, commit, and push to GitHub.
+**Blockers/open questions:** None.
+**Verify by:** Run `python -m pytest backend/tests/test_reports_alerts.py` and `npm test -- --run` in `web/`.
 **Did:**
 - **`backend/app/api/v1/endpoints/field_reports.py`**:
   - In `create_field_report`: unconditionally executed `await db.commit()` so both the `field_reports` row and `incident_evidence` record are saved into PostgreSQL PostGIS (with rollback on exception), and updated report ID to the true database/cloud UUID.

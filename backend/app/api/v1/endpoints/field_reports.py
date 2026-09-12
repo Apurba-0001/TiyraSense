@@ -167,7 +167,13 @@ async def list_field_reports(
     """
     merged_map: dict[str, FieldReportOut] = {}
 
-    # 1. Local database query (PostgreSQL PostGIS)
+    # 1. In-memory session store (newest reports submitted in active session)
+    for item in _IN_MEMORY_REPORTS:
+        rep_id = str(item["id"])
+        if rep_id not in _DELETED_REPORT_IDS:
+            merged_map[rep_id] = FieldReportOut(**item)
+
+    # 2. Local database query (PostgreSQL PostGIS)
     try:
         sql = text("""
             SELECT 
@@ -193,7 +199,12 @@ async def list_field_reports(
         rows = result.fetchall()
         for r in rows:
             rep_id = str(r[0])
-            if rep_id not in _DELETED_REPORT_IDS:
+            if rep_id in _DELETED_REPORT_IDS:
+                continue
+            if rep_id in merged_map:
+                if not merged_map[rep_id].photo_url and r[10]:
+                    merged_map[rep_id].photo_url = str(r[10])
+            else:
                 merged_map[rep_id] = FieldReportOut(
                     id=rep_id,
                     hazard_type=str(r[1]).replace("_", " ").title(),
@@ -213,7 +224,7 @@ async def list_field_reports(
     except Exception:
         pass
 
-    # 2. Supabase Cloud PostgREST
+    # 3. Supabase Cloud PostgREST
     try:
         from backend.app.services.supabase_service import SupabaseService
         live_reports = await SupabaseService.get_field_reports()
@@ -225,7 +236,11 @@ async def list_field_reports(
                 coords = item.get("geom", {}).get("coordinates") if isinstance(item.get("geom"), dict) else None
                 lon = float(coords[0]) if coords else float(item.get("longitude", 91.8901))
                 lat = float(coords[1]) if coords else float(item.get("latitude", 26.0124))
-                photo = item.get("photo_url") or item.get("evidence_url")
+                photo = (
+                    item.get("photo_url")
+                    or item.get("evidence_url")
+                    or (item.get("photo_urls")[0] if isinstance(item.get("photo_urls"), list) and item.get("photo_urls") else None)
+                )
                 
                 if rep_id in merged_map:
                     if not merged_map[rep_id].photo_url and photo:
@@ -252,17 +267,31 @@ async def list_field_reports(
     except Exception:
         pass
 
-    # 3. In-memory session store
-    for item in _IN_MEMORY_REPORTS:
-        rep_id = str(item["id"])
-        if rep_id in _DELETED_REPORT_IDS:
-            continue
-        if rep_id not in merged_map:
-            merged_map[rep_id] = FieldReportOut(**item)
-        elif not merged_map[rep_id].photo_url and item.get("photo_url"):
-            merged_map[rep_id].photo_url = item["photo_url"]
+    def _recency_score(item: FieldReportOut) -> float:
+        sub = item.submitted_at or ""
+        if "Just now" in sub:
+            return 1e11
+        if "m ago" in sub:
+            try:
+                mins = float(sub.split("m")[0].strip())
+                return 1e10 - mins * 60
+            except Exception:
+                return 1e9
+        if "h ago" in sub:
+            try:
+                hrs = float(sub.split("h")[0].strip())
+                return 1e9 - hrs * 3600
+            except Exception:
+                return 1e8
+        try:
+            from datetime import datetime
+            return datetime.fromisoformat(sub.replace("Z", "+00:00")).timestamp()
+        except Exception:
+            return 0.0
 
     res_list = list(merged_map.values())
+    res_list.sort(key=_recency_score, reverse=True)
+
     if hazard_type:
         ht = hazard_type.upper().replace(" ", "_")
         res_list = [r for r in res_list if r.hazard_type.upper().replace(" ", "_") == ht]
@@ -328,6 +357,8 @@ async def create_field_report(
         if supa_res and "id" in supa_res:
             supa_id = str(supa_res["id"])
             new_report_dict["id"] = supa_id
+            if not new_report_dict.get("photo_url") and supa_res.get("photo_url"):
+                new_report_dict["photo_url"] = supa_res["photo_url"]
     except Exception:
         pass
 

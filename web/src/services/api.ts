@@ -325,6 +325,14 @@ export interface WebFieldReport {
 export function getAssetUrl(pathOrUrl?: string | null): string {
   if (!pathOrUrl) return '';
   let url = pathOrUrl.trim();
+
+  // If URL points to local static uploads on any host (10.0.2.2, 127.0.0.1, localhost, or LAN IP),
+  // return the relative path so the Vite proxy or web host serves it directly with zero CORS issues.
+  const staticIdx = url.indexOf('/static/uploads/');
+  if (staticIdx !== -1) {
+    return url.substring(staticIdx);
+  }
+
   // Normalize android emulator host to localhost if viewed in browser
   if (url.includes('10.0.2.2:8000')) {
     url = url.replace('10.0.2.2:8000', 'localhost:8000');
