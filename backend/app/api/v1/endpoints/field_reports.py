@@ -361,6 +361,7 @@ async def verify_field_report(
             "data_label": settings.DATA_LABEL,
             "dispatch_unit": action.dispatch_unit,
             "dispatch_notes": action.dispatch_notes,
+            "photo_url": None,
         }
         _IN_MEMORY_REPORTS.insert(0, target)
     else:

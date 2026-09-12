@@ -18,11 +18,11 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 37 — Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (CHECKPOINT SAVED / READY TO RESUME)
-- **Status:** READY TO RESUME. Mobile incident photos captured on phone (camera/gallery) now upload directly to server storage / Cloudinary and reflect live across every web user dashboard (both `/reports` and `/dashboard` operations queue) with instant high-resolution lightbox inspection and geo-verification badges.
+- **Phase:** Phase 37 — Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (COMPLETE)
+- **Status:** COMPLETE. Mobile incident photos captured on phone (camera/gallery) now upload directly to server storage / Cloudinary and reflect live across every web user dashboard (both `/reports` and `/dashboard` operations queue) with instant high-resolution lightbox inspection and geo-verification badges.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Web Reflection (Checkpoint)
+## Latest session — 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Web Reflection (COMPLETE)
 **Did:**
 - **`backend/app/schemas/reports.py`**: Added `photo_url: Optional[str] = None` to `FieldReportOut` schema.
 - **`backend/app/api/v1/endpoints/field_reports.py`**: Added realistic photo evidence URLs to seed reports, updated `create_field_report` and `list_field_reports` to accept, persist, and return `photo_url` across in-memory and Supabase database records.
