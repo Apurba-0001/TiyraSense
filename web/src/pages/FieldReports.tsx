@@ -17,6 +17,7 @@ import {
   createFieldReport,
   deleteFieldReport,
   uploadEvidencePhoto,
+  getAssetUrl,
 } from '../services/api';
 
 
@@ -179,7 +180,7 @@ export const FieldReports: React.FC = () => {
             description: d.description,
             dispatchUnit: d.dispatch_unit,
             dispatchNotes: d.dispatch_notes,
-            photoUrl: d.photo_url || (d as any).photoUrl,
+            photoUrl: d.photo_url || (d as any).photoUrl ? getAssetUrl(d.photo_url || (d as any).photoUrl) : undefined,
           }));
           setReports(mapped);
           setSelectedReport((prev) => {
@@ -344,7 +345,7 @@ export const FieldReports: React.FC = () => {
       workerUnit: newWorkerUnit,
       coordinates: newCoordinates.trim() || '25.5788° N, 92.2140° E',
       description: newDescription.trim(),
-      photoUrl: uploadedPhotoUrl,
+      photoUrl: uploadedPhotoUrl ? getAssetUrl(uploadedPhotoUrl) : undefined,
     };
 
     setReports([newReport, ...reports]);
@@ -368,6 +369,9 @@ export const FieldReports: React.FC = () => {
       });
       if (created?.id) {
         newReport.id = created.id;
+      }
+      if (created?.photo_url) {
+        newReport.photoUrl = getAssetUrl(created.photo_url);
       }
     } catch {
       // Retain optimistic entry
@@ -709,7 +713,7 @@ export const FieldReports: React.FC = () => {
                             title="Click to inspect photo evidence"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setLightboxPhoto(r.photoUrl!);
+                              setLightboxPhoto(getAssetUrl(r.photoUrl!));
                             }}
                             style={{
                               display: 'inline-flex',
@@ -923,11 +927,11 @@ export const FieldReports: React.FC = () => {
                     backgroundColor: '#0F172A',
                     boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
                   }}
-                  onClick={() => setLightboxPhoto(selectedReport.photoUrl!)}
+                  onClick={() => setLightboxPhoto(getAssetUrl(selectedReport.photoUrl!))}
                   title="Click to zoom and inspect evidence photo"
                 >
                   <img
-                    src={selectedReport.photoUrl}
+                    src={getAssetUrl(selectedReport.photoUrl)}
                     alt={`${selectedReport.hazardType} Evidence`}
                     style={{
                       width: '100%',
@@ -1717,7 +1721,7 @@ export const FieldReports: React.FC = () => {
               </button>
             </div>
             <img
-              src={lightboxPhoto}
+              src={getAssetUrl(lightboxPhoto)}
               alt="High Resolution Incident Evidence"
               style={{
                 maxWidth: '85vw',

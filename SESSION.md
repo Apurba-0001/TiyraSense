@@ -18,11 +18,40 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 40 — Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts (COMPLETE)
-- **Status:** COMPLETE. Incident photos uploaded via mobile app actively persist to database (PostgreSQL `incident_evidence` and Supabase `field_reports.photo_url`). On app restart, evidence photos and field reports remain permanently visible in history via encrypted local cache (`FlutterSecureStorage`) and live sync.
+- **Phase:** Phase 41 — End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos (COMPLETE)
+- **Status:** COMPLETE. Real reports and evidence photos submitted from the mobile app (or web) are unconditionally committed to PostgreSQL (`field_reports` & `incident_evidence`) and synced to Supabase Cloud. `list_field_reports` performs a unified merge so no reports are lost. The web platform (`FieldReports.tsx`, `Dashboard.tsx`) normalizes relative `/static/uploads/...` and Android emulator URLs via `getAssetUrl` and Vite proxy, seamlessly rendering report cards, thumbnails, and modal lightboxes.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 40: Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts (COMPLETE)
+## Latest session — 2026-09-12 — Phase 41: End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos (COMPLETE)
+**Did:**
+- **`backend/app/api/v1/endpoints/field_reports.py`**:
+  - In `create_field_report`: unconditionally executed `await db.commit()` so both the `field_reports` row and `incident_evidence` record are saved into PostgreSQL PostGIS (with rollback on exception), and updated report ID to the true database/cloud UUID.
+  - In `list_field_reports`: unified multi-source data merging across PostgreSQL PostGIS (`field_reports` LEFT JOIN `incident_evidence`), Supabase Cloud PostgREST (`get_field_reports`), and session store, attaching `incident_evidence.storage_uri` as `photo_url` and ensuring no report or evidence image is dropped or overshadowed.
+- **`web/src/services/api.ts`**:
+  - Defined and exported `getAssetUrl(pathOrUrl?: string | null)` to normalize Android emulator loopback (`10.0.2.2:8000` -> `localhost:8000`), pass through `http(s):`, `data:`, and `blob:`, and format relative `/static/uploads/...` endpoints.
+- **`web/src/pages/FieldReports.tsx`**:
+  - Imported `getAssetUrl` and wrapped all photo URLs in `loadReports`, `handleCreateReport`, report list items, detail inspection cards, and full-resolution lightbox modal.
+- **`web/src/pages/Dashboard.tsx`**:
+  - Imported `getAssetUrl` and wrapped photo URLs in live incident feed items, card thumbnails, and high-resolution modal lightbox.
+- **`web/vite.config.ts`**:
+  - Configured proxy for `/static` and `/api` forwarding to `http://127.0.0.1:8000` so uploaded evidence assets resolve cleanly during development.
+- **Verification Evidence:**
+  - Backend: `pytest backend/tests/test_reports_alerts.py` (6/6 passed in 65s).
+  - Web: `npm test -- --run` (26/26 passed in 3.6s); `npm run build` compiled cleanly with zero errors.
+  - Mobile: `flutter test` (54/54 passed in 22s).
+**State:** COMPLETE & VERIFIED.
+**Files touched:**
+- `backend/app/api/v1/endpoints/field_reports.py`
+- `web/src/services/api.ts`
+- `web/src/pages/FieldReports.tsx`
+- `web/src/pages/Dashboard.tsx`
+- `web/vite.config.ts`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes (no temporary files created).
+**Next:** Commit and push changes to GitHub `origin main`.
+**Blockers/open questions:** None.
+**Verify by:** Run `pytest backend/tests/test_reports_alerts.py`, `npm test -- --run` in `web/`, and `flutter test` in `mobile/`.
 **Did:**
 - **`backend/app/api/v1/endpoints/field_reports.py`**:
   - In `create_field_report`: inserted into `incident_evidence (field_report_id, storage_uri, file_hash_sha256, mime_type, uploaded_at)` in local PostgreSQL whenever an evidence `photo_url` is provided.

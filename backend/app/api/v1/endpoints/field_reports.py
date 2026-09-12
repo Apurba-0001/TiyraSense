@@ -158,43 +158,16 @@ _IN_MEMORY_REPORTS = [
 @router.get("", response_model=List[FieldReportOut], status_code=status.HTTP_200_OK)
 async def list_field_reports(
     db: AsyncSession = Depends(get_db_session),
+    hazard_type: Optional[str] = None,
+    severity: Optional[str] = None,
+    status_filter: Optional[str] = None,
 ):
-    """List operational field reports across North Eastern Region highways."""
-    # 1. Direct query to live Supabase Cloud PostgREST (primary live cloud database)
-    try:
-        from backend.app.services.supabase_service import SupabaseService
-        live_reports = await SupabaseService.get_field_reports()
-        if live_reports:
-            reports = []
-            for item in live_reports:
-                coords = item.get("geom", {}).get("coordinates") if isinstance(item.get("geom"), dict) else None
-                lon = float(coords[0]) if coords else float(item.get("longitude", 91.8901))
-                lat = float(coords[1]) if coords else float(item.get("latitude", 26.0124))
-                reports.append(
-                    FieldReportOut(
-                        id=str(item.get("id")),
-                        hazard_type=str(item.get("hazard_type", "LANDSLIDE")).replace("_", " ").title(),
-                        severity=str(item.get("reported_severity", "CRITICAL")),
-                        status=str(item.get("verification_status", "PENDING")),
-                        description=str(item.get("description", "")),
-                        latitude=lat,
-                        longitude=lon,
-                        corridor_name=str(item.get("corridor", "NH-06")),
-                        km_marker=str(item.get("km", "Active Marker")),
-                        reporter_name=str(item.get("worker_name", "Field Scout")),
-                        reporter_unit=str(item.get("worker_unit", "Field Recon")),
-                        submitted_at=str(item.get("server_received_at", "Just now")),
-                        data_label="LIVE",
-                        dispatch_unit=item.get("dispatch_unit"),
-                        dispatch_notes=item.get("dispatch_notes"),
-                        photo_url=item.get("photo_url") or item.get("evidence_url"),
-                    )
-                )
-            return [r for r in reports if r.id not in _DELETED_REPORT_IDS]
-    except Exception:
-        pass
+    """List operational and verified field reports.
+    Merges live reports from PostgreSQL database, Supabase Cloud, and active session queue.
+    """
+    merged_map: dict[str, FieldReportOut] = {}
 
-    # 2. Local database query (if running)
+    # 1. Local database query (PostgreSQL PostGIS)
     try:
         sql = text("""
             SELECT 
@@ -214,37 +187,93 @@ async def list_field_reports(
             LEFT JOIN users u ON fr.reporter_id = u.id
             LEFT JOIN incident_evidence ie ON fr.id = ie.field_report_id
             ORDER BY fr.server_received_at DESC
-            LIMIT 50;
+            LIMIT 100;
         """)
         result = await db.execute(sql)
         rows = result.fetchall()
-        if rows:
-            reports = []
-            for r in rows:
-                reports.append(
-                    FieldReportOut(
-                        id=str(r[0]),
-                        hazard_type=str(r[1]),
-                        severity=str(r[2]),
-                        status=str(r[3]),
-                        description=str(r[4]),
-                        latitude=float(r[5]),
-                        longitude=float(r[6]),
-                        corridor_name=str(r[7]),
-                        km_marker="Active Pin",
-                        reporter_name=str(r[9]),
-                        reporter_unit="Field Recon",
-                        submitted_at=str(r[8]),
-                        data_label=settings.DATA_LABEL,
-                        photo_url=str(r[10]) if r[10] else None,
-                    )
+        for r in rows:
+            rep_id = str(r[0])
+            if rep_id not in _DELETED_REPORT_IDS:
+                merged_map[rep_id] = FieldReportOut(
+                    id=rep_id,
+                    hazard_type=str(r[1]).replace("_", " ").title(),
+                    severity=str(r[2]),
+                    status=str(r[3]),
+                    description=str(r[4]),
+                    latitude=float(r[5]),
+                    longitude=float(r[6]),
+                    corridor_name=str(r[7]),
+                    km_marker="Active Pin",
+                    reporter_name=str(r[9]),
+                    reporter_unit="Field Recon",
+                    submitted_at=str(r[8]),
+                    data_label=settings.DATA_LABEL,
+                    photo_url=str(r[10]) if r[10] else None,
                 )
-            return [r for r in reports if r.id not in _DELETED_REPORT_IDS]
     except Exception:
         pass
 
-    # Return validated in-memory store
-    return [FieldReportOut(**item) for item in _IN_MEMORY_REPORTS if item["id"] not in _DELETED_REPORT_IDS]
+    # 2. Supabase Cloud PostgREST
+    try:
+        from backend.app.services.supabase_service import SupabaseService
+        live_reports = await SupabaseService.get_field_reports()
+        if live_reports:
+            for item in live_reports:
+                rep_id = str(item.get("id"))
+                if rep_id in _DELETED_REPORT_IDS:
+                    continue
+                coords = item.get("geom", {}).get("coordinates") if isinstance(item.get("geom"), dict) else None
+                lon = float(coords[0]) if coords else float(item.get("longitude", 91.8901))
+                lat = float(coords[1]) if coords else float(item.get("latitude", 26.0124))
+                photo = item.get("photo_url") or item.get("evidence_url")
+                
+                if rep_id in merged_map:
+                    if not merged_map[rep_id].photo_url and photo:
+                        merged_map[rep_id].photo_url = photo
+                else:
+                    merged_map[rep_id] = FieldReportOut(
+                        id=rep_id,
+                        hazard_type=str(item.get("hazard_type", "LANDSLIDE")).replace("_", " ").title(),
+                        severity=str(item.get("reported_severity", "CRITICAL")),
+                        status=str(item.get("verification_status", "PENDING")),
+                        description=str(item.get("description", "")),
+                        latitude=lat,
+                        longitude=lon,
+                        corridor_name=str(item.get("corridor", "NH-06")),
+                        km_marker=str(item.get("km", "Active Marker")),
+                        reporter_name=str(item.get("worker_name", "Field Scout")),
+                        reporter_unit=str(item.get("worker_unit", "Field Recon")),
+                        submitted_at=str(item.get("server_received_at", "Just now")),
+                        data_label="LIVE",
+                        dispatch_unit=item.get("dispatch_unit"),
+                        dispatch_notes=item.get("dispatch_notes"),
+                        photo_url=photo,
+                    )
+    except Exception:
+        pass
+
+    # 3. In-memory session store
+    for item in _IN_MEMORY_REPORTS:
+        rep_id = str(item["id"])
+        if rep_id in _DELETED_REPORT_IDS:
+            continue
+        if rep_id not in merged_map:
+            merged_map[rep_id] = FieldReportOut(**item)
+        elif not merged_map[rep_id].photo_url and item.get("photo_url"):
+            merged_map[rep_id].photo_url = item["photo_url"]
+
+    res_list = list(merged_map.values())
+    if hazard_type:
+        ht = hazard_type.upper().replace(" ", "_")
+        res_list = [r for r in res_list if r.hazard_type.upper().replace(" ", "_") == ht]
+    if severity:
+        sev = severity.upper()
+        res_list = [r for r in res_list if r.severity.upper() == sev]
+    if status_filter:
+        sf = status_filter.upper()
+        res_list = [r for r in res_list if r.status.upper() == sf]
+
+    return res_list
 
 
 @router.post("", response_model=FieldReportOut, status_code=status.HTTP_201_CREATED)
@@ -255,7 +284,6 @@ async def create_field_report(
 ):
     """Submit a verified or observed field hazard report from scout or driver."""
     new_id = f"RP-{str(uuid.uuid4())[:8].upper()}"
-    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
     reporter_name = current_user.full_name if current_user else "Field Scout"
     reporter_unit = "Field Recon Unit"
@@ -280,6 +308,7 @@ async def create_field_report(
     }
 
     # 1. Forward to live Supabase Cloud PostgREST
+    supa_id = None
     try:
         from backend.app.services.supabase_service import SupabaseService
         supa_res = await SupabaseService.create_field_report({
@@ -297,10 +326,12 @@ async def create_field_report(
             "photo_url": report.photo_url,
         })
         if supa_res and "id" in supa_res:
-            new_report_dict["id"] = str(supa_res["id"])
+            supa_id = str(supa_res["id"])
+            new_report_dict["id"] = supa_id
     except Exception:
         pass
 
+    # 2. Persist to local PostgreSQL PostGIS & incident_evidence
     try:
         sql = text("""
             INSERT INTO field_reports (
@@ -332,13 +363,14 @@ async def create_field_report(
                     );
                 """)
                 await db.execute(evidence_sql, {"fr_id": db_id, "uri": str(report.photo_url)})
-                await db.commit()
             except Exception:
                 pass
-        if db_id and "id" not in new_report_dict:
+        # Unconditionally commit the transaction so both the report and evidence are persisted
+        await db.commit()
+        if db_id and not supa_id:
             new_report_dict["id"] = str(db_id)
     except Exception:
-        pass
+        await db.rollback()
 
     _IN_MEMORY_REPORTS.insert(0, new_report_dict)
     return FieldReportOut(**new_report_dict)

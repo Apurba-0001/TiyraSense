@@ -39,6 +39,7 @@ import {
   fetchActiveJourneys,
   fetchRegionalWeather,
   fetchFieldReports,
+  getAssetUrl,
   WebFieldReport,
   RegionalWeatherObservation,
 } from '../services/api';
@@ -2477,7 +2478,7 @@ export const Dashboard: React.FC = () => {
                   worker: `${r.reporter_name} (${r.reporter_unit || 'Field Scout'})`,
                   time: r.submitted_at || 'Just now',
                   desc: r.description,
-                  photoUrl: r.photo_url,
+                  photoUrl: r.photo_url ? getAssetUrl(r.photo_url) : undefined,
                 }))
               : [
                   {
@@ -2563,11 +2564,11 @@ export const Dashboard: React.FC = () => {
                       backgroundColor: '#0F172A',
                       marginTop: '4px',
                     }}
-                    onClick={() => setDashboardLightbox(rep.photoUrl!)}
+                    onClick={() => setDashboardLightbox(getAssetUrl(rep.photoUrl!))}
                     title="Click to zoom evidence photo"
                   >
                     <img
-                      src={rep.photoUrl}
+                      src={getAssetUrl(rep.photoUrl)}
                       alt="Incident Evidence"
                       style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                       onError={(e) => {
@@ -2870,7 +2871,7 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
             <img
-              src={dashboardLightbox}
+              src={getAssetUrl(dashboardLightbox)}
               alt="High Resolution Incident Evidence"
               style={{
                 maxWidth: '85vw',

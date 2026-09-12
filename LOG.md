@@ -15,6 +15,22 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 41: End-to-End Database Persistence & Web Reflection for Mobile Field Reports and Evidence Photos
+- Work: Ensured that field reports and evidence images submitted from the mobile app are committed into the database and reliably reflect on the web platform:
+  1. `backend/app/api/v1/endpoints/field_reports.py`: Updated `create_field_report` to unconditionally call `await db.commit()` for both the `field_reports` row and `incident_evidence` record (with proper rollback handling on failure), and set `new_report_dict["id"]` to the true database/cloud UUID. Updated `list_field_reports` to merge reports across local PostgreSQL PostGIS (`field_reports` LEFT JOIN `incident_evidence`), Supabase Cloud PostgREST (`get_field_reports`), and session memory, ensuring no reports or evidence photo URIs are omitted.
+  2. `web/src/services/api.ts`: Exported `getAssetUrl(pathOrUrl?: string | null)` to handle relative `/static/uploads/...` paths, map Android emulator URLs (`10.0.2.2:8000`) to `localhost:8000`, and pass through direct HTTPS/CDN, blob, and data URIs.
+  3. `web/src/pages/FieldReports.tsx`: Wrapped photo URLs with `getAssetUrl` in `loadReports`, `handleCreateReport`, and all image tags and lightbox modal viewers.
+  4. `web/src/pages/Dashboard.tsx`: Wrapped photo URLs with `getAssetUrl` in live feed cards, thumbnails, and modal lightboxes.
+  5. `web/vite.config.ts`: Added proxy rules for `/static` and `/api` forwarding to `http://127.0.0.1:8000`.
+- Files: `backend/app/api/v1/endpoints/field_reports.py`, `web/src/services/api.ts`, `web/src/pages/FieldReports.tsx`, `web/src/pages/Dashboard.tsx`, `web/vite.config.ts`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `pytest backend/tests/test_reports_alerts.py` (6/6 passed); `npm test -- --run` in `web/` (26/26 passed); `npm run build` in `web/` (0 errors); `flutter test` in `mobile/` (54/54 passed).
+- Decisions: Field report creation and evidence storage must commit atomically to the primary database, and web dashboards must resolve local uploads and emulator network paths transparently via proxy and URL normalization.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & TESTED.
+- Next: Commit and push changes to GitHub `origin main`.
+
 ## 2026-09-12 — Phase 40: Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts
 - Work: Implemented database synchronization for mobile incident evidence photos and ensured field reports and evidence images persist across app restarts:
   1. `backend/app/api/v1/endpoints/field_reports.py`: In `create_field_report`, added insertion into PostgreSQL `incident_evidence` table whenever `report.photo_url` is provided. In `list_field_reports`, joined `incident_evidence` on `field_reports.id` to include `storage_uri` as `photo_url` in `FieldReportOut`.

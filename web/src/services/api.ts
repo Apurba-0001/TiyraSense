@@ -322,6 +322,23 @@ export interface WebFieldReport {
   photo_url?: string;
 }
 
+export function getAssetUrl(pathOrUrl?: string | null): string {
+  if (!pathOrUrl) return '';
+  let url = pathOrUrl.trim();
+  // Normalize android emulator host to localhost if viewed in browser
+  if (url.includes('10.0.2.2:8000')) {
+    url = url.replace('10.0.2.2:8000', 'localhost:8000');
+  }
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:') || url.startsWith('blob:')) {
+    return url;
+  }
+  const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/api\/v1\/?$/, '') || 'http://localhost:8000';
+  if (url.startsWith('/')) {
+    return `${baseUrl}${url}`;
+  }
+  return `${baseUrl}/${url}`;
+}
+
 export async function fetchFieldReports(): Promise<WebFieldReport[]> {
   const res = await fetch(`${API_BASE}/reports`, {
     headers: getHeaders(false),
