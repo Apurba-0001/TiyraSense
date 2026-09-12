@@ -3,6 +3,14 @@ Seed script to initialize test user accounts for all 4 roles in the live databas
 Can be run repeatedly (idempotent).
 """
 import asyncio
+import sys
+from pathlib import Path
+
+# Ensure repository root is in sys.path when script is executed directly
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
 from sqlalchemy import select
 from backend.app.core.database import async_session_maker
 from backend.app.core.security import get_password_hash
@@ -52,7 +60,12 @@ async def seed_users():
             existing = (await session.execute(stmt)).scalar_one_or_none()
 
             if existing:
-                print(f"  [EXISTS] User '{user_data['email']}' ({user_data['role']}) already seeded.")
+                existing.password_hash = get_password_hash(user_data["password"])
+                existing.role = user_data["role"]
+                existing.full_name = user_data["full_name"]
+                existing.phone_number = user_data.get("phone_number")
+                existing.organization = user_data.get("organization")
+                print(f"  [UPDATED] User '{user_data['email']}' ({user_data['role']}) password hash updated.")
             else:
                 new_user = User(
                     email=user_data["email"],

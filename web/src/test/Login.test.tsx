@@ -26,7 +26,6 @@ describe('Web Login & Authentication Suite', () => {
     expect(screen.getByLabelText(/Official \/ Work Email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Sign In to Console/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Official \(ASDMA\)/i })).toBeInTheDocument();
   });
 
   it('shows client-side validation errors for empty inputs', async () => {
@@ -47,7 +46,7 @@ describe('Web Login & Authentication Suite', () => {
     });
   });
 
-  it('autofills official credentials when quick-fill button is clicked', () => {
+  it('allows manual credential entry without preset autofill', () => {
     render(
       <AuthProvider>
         <BrowserRouter>
@@ -56,11 +55,17 @@ describe('Web Login & Authentication Suite', () => {
       </AuthProvider>
     );
 
-    const quickFillBtn = screen.getByRole('button', { name: /Official \(ASDMA\)/i });
-    fireEvent.click(quickFillBtn);
-
     const emailInput = screen.getByLabelText(/Official \/ Work Email/i) as HTMLInputElement;
+    const passwordInput = screen.getByLabelText(/^Password$/i) as HTMLInputElement;
+
+    expect(emailInput.value).toBe('');
+    expect(passwordInput.value).toBe('');
+
+    fireEvent.change(emailInput, { target: { value: 'official@tiyrasense.in' } });
+    fireEvent.change(passwordInput, { target: { value: 'OfficialPass2026!' } });
+
     expect(emailInput.value).toBe('official@tiyrasense.in');
+    expect(passwordInput.value).toBe('OfficialPass2026!');
   });
 
   it('handles successful login and stores JWT token in localStorage', async () => {

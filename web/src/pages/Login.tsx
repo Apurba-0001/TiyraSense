@@ -1,15 +1,167 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
-import { Input } from '../components/Input';
-import { Button } from '../components/Button';
-import { StatusBadge } from '../components/StatusBadge';
-import { ShieldCheck, AlertCircle, Compass, Truck, Users, Activity, Lock } from 'lucide-react';
-import logo from '../assets/logo.png';
+import { Mail, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import appIcon from '../assets/app_icon.png';
+
+/**
+ * High-performance ambient particle canvas rendering randomly moving elements
+ * across the blank space behind the brand logo and title.
+ */
+const ParticleCanvas: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || typeof canvas.getContext !== 'function') return;
+    let ctx: CanvasRenderingContext2D | null = null;
+    try {
+      ctx = canvas.getContext('2d');
+    } catch {
+      return;
+    }
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.parentElement?.clientWidth || 500);
+    let height = (canvas.height = canvas.parentElement?.clientHeight || 800);
+
+    const handleResize = () => {
+      if (!canvas || !canvas.parentElement) return;
+      width = canvas.width = canvas.parentElement.clientWidth;
+      height = canvas.height = canvas.parentElement.clientHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    interface ParticleElement {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      color: string;
+      alpha: number;
+      type: 'circle' | 'ring' | 'diamond' | 'pulse';
+      pulseSpeed: number;
+      pulseAngle: number;
+    }
+
+    const colors = ['#0284C7', '#0EA5E9', '#38BDF8', '#7DD3FC', '#6366F1', '#059669'];
+    const types: ('circle' | 'ring' | 'diamond' | 'pulse')[] = ['circle', 'ring', 'diamond', 'pulse'];
+
+    // Generate 42 randomly moving elements with distinct velocities, sizes, and types
+    const elements: ParticleElement[] = Array.from({ length: 42 }, () => ({
+      x: Math.random() * width,
+      y: Math.random() * height,
+      vx: (Math.random() - 0.5) * 0.9,
+      vy: (Math.random() - 0.5) * 0.9,
+      size: Math.random() * 6 + 3,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: Math.random() * 0.35 + 0.15,
+      type: types[Math.floor(Math.random() * types.length)],
+      pulseSpeed: Math.random() * 0.03 + 0.015,
+      pulseAngle: Math.random() * Math.PI * 2,
+    }));
+
+    const render = () => {
+      ctx.clearRect(0, 0, width, height);
+
+      // Draw subtle dynamic constellation links between nearby moving elements
+      for (let i = 0; i < elements.length; i++) {
+        for (let j = i + 1; j < elements.length; j++) {
+          const dx = elements[i].x - elements[j].x;
+          const dy = elements[i].y - elements[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 120) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(2, 132, 199, ${0.16 * (1 - dist / 120)})`;
+            ctx.lineWidth = 0.8;
+            ctx.moveTo(elements[i].x, elements[i].y);
+            ctx.lineTo(elements[j].x, elements[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Update positions and draw elements
+      elements.forEach((el) => {
+        el.x += el.vx;
+        el.y += el.vy;
+        el.pulseAngle += el.pulseSpeed;
+
+        // Wrap around canvas edges
+        if (el.x < -20) el.x = width + 20;
+        if (el.x > width + 20) el.x = -20;
+        if (el.y < -20) el.y = height + 20;
+        if (el.y > height + 20) el.y = -20;
+
+        const currentAlpha = el.alpha + Math.sin(el.pulseAngle) * 0.1;
+        ctx.save();
+        ctx.globalAlpha = Math.max(0.06, Math.min(0.75, currentAlpha));
+
+        if (el.type === 'circle') {
+          ctx.beginPath();
+          ctx.arc(el.x, el.y, el.size, 0, Math.PI * 2);
+          ctx.fillStyle = el.color;
+          ctx.fill();
+        } else if (el.type === 'ring') {
+          ctx.beginPath();
+          ctx.arc(el.x, el.y, el.size * 1.5, 0, Math.PI * 2);
+          ctx.strokeStyle = el.color;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+        } else if (el.type === 'diamond') {
+          ctx.save();
+          ctx.translate(el.x, el.y);
+          ctx.rotate(el.pulseAngle);
+          ctx.beginPath();
+          ctx.rect(-el.size / 2, -el.size / 2, el.size, el.size);
+          ctx.fillStyle = el.color;
+          ctx.fill();
+          ctx.restore();
+        } else if (el.type === 'pulse') {
+          const pulseSize = el.size * (1 + 0.4 * Math.sin(el.pulseAngle));
+          ctx.beginPath();
+          ctx.arc(el.x, el.y, pulseSize, 0, Math.PI * 2);
+          ctx.fillStyle = el.color;
+          ctx.shadowColor = el.color;
+          ctx.shadowBlur = 10;
+          ctx.fill();
+        }
+        ctx.restore();
+      });
+
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+      }}
+    />
+  );
+};
 
 export const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string; general?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -42,14 +194,8 @@ export const Login: React.FC = () => {
     setErrors({});
 
     try {
-      const res = await login(email.trim(), password);
-      if (res.user.role === 'ADMIN') {
-        navigate('/admin');
-      } else if (res.user.role === 'OFFICIAL') {
-        navigate('/dashboard');
-      } else {
-        navigate('/dashboard');
-      }
+      await login(email.trim(), password);
+      navigate('/dashboard');
     } catch (err: any) {
       setErrors({
         general: err.message || 'Invalid email or password. Please verify credentials.',
@@ -59,340 +205,319 @@ export const Login: React.FC = () => {
     }
   };
 
-  const handleQuickFill = (testEmail: string, testPass: string) => {
-    setEmail(testEmail);
-    setPassword(testPass);
-    setErrors({});
-  };
-
   return (
     <div
       style={{
         minHeight: '100vh',
+        width: '100vw',
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '2rem 1.5rem',
-        position: 'relative',
-        overflow: 'hidden',
+        flexDirection: 'row',
+        backgroundColor: 'var(--color-canvas)',
       }}
     >
-      {/* Tactical Topographic Ambient Grid */}
+      {/* LEFT COLUMN: Clean canvas with randomly moving elements and larger Logo + Name */}
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundImage:
-            'radial-gradient(circle at 50% 20%, rgba(2, 132, 199, 0.08) 0%, transparent 60%), linear-gradient(rgba(226, 232, 240, 0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(226, 232, 240, 0.4) 1px, transparent 1px)',
-          backgroundSize: '100% 100%, 32px 32px, 32px 32px',
-          opacity: 0.7,
-          pointerEvents: 'none',
-        }}
-      />
-
-      {/* Main Glassmorphic Authentication Card */}
-      <div
-        className="glass-panel"
-        style={{
-          width: '100%',
-          maxWidth: '460px',
-          borderRadius: 'var(--radius-xl)',
-          padding: '2.5rem',
-          boxShadow: 'var(--shadow-lg)',
+          flex: '0 0 45%',
+          backgroundColor: '#F1F5F9',
           position: 'relative',
-          zIndex: 1,
+          overflow: 'hidden',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderRight: '1px solid var(--color-border)',
         }}
       >
-        {/* Top Header Branding */}
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-            <img src={logo} alt="TiyraSense" style={{ height: '44px', width: 'auto', objectFit: 'contain' }} />
-          </div>
+        {/* Dynamic moving elements animation */}
+        <ParticleCanvas />
 
+        {/* Focused Brand Identity: Logo and Name placed side-by-side */}
+        <div
+          style={{
+            position: 'relative',
+            zIndex: 10,
+            display: 'flex',
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: '20px',
+            userSelect: 'none',
+          }}
+        >
           <div
             style={{
-              display: 'inline-flex',
+              width: '84px',
+              height: '84px',
+              borderRadius: '22px',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 16px 36px rgba(2, 132, 199, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06)',
+              border: '1px solid rgba(2, 132, 199, 0.16)',
+              display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'var(--primary-light)',
-              border: '1px solid #bae6fd',
-              borderRadius: 'var(--radius-full)',
-              padding: '0.35rem 0.85rem',
-              marginBottom: '1rem',
+              justifyContent: 'center',
+              flexShrink: 0,
+              transition: 'transform var(--transition-normal)',
             }}
           >
-            <Compass size={14} color="var(--primary)" />
-            <span
+            <img
+              src={appIcon}
+              alt="TiyraSense Emblem"
               style={{
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                color: 'var(--primary)',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
+                width: '64px',
+                height: '64px',
+                objectFit: 'contain',
               }}
-            >
-              NER Transport Intelligence
-            </span>
+            />
           </div>
 
           <h1
             style={{
-              fontSize: '2rem',
+              fontSize: '44px',
               fontWeight: 800,
+              color: 'var(--color-text-primary)',
+              lineHeight: 1,
               letterSpacing: '-0.03em',
-              color: 'var(--text-primary)',
-              lineHeight: 1.15,
+              margin: 0,
             }}
           >
             TiyraSense
           </h1>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: Dedicated Console Sign In (No Autofill) */}
+      <div
+        style={{
+          flex: '0 0 55%',
+          backgroundColor: '#FFFFFF',
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          padding: '64px',
+          boxSizing: 'border-box',
+        }}
+      >
+        <div style={{ maxWidth: '420px', margin: '0 auto', width: '100%' }}>
+          <h2
+            style={{
+              fontSize: '22px',
+              fontWeight: 800,
+              color: 'var(--color-text-primary)',
+              lineHeight: 1.3,
+              marginBottom: '4px',
+            }}
+          >
+            Operations Console Access
+          </h2>
           <p
             style={{
-              fontSize: '0.88rem',
-              color: 'var(--text-secondary)',
-              marginTop: '0.35rem',
+              fontSize: '13px',
+              color: 'var(--color-text-muted)',
+              marginBottom: '28px',
             }}
           >
-            Risk-Aware Logistics & Accessibility Decision Platform
+            Authorized access for disaster management officials and administrators
           </p>
-        </div>
 
-        {/* Error Alert Banner */}
-        {errors.general && (
-          <div
-            role="alert"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.85rem 1rem',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--critical-bg)',
-              border: '1px solid var(--critical-border)',
-              color: 'var(--critical)',
-              fontSize: '0.85rem',
-              fontWeight: 500,
-              marginBottom: '1.5rem',
-            }}
-          >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{errors.general}</span>
-          </div>
-        )}
-
-        {/* Credentials Form */}
-        <form onSubmit={handleSubmit} noValidate style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <Input
-            id="email"
-            label="Official / Work Email"
-            type="email"
-            placeholder="officer@asdma.gov.in"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
-            required
-            autoComplete="username"
-          />
-
-          <Input
-            id="password"
-            label="Password"
-            type="password"
-            placeholder="••••••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
-            required
-            autoComplete="current-password"
-          />
-
-          <Button
-            type="submit"
-            variant="primary"
-            size="lg"
-            isLoading={isSubmitting}
-            style={{
-              width: '100%',
-              marginTop: '0.5rem',
-              boxShadow: 'var(--shadow-glow)',
-              fontWeight: 700,
-            }}
-          >
-            <Lock size={16} style={{ marginRight: '0.5rem' }} />
-            Sign In to Console
-          </Button>
-        </form>
-
-        {/* Quick-Fill Demonstration Panel */}
-        <div
-          style={{
-            marginTop: '2rem',
-            paddingTop: '1.5rem',
-            borderTop: '1px solid var(--border-subtle)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '0.85rem',
-            }}
-          >
-            <span
+          {errors.general && (
+            <div
+              role="alert"
               style={{
-                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 14px',
+                backgroundColor: 'var(--color-danger-bg)',
+                border: '1px solid var(--color-danger)',
+                borderRadius: 'var(--radius-sm)',
+                color: 'var(--color-danger)',
+                fontSize: '13px',
+                marginBottom: '20px',
+              }}
+            >
+              <AlertCircle size={16} style={{ flexShrink: 0 }} />
+              <span>{errors.general}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} noValidate>
+            {/* Email Field (Clean, no preset value) */}
+            <div style={{ marginBottom: '16px' }}>
+              <label
+                htmlFor="official-email"
+                style={{
+                  display: 'block',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  color: 'var(--color-text-primary)',
+                  marginBottom: '6px',
+                }}
+              >
+                Official / Work Email
+              </label>
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Mail
+                  size={16}
+                  color="var(--color-text-muted)"
+                  style={{ position: 'absolute', left: '12px', pointerEvents: 'none' }}
+                />
+                <input
+                  id="official-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@organization.gov.in"
+                  autoComplete="email"
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    paddingLeft: '38px',
+                    paddingRight: '12px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: errors.email ? '1px solid var(--color-danger)' : '1px solid var(--color-border)',
+                    backgroundColor: '#FFFFFF',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color var(--transition-fast)',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.email ? 'var(--color-danger)' : 'var(--color-border)';
+                  }}
+                />
+              </div>
+              {errors.email && (
+                <span style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px', display: 'block' }}>
+                  {errors.email}
+                </span>
+              )}
+            </div>
+
+            {/* Password Field */}
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <label
+                  htmlFor="official-password"
+                  style={{
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                  }}
+                >
+                  Password
+                </label>
+                <a
+                  href="#forgot"
+                  onClick={(e) => e.preventDefault()}
+                  style={{
+                    fontSize: '12px',
+                    color: 'var(--color-primary)',
+                    fontWeight: 500,
+                  }}
+                >
+                  Forgot password?
+                </a>
+              </div>
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <Lock
+                  size={16}
+                  color="var(--color-text-muted)"
+                  style={{ position: 'absolute', left: '12px', pointerEvents: 'none' }}
+                />
+                <input
+                  id="official-password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••••••"
+                  autoComplete="current-password"
+                  style={{
+                    width: '100%',
+                    height: '44px',
+                    paddingLeft: '38px',
+                    paddingRight: '38px',
+                    borderRadius: 'var(--radius-sm)',
+                    border: errors.password ? '1px solid var(--color-danger)' : '1px solid var(--color-border)',
+                    backgroundColor: '#FFFFFF',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '13px',
+                    outline: 'none',
+                    transition: 'border-color var(--transition-fast)',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-primary)';
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = errors.password ? 'var(--color-danger)' : 'var(--color-border)';
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '12px',
+                    color: 'var(--color-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              {errors.password && (
+                <span style={{ fontSize: '11px', color: 'var(--color-danger)', marginTop: '4px', display: 'block' }}>
+                  {errors.password}
+                </span>
+              )}
+            </div>
+
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              style={{
+                width: '100%',
+                height: '44px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: 'var(--color-primary)',
+                color: '#FFFFFF',
+                fontSize: '13px',
                 fontWeight: 700,
-                color: 'var(--text-muted)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.05em',
-              }}
-            >
-              Demo Profile Presets
-            </span>
-            <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>1-Click Autofill</span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <button
-              type="button"
-              onClick={() => handleQuickFill('official@tiyrasense.in', 'OfficialPass2026!')}
-              style={{
-                padding: '0.65rem 0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--surface)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '0.5rem',
-                textAlign: 'left',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                transition: 'all var(--transition-snappy)',
+                justifyContent: 'center',
+                cursor: isSubmitting ? 'not-allowed' : 'pointer',
+                opacity: isSubmitting ? 0.7 : 1,
+                transition: 'background-color var(--transition-fast)',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary)')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-            >
-              <Activity size={14} color="var(--primary)" />
-              <div>
-                <div>Official (ASDMA)</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  Dashboard Console
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('admin@tiyrasense.in', 'AdminPass2026!')}
-              style={{
-                padding: '0.65rem 0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--surface)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textAlign: 'left',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                transition: 'all var(--transition-snappy)',
+              onMouseEnter={(e) => {
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)';
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#7c3aed')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-            >
-              <ShieldCheck size={14} color="#7c3aed" />
-              <div>
-                <div>Admin (NEC)</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  Governance Matrix
-                </div>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('driver@tiyrasense.in', 'DriverPass2026!')}
-              style={{
-                padding: '0.65rem 0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--surface)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textAlign: 'left',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                transition: 'all var(--transition-snappy)',
+              onMouseLeave={(e) => {
+                if (!isSubmitting) e.currentTarget.style.backgroundColor = 'var(--color-primary)';
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--info)')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
             >
-              <Truck size={14} color="var(--info)" />
-              <div>
-                <div>Driver (Mobile)</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  Mobile Guidance
-                </div>
-              </div>
+              {isSubmitting ? 'Authenticating...' : 'Sign In to Console'}
             </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickFill('worker@tiyrasense.in', 'WorkerPass2026!')}
-              style={{
-                padding: '0.65rem 0.75rem',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--border)',
-                backgroundColor: 'var(--surface)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textAlign: 'left',
-                fontSize: '0.78rem',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-                transition: 'all var(--transition-snappy)',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--warning)')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border)')}
-            >
-              <Users size={14} color="var(--warning)" />
-              <div>
-                <div>Field Worker</div>
-                <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 400 }}>
-                  Reporting Console
-                </div>
-              </div>
-            </button>
-          </div>
-        </div>
-
-        {/* Provenance Footer */}
-        <div
-          style={{
-            marginTop: '1.5rem',
-            textAlign: 'center',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <StatusBadge label="LIVE POSTGIS ACTIVE" variant="LIVE" size="sm" />
-          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-            SIH 2026 PS-26002
-          </span>
+          </form>
         </div>
       </div>
     </div>
   );
 };
+

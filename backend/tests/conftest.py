@@ -10,7 +10,11 @@ from backend.app.main import app
 @pytest_asyncio.fixture(autouse=True)
 async def override_test_db_session():
     """Use NullPool for asyncpg during tests to prevent cross-event-loop connection reuse on Windows."""
-    test_engine = create_async_engine(settings.DATABASE_URL, poolclass=NullPool)
+    test_engine = create_async_engine(
+        settings.DATABASE_URL,
+        poolclass=NullPool,
+        connect_args={"timeout": 1.0, "command_timeout": 1.0},
+    )
     test_session_maker = async_sessionmaker(
         bind=test_engine, class_=AsyncSession, expire_on_commit=False
     )

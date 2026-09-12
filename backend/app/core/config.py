@@ -13,15 +13,13 @@ class Settings(BaseSettings):
     BACKEND_LOG_LEVEL: str = "info"
     DATA_LABEL: str = "LIVE"
 
-    # Database
-    DATABASE_URL: str = (
-        "postgresql+asyncpg://tiyrasense_user:tiyrasense_secure_pass_2026@localhost:5432/tiyrasense_db"
-    )
+    # Database (loaded strictly from .env)
+    DATABASE_URL: str = ""
 
-    # JWT Authentication
+    # JWT Authentication (loaded from .env; strong random key required in production)
     AUTH_SECRET_KEY: str = "tiyrasense_jwt_dev_secret_key_2026_ner_logistics"
     AUTH_ALGORITHM: str = "HS256"
-    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600  # 1 year for persistent client sessions
     AUTH_ISSUER: str = "tiyrasense"
     AUTH_AUDIENCE: str = "tiyrasense_clients"
 
@@ -33,9 +31,35 @@ class Settings(BaseSettings):
         "http://127.0.0.1:3000",
     ]
 
+    # Cloudinary Image & Evidence Storage (loaded strictly from .env)
+    CLOUDINARY_CLOUD_NAME: str = ""
+    CLOUDINARY_API_KEY: str = ""
+    CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_UPLOAD_PRESET: str = "tiyrasense_evidence"
+
+    # Supabase Live Cloud Database (loaded strictly from .env)
+    SUPABASE_URL: str = ""
+    SUPABASE_KEY: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
+
+    # LLM / AI Advisory (loaded strictly from .env if configured)
+    LLM_PROVIDER: str = "gemini"
+    LLM_API_KEY: str = ""
+    LLM_MODEL: str = "gemini-3.5-flash-lite"
+
+    # Traffic & Navigation (loaded from .env)
+    TRAFFIC_PROVIDER: str = "osrm_baseline"
+    TRAFFIC_API_KEY: str = ""
+
+    # Push Notifications (loaded from .env)
+    NOTIFICATIONS_PROVIDER: str = "fcm"
+    NOTIFICATIONS_API_KEY: str = ""
+    FIREBASE_PROJECT_ID: str = ""
+
     # Model Configuration
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(".env", "../.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )

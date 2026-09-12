@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../services/alert_service.dart';
+import '../services/localization_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
-import 'login_screen.dart';
+import '../widgets/status_pill_badge.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/side_drawer.dart';
+import '../widgets/journey_planning_sheet.dart';
+import '../widgets/hazard_report_sheet.dart';
+import 'driver_map_screen.dart';
+import 'alerts_screen.dart';
+import 'profile_screen.dart';
+import 'report_history_screen.dart';
 
 class DriverHomeScreen extends StatefulWidget {
   final UserModel user;
@@ -19,53 +29,95 @@ class DriverHomeScreen extends StatefulWidget {
 }
 
 class _DriverHomeScreenState extends State<DriverHomeScreen> {
-  bool _showGeologicalFeed = false;
-  String _activeRoute = 'NH-06 (Recommended)';
+  int _currentTabIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  Map<String, dynamic>? _selectedRouteData;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      key: _scaffoldKey,
+      backgroundColor: AppTheme.canvas,
+      drawer: SideDrawer(
+        role: UserRole.driver,
+        activeItem: _currentTabIndex == 0
+            ? 'Dashboard'
+            : (_currentTabIndex == 1 ? 'Route Planner' : (_currentTabIndex == 3 ? 'Alerts' : '')),
+        onRoutePlannerTap: () => JourneyPlanningSheet.show(
+          context,
+          onRouteSelected: (routeData) {
+            setState(() {
+              _selectedRouteData = routeData;
+              _currentTabIndex = 1;
+            });
+          },
+        ),
+        onAlertsTap: () => setState(() => _currentTabIndex = 3),
+      ),
+      body: IndexedStack(
+        index: _currentTabIndex,
+        children: [
+          _buildHomeDashboard(context),
+          DriverMapScreen(
+            onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+            initialRouteData: _selectedRouteData,
+            apiServiceOverride: widget.authProvider.apiService,
+          ),
+          _buildJourneyTabPlaceholder(context),
+          AlertsScreen(onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer()),
+          ProfileScreen(
+            role: UserRole.driver,
+            onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildHomeDashboard(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.canvas,
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/icon/app_icon.png',
-              fit: BoxFit.cover,
-            ),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => _scaffoldKey.currentState?.openDrawer(),
+          child: const Padding(
+            padding: EdgeInsets.all(10.0),
+            child: AppLogo.icon(size: 36, radius: 9),
           ),
         ),
-        titleSpacing: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'TiyraSense Driver',
-              style: TextStyle(
-                fontSize: 18,
+            Text(
+              widget.user.fullName,
+              style: const TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.4,
-                color: AppTheme.textPrimary,
+                color: AppTheme.textHigh,
               ),
             ),
+            const SizedBox(height: 2),
             Row(
               children: [
                 Container(
                   width: 7,
                   height: 7,
                   decoration: const BoxDecoration(
-                    color: AppTheme.success,
+                    color: AppTheme.green,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
-                  '${widget.user.fullName} • On Active Duty',
+                  widget.user.role == UserRole.fieldWorker
+                      ? localizationService.tr('field_recon_active')
+                      : localizationService.tr('on_duty_escort'),
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textLow,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -74,173 +126,114 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded, color: AppTheme.textSecondary),
-            tooltip: 'Alerts',
-            onPressed: () => _showCorridorAlertsDialog(context),
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppTheme.textSecondary),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await widget.authProvider.logout();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => LoginScreen(authProvider: widget.authProvider),
+          ListenableBuilder(
+            listenable: alertService,
+            builder: (context, _) {
+              final hasUnread = alertService.unreadCount > 0;
+              return Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: AppTheme.textMid),
+                    onPressed: () {
+                      setState(() => _currentTabIndex = 3);
+                      alertService.markSeenAsRead();
+                    },
                   ),
-                );
-              }
+                  if (hasUnread)
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
+          const SizedBox(width: 8),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: AppTheme.borderLight, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Freshness Telemetry Strip
+            // Block 1 — GPS Strip
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              height: 40,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceContainer,
+                color: AppTheme.container,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.borderSubtle),
+                border: Border.all(color: AppTheme.borderLight),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.satellite_alt_rounded, color: AppTheme.success, size: 16),
-                      SizedBox(width: 8),
+                      const Icon(Icons.satellite_alt_rounded, size: 16, color: AppTheme.green),
+                      const SizedBox(width: 6),
                       Text(
-                        'GPS / NavIC Locked • Node Mesh #NER-14',
-                        style: TextStyle(
+                        localizationService.tr('gps_locked'),
+                        style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
-                          color: AppTheme.textPrimary,
+                          color: AppTheme.textHigh,
+                          letterSpacing: 0.4,
                         ),
                       ),
                     ],
                   ),
                   Text(
-                    'Updated 2m ago',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textMuted,
-                      fontFamily: 'monospace',
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // Operator Greeting & Heavy Vehicle Manifest Card
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppTheme.primaryLight,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: const Text(
-                              'FLEET REG: NL-01-A-8942',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.primary,
-                                fontFamily: 'monospace',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          const Text(
-                            'Active Shift',
-                            style: TextStyle(fontSize: 11, color: AppTheme.textMuted),
-                          ),
-                        ],
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surfaceContainer,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'CARGO: CRITICAL FMCG',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    'Good day, ${widget.user.fullName}',
+                    localizationService.tr('updated_ago'),
                     style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textPrimary,
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      color: AppTheme.textLow,
                     ),
-                  ),
-                  const SizedBox(height: 2),
-                  const Text(
-                    'Tata Prima 2830.K (31T Gross) • Dimapur ↔ Guwahati Transit',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 12),
 
-            // Operational Corridor Status Card (Preserves "Corridor Status: PASSABLE" for test)
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+            // Block 2 — Corridor Status Card
+            GestureDetector(
+              onTap: () => setState(() => _currentTabIndex = 1),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                  border: Border.all(color: AppTheme.borderLight),
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: Column(
+                  children: [
                   Row(
                     children: [
+                      // 44px green-tinted square
                       Container(
                         width: 44,
                         height: 44,
                         decoration: BoxDecoration(
-                          color: AppTheme.successBg,
+                          color: AppTheme.greenBg,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
+                          border: Border.all(color: AppTheme.green.withValues(alpha: 0.25)),
                         ),
-                        child: const Icon(Icons.check_circle_rounded, color: AppTheme.success, size: 26),
+                        child: const Icon(Icons.check_circle_rounded, color: AppTheme.green, size: 26),
                       ),
                       const SizedBox(width: 12),
                       const Expanded(
@@ -248,58 +241,39 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Corridor Status: PASSABLE',
+                              'NH-06 Guwahati to Shillong',
                               style: TextStyle(
-                                fontWeight: FontWeight.w800,
                                 fontSize: 15,
-                                color: AppTheme.textPrimary,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textHigh,
                               ),
                             ),
                             SizedBox(height: 2),
                             Text(
-                              'NH-06 Guwahati ↔ Shillong Expressway',
-                              style: TextStyle(
-                                color: AppTheme.textSecondary,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              'Segment ID: NER-AS-ML-006',
+                              style: TextStyle(fontSize: 12, color: AppTheme.textLow),
                             ),
                           ],
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppTheme.successBg,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFA7F3D0)),
-                        ),
-                        child: const Text(
-                          'LIVE SENSING',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w800,
-                            color: AppTheme.success,
-                          ),
-                        ),
-                      ),
+                      const StatusPillBadge(status: BadgeStatusType.passable),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceContainer,
+                      color: AppTheme.container,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
-                        Icon(Icons.info_outline_rounded, size: 15, color: AppTheme.primary),
-                        SizedBox(width: 6),
+                        const Icon(Icons.info_outline_rounded, size: 16, color: AppTheme.primaryBlue),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'One-way convoy escort lifted at Nongpoh. Both lanes operational.',
-                            style: TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                            localizationService.tr('normal_flow'),
+                            style: const TextStyle(fontSize: 12, color: AppTheme.textMid),
                           ),
                         ),
                       ],
@@ -308,155 +282,123 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 12),
+          ),
+          const SizedBox(height: 12),
 
-            // Core Telemetry Triplet Card
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
+            // Block 3 — Telemetry Row
+            Text(
+              localizationService.tr('operational_telemetry'),
+              style: const TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textLow,
+                letterSpacing: 0.6,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'OPERATIONAL TELEMETRY',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textMuted,
-                      letterSpacing: 0.6,
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                _buildTelemetryTile(
+                  icon: Icons.speed_rounded,
+                  iconColor: AppTheme.primaryBlue,
+                  label: localizationService.tr('traffic'),
+                  value: localizationService.tr('traffic_regulated'),
+                  valueColor: AppTheme.primaryBlue,
+                ),
+                const SizedBox(width: 8),
+                _buildTelemetryTile(
+                  icon: Icons.landslide_rounded,
+                  iconColor: AppTheme.green,
+                  label: localizationService.tr('slip_risk'),
+                  value: localizationService.tr('slip_risk_low'),
+                  valueColor: AppTheme.green,
+                ),
+                const SizedBox(width: 8),
+                _buildTelemetryTile(
+                  icon: Icons.verified_user_outlined,
+                  iconColor: AppTheme.green,
+                  label: localizationService.tr('confidence'),
+                  value: localizationService.tr('confidence_val'),
+                  valueColor: AppTheme.green,
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // Block 4 — Journey CTA Button
+            SizedBox(
+              height: 64,
+              child: ElevatedButton(
+                onPressed: () => JourneyPlanningSheet.show(
+                  context,
+                  onRouteSelected: (routeData) {
+                    setState(() {
+                      _selectedRouteData = routeData;
+                      _currentTabIndex = 1;
+                    });
+                  },
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryBlue,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.alt_route_rounded,
+                        color: AppTheme.primaryBlue,
+                        size: 22,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildTelemetryMetric(
-                          icon: Icons.speed_rounded,
-                          label: 'Traffic Flow',
-                          value: 'Regulated',
-                          color: AppTheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildTelemetryMetric(
-                          icon: Icons.landslide_rounded,
-                          label: 'Slip Probability',
-                          value: '18% Low',
-                          color: AppTheme.success,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _buildTelemetryMetric(
-                          icon: Icons.verified_user_rounded,
-                          label: 'Verification',
-                          value: '98% Conf.',
-                          color: AppTheme.success,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Accordion Toggle for Geological Sensors
-                  InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showGeologicalFeed = !_showGeologicalFeed;
-                      });
-                    },
-                    borderRadius: BorderRadius.circular(8),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _showGeologicalFeed ? 'Hide Geological Sensors' : 'View Geological Sensor Feed',
+                            localizationService.tr('plan_safer_journey'),
                             style: const TextStyle(
-                              fontSize: 11,
+                              fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: AppTheme.primary,
+                              color: Colors.white,
                             ),
                           ),
-                          Icon(
-                            _showGeologicalFeed ? Icons.expand_less_rounded : Icons.expand_more_rounded,
-                            size: 16,
-                            color: AppTheme.primary,
+                          const SizedBox(height: 2),
+                          Text(
+                            localizationService.tr('ai_checks_risk'),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xB3FFFFFF),
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  if (_showGeologicalFeed) ...[
-                    const Divider(height: 14),
-                    _buildGeoSensorRow('Slope Pore Pressure', '22.4 kPa (Nominal)', AppTheme.success),
-                    _buildGeoSensorRow('Acoustic Rockfall Sensor', 'Zero Shifting', AppTheme.success),
-                    _buildGeoSensorRow('Seepage Gauge Km 42', '4.2 mm/hr (Clear)', AppTheme.success),
+                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
                   ],
-                ],
+                ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
-            // Primary Operational CTA: Plan a Safer Journey
-            ElevatedButton(
-              onPressed: () => _showJourneyPlanningBottomSheet(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primary,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.all(16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                elevation: 2,
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: Colors.white24,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(Icons.alt_route_rounded, color: Colors.white, size: 24),
-                  ),
-                  SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Plan a Safer Journey',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: -0.2,
-                          ),
-                        ),
-                        Text(
-                          'AI checks slope slip, convoy wait times & detours',
-                          style: TextStyle(fontSize: 11, color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 22),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-
-            // Quick Tactical Operational Grid (4 Tools)
-            const Text(
-              'FIELD LOGISTICS QUICK-ACTIONS',
-              style: TextStyle(
+            // Block 5 — Quick Actions 2x2 Grid
+            Text(
+              localizationService.tr('quick_actions'),
+              style: const TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: AppTheme.textMuted,
+                color: AppTheme.textLow,
                 letterSpacing: 0.6,
               ),
             ),
@@ -467,184 +409,230 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               physics: const NeverScrollableScrollPhysics(),
               mainAxisSpacing: 10,
               crossAxisSpacing: 10,
-              childAspectRatio: 1.7,
+              childAspectRatio: 1.6,
               children: [
-                _buildQuickActionTile(
+                _buildQuickActionCard(
                   icon: Icons.add_alert_rounded,
-                  title: 'Report Hazard',
-                  subtitle: 'Mud, Rock, Slip',
+                  iconColor: AppTheme.amber,
+                  bgColor: AppTheme.amberBg,
                   tag: '1-Tap',
-                  color: AppTheme.warning,
-                  onTap: () => _showReportHazardBottomSheet(context),
+                  title: localizationService.tr('report_hazard'),
+                  subtitle: localizationService.tr('mud_rock_slip'),
+                  onTap: () => HazardReportSheet.show(context),
                 ),
-                _buildQuickActionTile(
-                  icon: Icons.notification_important_rounded,
-                  title: 'Corridor Alerts',
-                  subtitle: 'NH-29 & NH-06',
+                _buildQuickActionCard(
+                  icon: Icons.warning_amber_rounded,
+                  iconColor: AppTheme.orange,
+                  bgColor: const Color(0xFFFFF7ED),
                   tag: '2 Active',
-                  color: AppTheme.statusRestricted,
-                  onTap: () => _showCorridorAlertsDialog(context),
+                  title: localizationService.tr('corridor_alerts'),
+                  subtitle: 'NH-29 & NH-06',
+                  onTap: () => setState(() => _currentTabIndex = 3),
                 ),
-                _buildQuickActionTile(
-                  icon: Icons.thunderstorm_rounded,
-                  title: 'Radar & Rain',
-                  subtitle: 'Doppler Telemetry',
+                _buildQuickActionCard(
+                  icon: Icons.thunderstorm_outlined,
+                  iconColor: AppTheme.primaryBlue,
+                  bgColor: AppTheme.blueBg,
                   tag: '8mm/h',
-                  color: AppTheme.primary,
-                  onTap: () => _showWeatherRadarDialog(context),
+                  title: localizationService.tr('weather_radar'),
+                  subtitle: localizationService.tr('doppler_feed'),
+                  onTap: () => SideDrawer.showWeatherWatchSheet(context),
                 ),
-                _buildQuickActionTile(
+                _buildQuickActionCard(
                   icon: Icons.emergency_rounded,
-                  title: 'SOS Emergency',
-                  subtitle: 'BRO / Police Post',
-                  tag: 'Priority',
-                  color: AppTheme.critical,
-                  onTap: () => _showEmergencyDialog(context),
+                  iconColor: AppTheme.red,
+                  bgColor: AppTheme.redBg,
+                  tag: localizationService.tr('priority'),
+                  title: localizationService.tr('sos_police'),
+                  subtitle: localizationService.tr('bro_police_post'),
+                  onTap: () => SideDrawer.showEmergencySosSheet(context),
                 ),
               ],
             ),
-            const SizedBox(height: 14),
-
-            // Active Journey Waypoint Stepper
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
+            const SizedBox(height: 10),
+            InkWell(
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ReportHistoryScreen()),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppTheme.borderLight),
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.history_edu_rounded, color: Color(0xFF0D9488), size: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            localizationService.tr('incident_reports_history'),
+                            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            localizationService.tr('view_field_submissions'),
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_ios_rounded, size: 12, color: AppTheme.textLow),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Block 6 — Active Route Timeline Card
+            GestureDetector(
+              onTap: () => setState(() => _currentTabIndex = 1),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                  border: Border.all(color: AppTheme.borderLight),
+                  boxShadow: AppTheme.cardShadow,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
                         'Active Route Timeline',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textHigh,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryLight,
+                          color: AppTheme.blueLight,
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          _activeRoute,
-                          style: const TextStyle(
+                        child: const Text(
+                          'NH-06 CORRIDOR',
+                          style: TextStyle(
                             fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primary,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.primaryBlue,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 14),
-                  _buildTimelineItem(
-                    title: 'Guwahati Port Hub (Origin)',
-                    subtitle: 'Dep: 05:30 AM • KM 0.0',
-                    isFirst: true,
+                  const SizedBox(height: 16),
+                  _buildTimelineWaypoint(
+                    title: 'Guwahati Port Hub',
+                    subtitle: 'Dep: 06:15 AM · Cleared',
                     isPassed: true,
+                    isLast: false,
                   ),
-                  _buildTimelineItem(
-                    title: 'Jorabat Junction Checkpost',
-                    subtitle: 'Clear passage • KM 18.2',
+                  _buildTimelineWaypoint(
+                    title: 'Jorabat Junction (KM 18)',
+                    subtitle: 'Passed: 07:10 AM · Smooth Flow',
                     isPassed: true,
+                    isLast: false,
                   ),
-                  _buildTimelineItem(
-                    title: 'Nongpoh Transit Sector',
-                    subtitle: 'Light rain • KM 52.4 (Current)',
-                    isPassed: false,
+                  _buildTimelineWaypoint(
+                    title: 'Nongpoh Checkpoint (KM 52)',
+                    subtitle: 'Current Location · ETA Rest Stop 09:30 AM',
                     isCurrent: true,
+                    isLast: false,
                   ),
-                  _buildTimelineItem(
-                    title: 'Shillong Terminal Hub (Destination)',
-                    subtitle: 'ETA: 08:15 AM • KM 98.4',
-                    isLast: true,
+                  _buildTimelineWaypoint(
+                    title: 'Shillong Terminal Hub (KM 98)',
+                    subtitle: 'Est. Arrival: 12:20 PM · Clear Bay',
                     isPassed: false,
+                    isLast: true,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+          ),
+          const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  static Widget _buildTelemetryMetric({
+  Widget _buildTelemetryTile({
     required IconData icon,
+    required Color iconColor,
     required String label,
     required String value,
-    required Color color,
+    required Color valueColor,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceContainer,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 4),
-              Text(
-                label,
-                style: const TextStyle(fontSize: 10, color: AppTheme.textMuted, fontWeight: FontWeight.w600),
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppTheme.container,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, size: 14, color: iconColor),
+                const SizedBox(width: 4),
+                Text(
+                  label.toUpperCase(),
+                  style: const TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: AppTheme.textLow,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: valueColor,
               ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: color),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  static Widget _buildGeoSensorRow(String name, String status, Color color) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(name, style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary)),
-          Text(status, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionTile({
+  Widget _buildQuickActionCard({
     required IconData icon,
+    required Color iconColor,
+    required Color bgColor,
+    required String tag,
     required String title,
     required String subtitle,
-    required String tag,
-    required Color color,
     required VoidCallback onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppTheme.surfaceCard,
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppTheme.borderSubtle),
-          boxShadow: const [
-            BoxShadow(color: Color(0x06000000), blurRadius: 4, offset: Offset(0, 1)),
-          ],
+          border: Border.all(color: AppTheme.borderLight),
+          boxShadow: AppTheme.cardShadow,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,20 +645,24 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                   width: 30,
                   height: 30,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: bgColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(icon, size: 18, color: color),
+                  child: Icon(icon, color: iconColor, size: 18),
                 ),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.1),
+                    color: bgColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
                     tag,
-                    style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color),
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.w700,
+                      color: iconColor,
+                    ),
                   ),
                 ),
               ],
@@ -680,11 +672,11 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textPrimary),
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 10, color: AppTheme.textMuted),
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
                 ),
               ],
             ),
@@ -694,15 +686,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     );
   }
 
-  static Widget _buildTimelineItem({
+  Widget _buildTimelineWaypoint({
     required String title,
     required String subtitle,
-    bool isFirst = false,
-    bool isLast = false,
     bool isPassed = false,
     bool isCurrent = false,
+    bool isLast = false,
   }) {
-    Color dotColor = isPassed ? AppTheme.success : (isCurrent ? AppTheme.primary : AppTheme.textMuted);
+    Color dotColor = AppTheme.borderMed;
+    if (isPassed) dotColor = AppTheme.green;
+    if (isCurrent) dotColor = AppTheme.primaryBlue;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -715,14 +708,14 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
               decoration: BoxDecoration(
                 color: dotColor,
                 shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
+                border: isCurrent ? Border.all(color: AppTheme.blueLight, width: 3) : null,
               ),
             ),
             if (!isLast)
               Container(
                 width: 2,
-                height: 32,
-                color: isPassed ? AppTheme.success : AppTheme.borderSubtle,
+                height: 38,
+                color: isPassed ? AppTheme.green : AppTheme.borderLight,
               ),
           ],
         ),
@@ -735,15 +728,16 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                 title,
                 style: TextStyle(
                   fontSize: 13,
-                  fontWeight: isCurrent ? FontWeight.bold : FontWeight.w600,
-                  color: isCurrent ? AppTheme.textPrimary : AppTheme.textSecondary,
+                  fontWeight: isCurrent ? FontWeight.w800 : FontWeight.w600,
+                  color: AppTheme.textHigh,
                 ),
               ),
+              const SizedBox(height: 2),
               Text(
                 subtitle,
-                style: const TextStyle(fontSize: 11, color: AppTheme.textMuted),
+                style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
               ),
-              const SizedBox(height: 8),
+              if (!isLast) const SizedBox(height: 14),
             ],
           ),
         ),
@@ -751,277 +745,138 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
     );
   }
 
-  void _showJourneyPlanningBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildJourneyTabPlaceholder(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.alt_route_rounded, size: 64, color: AppTheme.primaryBlue),
+            const SizedBox(height: 16),
+            const Text(
+              'Dynamic Route Planner',
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Select corridors and calculate multi-factor terrain risk penalties.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: AppTheme.textLow),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () => JourneyPlanningSheet.show(
+                context,
+                onRouteSelected: (routeData) {
+                  setState(() {
+                    _selectedRouteData = routeData;
+                    _currentTabIndex = 1;
+                  });
+                },
+              ),
+              child: const Text('Open Journey Sheet'),
+            ),
+          ],
+        ),
       ),
-      builder: (ctx) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
+    );
+  }
+
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        boxShadow: AppTheme.navShadow,
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppTheme.borderStrong,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Plan a Safer Journey',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-              ),
-              const Text(
-                'Select routing preference for Guwahati ↔ Shillong corridor',
-                style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-              ),
-              const SizedBox(height: 16),
-
-              // Route Option A (Recommended)
-              InkWell(
-                onTap: () {
-                  setState(() => _activeRoute = 'NH-06 (Recommended)');
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Selected Recommended Safe Route via NH-06'),
-                      backgroundColor: AppTheme.success,
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.successBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFA7F3D0), width: 1.5),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'OPTION A: RECOMMENDED SAFEST',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.success),
-                          ),
-                          Text(
-                            'Risk Score: 0.18 (Low)',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.success),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'via NH-06 Express Corridor',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '98.4 km • ETA 2h 15m • Bypasses active landslide alerts near Pagla Pahar',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Route Option B (Fastest)
-              InkWell(
-                onTap: () {
-                  setState(() => _activeRoute = 'NH-29 (Fastest)');
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Selected Fastest Route via NH-29 Ridge'),
-                      backgroundColor: AppTheme.warning,
-                    ),
-                  );
-                },
-                borderRadius: BorderRadius.circular(12),
-                child: Container(
-                  padding: const EdgeInsets.all(14),
-                  decoration: BoxDecoration(
-                    color: AppTheme.warningBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
-                  ),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            'OPTION B: FASTEST AVAILABLE',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warning),
-                          ),
-                          Text(
-                            'Risk Score: 0.64 (High)',
-                            style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppTheme.warning),
-                          ),
-                        ],
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'via NH-29 Mountain Ridge',
-                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
-                      ),
-                      SizedBox(height: 2),
-                      Text(
-                        '89.0 km • ETA 1h 58m (-17m) • Active mudflow advisory at KM 14.8',
-                        style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
+              _buildNavTab(0, Icons.home_rounded, localizationService.tr('home')),
+              _buildNavTab(1, Icons.map_rounded, localizationService.tr('map')),
+              _buildNavTab(2, Icons.alt_route_rounded, localizationService.tr('plan')),
+              _buildNavTab(3, Icons.notifications_rounded, localizationService.tr('alerts')),
+              _buildNavTab(4, Icons.person_rounded, localizationService.tr('profile')),
             ],
           ),
-        );
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavTab(int index, IconData icon, String label) {
+    final isSelected = _currentTabIndex == index;
+    return GestureDetector(
+      onTap: () {
+        if (index == 2) {
+          JourneyPlanningSheet.show(context);
+        } else {
+          setState(() {
+            _currentTabIndex = index;
+            if (index == 3) {
+              alertService.markSeenAsRead();
+            }
+          });
+        }
       },
-    );
-  }
-
-  void _showReportHazardBottomSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (ctx) {
-        return Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Report Road Hazard', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-              const Text('Tag hazard at your current location on NH-06', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
-              const SizedBox(height: 16),
-              ListTile(
-                leading: const Icon(Icons.landscape_rounded, color: AppTheme.warning),
-                title: const Text('Landslide / Mudflow'),
-                subtitle: const Text('Debris or boulders obstructing passage'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Landslide report submitted for verification'), backgroundColor: AppTheme.success),
-                  );
-                },
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 60,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Blue indicator pip above active tab
+            Container(
+              width: 16,
+              height: 2,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                borderRadius: BorderRadius.circular(1),
               ),
-              ListTile(
-                leading: const Icon(Icons.water_damage_rounded, color: AppTheme.primary),
-                title: const Text('Flash Flood / Culvert Overflow'),
-                subtitle: const Text('Water crossing roadway'),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Water inundation report submitted'), backgroundColor: AppTheme.success),
-                  );
-                },
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  void _showCorridorAlertsDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.notification_important_rounded, color: AppTheme.statusRestricted),
-            SizedBox(width: 8),
-            Text('Corridor Advisories'),
-          ],
-        ),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('1. NH-29 Km 14.8: Single-lane convoy active due to rockfall clearance.', style: TextStyle(fontSize: 13)),
-            SizedBox(height: 8),
-            Text('2. NH-06 Umiam Sector: Dense fog reducing visibility to <50m.', style: TextStyle(fontSize: 13)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Dismiss')),
-        ],
-      ),
-    );
-  }
-
-  void _showWeatherRadarDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Doppler Radar Telemetry'),
-        content: const Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('• Rainfall Intensity: 8.4 mm/hr (Light to Moderate)', style: TextStyle(fontSize: 13)),
-            SizedBox(height: 6),
-            Text('• 3-Hour Forecast: Monsoon band moving North towards Nongpoh', style: TextStyle(fontSize: 13)),
-            SizedBox(height: 6),
-            Text('• Road Grip Index: 88% (Adequate for multi-axle freight)', style: TextStyle(fontSize: 13)),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-        ],
-      ),
-    );
-  }
-
-  void _showEmergencyDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.emergency_rounded, color: AppTheme.critical),
-            SizedBox(width: 8),
-            Text('SOS Emergency Mode'),
-          ],
-        ),
-        content: const Text(
-          'Broadcast distress beacon to Nearest Border Roads Organisation (BRO) Camp (4.2 km) and Assam Highway Patrol?',
-          style: TextStyle(fontSize: 13),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.critical),
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Emergency beacon transmitted. Help is notified.'),
-                  backgroundColor: AppTheme.critical,
+            ),
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(
+                  icon,
+                  size: 24,
+                  color: isSelected ? AppTheme.primaryBlue : AppTheme.textLow,
                 ),
-              );
-            },
-            child: const Text('Transmit SOS', style: TextStyle(color: Colors.white)),
-          ),
-        ],
+                if (index == 3)
+                  ListenableBuilder(
+                    listenable: alertService,
+                    builder: (context, _) {
+                      if (alertService.unreadCount == 0) return const SizedBox.shrink();
+                      return Positioned(
+                        right: -2,
+                        top: -1,
+                        child: Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppTheme.red,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+            if (isSelected)
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryBlue,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

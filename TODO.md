@@ -27,16 +27,21 @@ Status terms: **COMPLETE**, **PARTIALLY COMPLETE**, **BLOCKED**, **NOT STARTED**
 - [x] COMPLETE — Persistent Mobile Authentication: Hardware-encrypted storage via `flutter_secure_storage` (Android Keystore / iOS Keychain) preserving session across app restarts and offline cold boots.
 - [!] NOTE — Current State of Data: Auth, RBAC, DB connection, and encrypted session storage are LIVE. Corridor lists, route options, and hazard feeds on the client UI are currently pre-defined demonstrations pending Phase 4 (OSRM route engine & dynamic origin/destination selection).
 
-## Phase 4 — Core Logistics UX (Dynamic Route Planning & GIS) — NOT STARTED (Next)
+## Phase 4 — Core Logistics UX (Dynamic Route Planning, Spatial Risk & Live Telemetry) — COMPLETE
 
-- [ ] Dynamic Origin & Destination Hub selection (Guwahati, Shillong, Silchar, Dimapur, Kohima, etc.)
-- [ ] OSRM routing engine integration (`/api/v1/routes/evaluate` and `/api/v1/routes/plan`)
-- [ ] Multi-factor candidate route evaluation: Safest Viable vs Fastest Available
-- [ ] Dynamic road corridor status and geometry endpoints
+- [x] COMPLETE — Arbitrary & Dynamic Origin & Destination Hub selection with GPS lookup and custom coordinate inputs across NER
+- [x] COMPLETE — OSRM routing engine candidate evaluation (`/api/v1/routes/evaluate` and `/api/v1/routes/corridors`)
+- [x] COMPLETE — Multi-factor candidate route risk scoring: Safest Viable vs Fastest Available (D-015 formula & PostGIS ST_DWithin spatial matching)
+- [x] COMPLETE — Dynamic road corridor status, geometry seeding (`scripts/seed_road_network.py` with 14 segments in PostGIS)
+- [x] COMPLETE — Live Location Tracking & Telemetry Engine (`/api/v1/journeys`, `/api/v1/journeys/{id}/telemetry`, `/api/v1/journeys/{id}/tracking`, `/api/v1/journeys/active`) with forward hazard warning lookahead
+- [x] COMPLETE — Web and Mobile integrations with dynamic route evaluations and live telemetry streaming (all 32 backend tests, 9 web tests, 22 mobile tests passing)
 
-## Phase 5 — Real-World Data Ingestion — NOT STARTED
+## Phase 5 — Real-World Data Ingestion & Universal Map Layering — COMPLETE
 
-- [ ] Validated data-source integrations and normalized road-segment observations
+- [x] COMPLETE — Live Supabase Cloud PostgreSQL PostgREST queries for corridors, alerts, field reports, and active telemetry
+- [x] COMPLETE — Google Maps styled Map Layer Switcher (Satellite, Road/Default, Terrain) + details toggles (Alerts, Incidents) across all maps in Mobile and Web
+- [x] COMPLETE — Real-time atmospheric telemetry ingestion pipeline via Open-Meteo API covering 8 primary North Eastern Region hubs with dynamic weather penalties, backend `/api/v1/external/weather` endpoints, and live web dashboard telemetry ribbon
+- [x] COMPLETE — Vehicle Dashboard Naming & Complete GIS Map Zoom Isolation (replaces raw UUIDs with vehicle model, number, and genuine driver identities across unit selector, marker pins, HUD badges, and route focus buttons; isolates GIS map wheel and pinch zoom from website window)
 
 ## Phase 6 — Rule-Based Risk Engine v0 — NOT STARTED
 

@@ -1,63 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Roboto+Mono:wght@400;500;600&display=swap');
+
 :root {
-  /* TiyraSense Tactical Command Palette */
-  --bg: #f8fafc;
-  --bg-subtle: #f1f5f9;
-  --surface: #ffffff;
-  --surface-hover: #f8fafc;
-  --surface-elevated: #ffffff;
-  --surface-glass: rgba(255, 255, 255, 0.85);
+  /* TiyraSense Web UI Design Tokens (TiyraSense_Web_UI_Design.md) */
+  --color-canvas: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-container: #F1F5F9;
+  --color-border: #E2E8F0;
+  --color-border-strong: #CBD5E1;
 
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-muted: #94a3b8;
-  --text-inverse: #ffffff;
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748B;
+  --color-text-disabled: #94A3B8;
 
-  --border: #e2e8f0;
-  --border-strong: #cbd5e1;
-  --border-subtle: #f1f5f9;
-  --border-glow: rgba(2, 132, 199, 0.35);
+  --color-primary: #0284C7;
+  --color-primary-hover: #0369A1;
+  --color-primary-light: #E0F2FE;
+  --color-primary-bg: #F0F9FF;
 
-  /* Tactical Brand Tokens */
-  --primary: #0284c7;
-  --primary-hover: #0369a1;
-  --primary-active: #075985;
-  --primary-light: #f0f9ff;
-  --primary-ring: rgba(2, 132, 199, 0.25);
-  --accent-cyan: #06b6d4;
-  --accent-indigo: #4f46e5;
+  --color-success: #10B981;
+  --color-success-bg: #ECFDF5;
+  --color-warning: #F59E0B;
+  --color-warning-bg: #FFFBEB;
+  --color-restricted: #F97316;
+  --color-restricted-bg: #FFF7ED;
+  --color-danger: #DC2626;
+  --color-danger-bg: #FEF2F2;
+  --color-emergency: #991B1B;
 
-  /* Mission Status Indicators */
-  --success: #10b981;
-  --success-bg: #ecfdf5;
-  --success-border: #a7f3d0;
-  --warning: #f59e0b;
-  --warning-bg: #fffbeb;
-  --warning-border: #fde68a;
-  --critical: #ef4444;
-  --critical-bg: #fef2f2;
-  --critical-border: #fecaca;
-  --info: #0284c7;
-  --info-bg: #f0f9ff;
-  --info-border: #bae6fd;
+  /* Backward compatibility aliases */
+  --bg: var(--color-canvas);
+  --bg-subtle: var(--color-container);
+  --surface: var(--color-surface);
+  --surface-hover: var(--color-canvas);
+  --surface-elevated: var(--color-surface);
+  --text-primary: var(--color-text-primary);
+  --text-secondary: var(--color-text-secondary);
+  --text-muted: var(--color-text-muted);
+  --border: var(--color-border);
+  --border-strong: var(--color-border-strong);
+  --border-subtle: var(--color-container);
+  --primary: var(--color-primary);
+  --primary-hover: var(--color-primary-hover);
+  --primary-light: var(--color-primary-light);
+  --success: var(--color-success);
+  --success-bg: var(--color-success-bg);
+  --warning: var(--color-warning);
+  --warning-bg: var(--color-warning-bg);
+  --critical: var(--color-danger);
+  --critical-bg: var(--color-danger-bg);
 
-  /* Depth & Atmospheric Shadows */
-  --shadow-xs: 0 1px 2px 0 rgba(15, 23, 42, 0.04);
-  --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.08);
-  --shadow-md: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -2px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 12px 28px -6px rgba(15, 23, 42, 0.12), 0 4px 12px -4px rgba(15, 23, 42, 0.06);
-  --shadow-glow: 0 0 20px -3px rgba(2, 132, 199, 0.25);
+  /* Elevation Shadows */
+  --card-shadow: 0 1px 4px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  --active-shadow: 0 4px 16px rgba(15, 23, 42, 0.10);
+  --modal-shadow: 0 20px 60px rgba(15, 23, 42, 0.18);
+  --topbar-shadow: 0 1px 0 #E2E8F0;
+  --dropdown-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
 
   /* Geometry */
   --radius-xs: 4px;
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-pill: 20px;
   --radius-full: 9999px;
 
   /* Transitions */
-  --transition-snappy: 150ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-smooth: 250ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-fast: 120ms ease-out;
+  --transition-normal: 180ms ease-out;
+  --transition-smooth: 240ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 * {
@@ -68,15 +79,15 @@
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: var(--bg);
-  background-image: 
-    radial-gradient(at 100% 0%, rgba(2, 132, 199, 0.04) 0px, transparent 50%),
-    radial-gradient(at 0% 100%, rgba(6, 182, 212, 0.03) 0px, transparent 50%);
-  background-attachment: fixed;
-  color: var(--text-primary);
+  background-color: var(--color-canvas);
+  color: var(--color-text-primary);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+code, pre, .mono {
+  font-family: 'Roboto Mono', 'JetBrains Mono', monospace;
 }
 
 button, input, select, textarea {
@@ -94,8 +105,8 @@ a {
   text-decoration: none;
 }
 
-/* Tactical Pulse Animation */
-@keyframes pulseGlow {
+/* Animations */
+@keyframes pulseGreen {
   0%, 100% {
     opacity: 1;
     transform: scale(1);
@@ -106,71 +117,54 @@ a {
   }
 }
 
-@keyframes scanline {
+.pulse-beacon {
+  animation: pulseGreen 2s infinite ease-in-out;
+}
+
+@keyframes shimmer {
   0% {
-    background-position: 0% 0%;
+    background-position: -200% 0;
   }
   100% {
-    background-position: 0% 100%;
+    background-position: 200% 0;
   }
 }
 
-.pulse-beacon {
-  animation: pulseGlow 2.5s infinite ease-in-out;
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite linear;
 }
 
-/* Glassmorphism Card Style */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  box-shadow: var(--shadow-sm);
+/* Card hover */
+.tiyra-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--card-shadow);
+  transition: box-shadow var(--transition-normal), border-color var(--transition-normal);
 }
 
-.glass-panel:hover {
-  border-color: var(--border-strong);
-  box-shadow: var(--shadow-md);
-  transition: all var(--transition-smooth);
+.tiyra-card-hover:hover {
+  box-shadow: var(--active-shadow);
+  border-color: var(--color-border-strong);
 }
 
-/* Tactical Layout Helpers */
-.container {
-  width: 100%;
-  max-width: 1920px;
-  margin: 0 auto;
-  padding: 0 1.5rem;
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-/* Responsive Command Dashboard Grid */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: minmax(320px, 360px) 1fr minmax(360px, 420px);
-  gap: 1.5rem;
-  align-items: start;
-  width: 100%;
+::-webkit-scrollbar-track {
+  background: var(--color-canvas);
 }
 
-@media (max-width: 1280px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr 1fr;
-  }
-  .dashboard-center-col {
-    grid-column: span 2;
-    order: -1;
-  }
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
 }
 
-@media (max-width: 820px) {
-  .dashboard-grid {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-  .dashboard-center-col {
-    grid-column: span 1;
-    order: 0;
-  }
-  .container {
-    padding: 0 1rem;
-  }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
 }

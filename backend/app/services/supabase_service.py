@@ -1,0 +1,134 @@
+"""
+TiyraSense — Supabase Live Cloud Data Service
+Direct asynchronous connector to live Supabase PostgREST API for instant,
+zero-database-driver live data fetching across Web, Backend, and Mobile.
+"""
+from typing import Any, Dict, List, Optional
+import httpx
+from backend.app.core.config import settings
+
+class SupabaseService:
+    @classmethod
+    def _headers(cls, use_service_role: bool = False) -> Dict[str, str]:
+        if use_service_role and settings.SUPABASE_SERVICE_ROLE_KEY:
+            key = settings.SUPABASE_SERVICE_ROLE_KEY
+        else:
+            key = settings.SUPABASE_KEY or settings.SUPABASE_ANON_KEY
+        return {
+            "apikey": key,
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=representation",
+        }
+
+    @classmethod
+    def _client(cls) -> httpx.AsyncClient:
+        url = settings.SUPABASE_URL.rstrip("/")
+        return httpx.AsyncClient(
+            base_url=f"{url}/rest/v1",
+            headers=cls._headers(),
+            timeout=8.0,
+        )
+
+    @classmethod
+    async def get_road_segments(cls) -> List[Dict[str, Any]]:
+        """Fetch all live road segments from Supabase."""
+        async with cls._client() as client:
+            res = await client.get("/road_segments?select=*&order=corridor_name.asc")
+            if res.status_code == 200:
+                return res.json()
+            return []
+
+    @classmethod
+    async def get_field_reports(cls) -> List[Dict[str, Any]]:
+        """Fetch all live field reports from Supabase."""
+        async with cls._client() as client:
+            res = await client.get("/field_reports?select=*&order=server_received_at.desc")
+            if res.status_code == 200:
+                return res.json()
+            return []
+
+    @classmethod
+    async def create_field_report(cls, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Insert a live field report into Supabase."""
+        async with cls._client() as client:
+            res = await client.post("/field_reports", json=payload)
+            if res.status_code in (200, 201):
+                data = res.json()
+                return data[0] if isinstance(data, list) and data else payload
+            return None
+
+    @classmethod
+    async def update_field_report(cls, report_id: str, payload: Dict[str, Any]) -> bool:
+        """Update a field report in Supabase."""
+        async with cls._client() as client:
+            res = await client.patch(f"/field_reports?id=eq.{report_id}", json=payload)
+            return res.status_code in (200, 204)
+
+    @classmethod
+    async def delete_field_report(cls, report_id: str) -> bool:
+        """Delete a field report from Supabase."""
+        async with cls._client() as client:
+            res = await client.delete(f"/field_reports?id=eq.{report_id}")
+            return res.status_code in (200, 204)
+
+    @classmethod
+    async def get_alerts(cls) -> List[Dict[str, Any]]:
+        """Fetch all operational corridor alerts from Supabase."""
+        async with cls._client() as client:
+            res = await client.get("/alerts?select=*&order=dispatched_at.desc")
+            if res.status_code == 200:
+                return res.json()
+            return []
+
+    @classmethod
+    async def create_alert(cls, payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Insert an operational alert into Supabase."""
+        async with cls._client() as client:
+            res = await client.post("/alerts", json=payload)
+            if res.status_code in (200, 201):
+                data = res.json()
+                return data[0] if isinstance(data, list) and data else payload
+            return None
+
+    @classmethod
+    async def acknowledge_alert(cls, alert_id: str) -> bool:
+        """Acknowledge an alert in Supabase."""
+        async with cls._client() as client:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat()
+            res = await client.patch(
+                f"/alerts?id=eq.{alert_id}",
+                json={"acknowledged_at": now, "status": "ACKNOWLEDGED"},
+            )
+            return res.status_code in (200, 204)
+
+    @classmethod
+    async def acknowledge_all_alerts(cls) -> bool:
+        """Acknowledge all pending alerts in Supabase."""
+        async with cls._client() as client:
+            from datetime import datetime, timezone
+            now = datetime.now(timezone.utc).isoformat()
+            res = await client.patch(
+                "/alerts?status=neq.ACKNOWLEDGED",
+                json={"acknowledged_at": now, "status": "ACKNOWLEDGED"},
+            )
+            return res.status_code in (200, 204)
+
+    @classmethod
+    async def get_vehicles(cls) -> List[Dict[str, Any]]:
+        """Fetch all active fleet units from Supabase."""
+        async with cls._client() as client:
+            res = await client.get("/vehicles?select=*&order=name.asc")
+            if res.status_code == 200:
+                return res.json()
+            return []
+
+    @classmethod
+    async def get_safe_havens(cls) -> List[Dict[str, Any]]:
+        """Fetch all emergency relief safe havens from Supabase."""
+        async with cls._client() as client:
+            res = await client.get("/safe_havens?select=*&order=name.asc")
+            if res.status_code == 200:
+                return res.json()
+            return []

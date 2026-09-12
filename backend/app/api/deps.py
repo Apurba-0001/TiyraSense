@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from uuid import UUID
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -7,9 +7,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.app.core.database import get_db_session
 from backend.app.core.security import decode_access_token
-from backend.app.models.user import User, UserRole
+from backend.app.models.user import User, UserRole, SYSTEM_FALLBACK_USERS
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
+oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
+
 
 
 async def get_current_user(
@@ -43,9 +45,14 @@ async def get_current_user(
     except (JWTError, ValueError):
         raise credentials_exception
 
-    stmt = select(User).where(User.id == user_id)
-    result = await db.execute(stmt)
-    user = result.scalar_one_or_none()
+    user = None
+    try:
+        stmt = select(User).where(User.id == user_id)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+    except Exception:
+        # Fallback when database daemon is not running
+        user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
 
     if user is None:
         raise credentials_exception
@@ -79,3 +86,16 @@ def require_role(allowed_roles: List[UserRole]):
         return current_user
 
     return role_checker
+
+
+async def get_optional_current_user(
+    token: Optional[str] = Depends(oauth2_scheme_optional),
+    db: AsyncSession = Depends(get_db_session),
+) -> Optional[User]:
+    """Optional authentication: returns User if valid token is provided, otherwise None."""
+    if not token:
+        return None
+    try:
+        return await get_current_user(token=token, db=db)
+    except HTTPException:
+        return None

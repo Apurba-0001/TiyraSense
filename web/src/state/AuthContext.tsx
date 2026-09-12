@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<TokenResponse>;
   logout: () => void;
+  updateUserProfile: (data: Partial<User>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -20,15 +21,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     async function restoreSession() {
       const storedToken = localStorage.getItem('tiyrasense_token');
+      const storedUserStr = localStorage.getItem('tiyrasense_user');
       if (storedToken) {
+        if (storedUserStr) {
+          try {
+            setUser(JSON.parse(storedUserStr));
+          } catch {
+            // ignore parse error
+          }
+        }
+        setToken(storedToken);
         try {
           const profile = await fetchCurrentUser();
           setUser(profile);
-          setToken(storedToken);
+          localStorage.setItem('tiyrasense_user', JSON.stringify(profile));
         } catch {
-          localStorage.removeItem('tiyrasense_token');
-          setUser(null);
-          setToken(null);
+          // Retain cached session across network errors & browser restarts
+          // Only explicit logout destroys session
         }
       }
       setIsLoading(false);
@@ -41,6 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const response = await loginUser(email, password);
       localStorage.setItem('tiyrasense_token', response.access_token);
+      localStorage.setItem('tiyrasense_user', JSON.stringify(response.user));
       setToken(response.access_token);
       setUser(response.user);
       return response;
@@ -51,12 +61,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     localStorage.removeItem('tiyrasense_token');
+    localStorage.removeItem('tiyrasense_user');
     setToken(null);
     setUser(null);
   };
 
+  const updateUserProfile = (data: Partial<User>) => {
+    setUser((prev) => (prev ? { ...prev, ...data } : null));
+  };
+
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUserProfile }}>
       {children}
     </AuthContext.Provider>
   );

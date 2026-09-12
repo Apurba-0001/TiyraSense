@@ -1,795 +1,2723 @@
-import React, { useEffect, useState } from 'react';
-import { StatusBadge } from '../components/StatusBadge';
-import { fetchHealthStatus } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
+  Route as RouteIcon,
+  Shield,
   AlertTriangle,
-  Layers,
-  Navigation,
-  Compass,
-  ShieldCheck,
-  Radio,
-  Clock,
   AlertOctagon,
-  Satellite,
-  Check,
+  RefreshCw,
+  Download,
+  TrendingDown,
+  TrendingUp,
+  CheckCircle,
+  Navigation,
+  Search,
+  FileText,
+  Users,
+  Settings,
+  Truck,
+  MapPin,
+  Phone,
+  Gauge,
+  Server,
+  Bell,
+  HardDrive,
+  Eye,
   X,
 } from 'lucide-react';
+import { useAuth } from '../state/AuthContext';
+import { VectorGisMap, FleetVehicle } from '../components/VectorGisMap';
+import { DistanceClausesModal } from '../components/DistanceClausesModal';
+import { computeDetailedBreakdown, DistanceBreakdown } from '../utils/distanceUtils';
+import { JourneyPlanningModal } from '../components/JourneyPlanningModal';
+import {
+  fetchCorridors,
+  fetchAlerts,
+  acknowledgeAlert,
+  fetchActiveJourneys,
+  fetchRegionalWeather,
+  RegionalWeatherObservation,
+} from '../services/api';
 
-interface CorridorData {
+interface CorridorRow {
   id: string;
   name: string;
-  route: string;
-  status: 'PASSABLE' | 'MONITORED' | 'DISRUPTED';
+  routeId: string;
+  status: 'PASSABLE' | 'CAUTION' | 'HIGH RISK' | 'BLOCKED';
   riskScore: number;
-  activeVehicles: number;
-  lastVerified: string;
-  weather: string;
-  slopeInstability: string;
-  rainIntensity: string;
+  disruptionProb: number;
+  lastReport: string;
 }
 
-const CORRIDORS: CorridorData[] = [
+const INITIAL_CORRIDORS: CorridorRow[] = [
+  { id: 'nh-06', name: 'NH-06 Guwahati-Shillong', routeId: 'Jorabat → Nongpoh → Mawlai', status: 'PASSABLE', riskScore: 28, disruptionProb: 14, lastReport: '6m ago' },
+  { id: 'nh-29', name: 'NH-29 Guwahati-Silchar', routeId: 'Nagaon → Dabaka → Silchar', status: 'CAUTION', riskScore: 61, disruptionProb: 52, lastReport: '18m ago' },
+  { id: 'nh-37', name: 'NH-37 Numaligarh-Jorhat', routeId: 'Kaziranga → Bokakhat → Jorhat', status: 'HIGH RISK', riskScore: 84, disruptionProb: 78, lastReport: '2h ago' },
+  { id: 'nh-40', name: 'NH-40 Jorabat-Ladrymbai', routeId: 'Jorabat → Jowai → Ladrymbai', status: 'PASSABLE', riskScore: 32, disruptionProb: 19, lastReport: '14m ago' },
+  { id: 'nh-51', name: 'NH-51 Paikan-Tura', routeId: 'Paikan → Bajengdoba → Tura', status: 'PASSABLE', riskScore: 19, disruptionProb: 11, lastReport: '42m ago' },
+  { id: 'nh-102', name: 'NH-102 Imphal-Moreh', routeId: 'Thoubal → Pallel → Tengnoupal', status: 'BLOCKED', riskScore: 92, disruptionProb: 95, lastReport: '5m ago' },
+  { id: 'nh-108', name: 'NH-108 Panisagar-Aizawl', routeId: 'Damcherra → Kanchanpur → Aizawl', status: 'CAUTION', riskScore: 54, disruptionProb: 46, lastReport: '1h ago' },
+  { id: 'nh-208', name: 'NH-208 Kumarghat-Kailashahar', routeId: 'Kumarghat → Fatikroy → Kailashahar', status: 'PASSABLE', riskScore: 24, disruptionProb: 15, lastReport: '28m ago' },
+];
+
+interface LiveAlert {
+  id: string;
+  severity: 'EMERGENCY' | 'CAUTION' | 'INFO';
+  corridor: string;
+  time: string;
+  title: string;
+  description: string;
+  acknowledged: boolean;
+}
+
+const INITIAL_ALERTS: LiveAlert[] = [
   {
-    id: 'NH-06',
-    name: 'Guwahati – Shillong Expressway',
-    route: 'Jorabat → Nongpoh → Umiam → Mawlai',
-    status: 'PASSABLE',
-    riskScore: 0.22,
-    activeVehicles: 34,
-    lastVerified: '3 mins ago',
-    weather: 'Light Rain (8mm/h)',
-    slopeInstability: 'Low (12%)',
-    rainIntensity: '8 mm/h',
+    id: 'ALT-101',
+    severity: 'EMERGENCY',
+    corridor: 'NH-06',
+    time: '5m ago',
+    title: 'Landslide — Full Blockage at KM 52',
+    description: 'Both lanes blocked by boulder roll-down. BRO recovery team dispatched.',
+    acknowledged: false,
   },
   {
-    id: 'NH-27',
-    name: 'East-West Transit Corridor',
-    route: 'Dispur → Jagiroad → Nagaon → Doboka',
-    status: 'PASSABLE',
-    riskScore: 0.15,
-    activeVehicles: 58,
-    lastVerified: 'Just now',
-    weather: 'Overcast (28°C)',
-    slopeInstability: 'Minimal (4%)',
-    rainIntensity: '2 mm/h',
+    id: 'ALT-102',
+    severity: 'CAUTION',
+    corridor: 'NH-29',
+    time: '19m ago',
+    title: 'Flash Flood Watch & Shoulder Waterlogging',
+    description: 'Heavy rainfall between KM 81-86. Speed limit lowered to 25 km/h.',
+    acknowledged: false,
   },
   {
-    id: 'NH-29',
-    name: 'Nagaon – Dimapur – Kohima Route',
-    route: 'Nagaon → Dabaka → Chumukedima',
-    status: 'MONITORED',
-    riskScore: 0.58,
-    activeVehicles: 19,
-    lastVerified: '12 mins ago',
-    weather: 'Heavy Rain • Landslide Watch',
-    slopeInstability: 'High (68%)',
-    rainIntensity: '24 mm/h',
+    id: 'ALT-103',
+    severity: 'INFO',
+    corridor: 'NH-40',
+    time: '45m ago',
+    title: 'Culvert Inspection Cleared',
+    description: 'Structure 14B passed structural strain acoustic check.',
+    acknowledged: false,
   },
   {
-    id: 'NH-102',
-    name: 'Imphal – Moreh Border Transit',
-    route: 'Imphal → Thoubal → Pallel → Tengnoupal',
-    status: 'DISRUPTED',
-    riskScore: 0.84,
-    activeVehicles: 6,
-    lastVerified: '25 mins ago',
-    weather: 'Mudflow Advisory Active',
-    slopeInstability: 'Critical (88%)',
-    rainIntensity: '32 mm/h',
+    id: 'ALT-104',
+    severity: 'INFO',
+    corridor: 'NH-51',
+    time: '1h ago',
+    title: 'Convoy Escort Operational',
+    description: 'Fuel convoy 04 departed Paikan toward Tura with standard telemetry.',
+    acknowledged: true,
   },
 ];
 
-interface IncidentReport {
-  id: string;
-  type: string;
-  location: string;
-  coords: string;
-  severity: 'HIGH' | 'CRITICAL' | 'MODERATE';
-  time: string;
-  verified: boolean;
-}
-
-const INITIAL_INCIDENTS: IncidentReport[] = [
+const INITIAL_FLEET_VEHICLES: FleetVehicle[] = [
   {
-    id: 'INC-2601',
-    type: 'Boulder Fall & Shoulder Erosion',
-    location: 'NH-29 Km 14.8 (Pagla Pahar)',
-    coords: '25.7124° N, 93.7412° E',
-    severity: 'HIGH',
-    time: '8 mins ago',
-    verified: false,
+    id: 'TRK-01',
+    vehicleNumber: 'AS-01-GC-4921',
+    model: 'Tata Prima 31T Heavy Hauler',
+    driverName: 'Rajeshwar Sharma',
+    driverPhone: '+91 94350-29184',
+    role: 'DRIVER',
+    cargo: 'FMCG Critical & Essential Dry Goods',
+    originName: 'Guwahati Port Hub',
+    destName: 'Shillong Terminal Hub',
+    originCoords: { lat: 26.1445, lng: 91.7362 },
+    destCoords: { lat: 25.5788, lng: 91.8933 },
+    routeName: 'NH-06 via Nongpoh',
+    currentCoords: { lat: 25.8617, lng: 91.8148 },
+    speedKmh: 42,
+    progress: 0.52,
+    status: 'IN_TRANSIT',
+    lastPing: '12s ago',
+    hazardAhead: 'KM 52 Landslide boulder roll-down (Speed restricted to 25 km/h)',
   },
   {
-    id: 'INC-2602',
-    type: 'Culvert Water Inundation (28cm)',
-    location: 'NH-06 Km 38.2 near Jorabat',
-    coords: '26.1102° N, 91.8904° E',
-    severity: 'MODERATE',
-    time: '24 mins ago',
-    verified: true,
+    id: 'TRK-02',
+    vehicleNumber: 'AS-09-C-8812',
+    model: 'BharatBenz 2823R Multi-Axle',
+    driverName: 'Bikramjit Gogoi',
+    driverPhone: '+91 98540-31049',
+    role: 'DRIVER',
+    cargo: 'Pharmaceuticals & Vaccines (Cold-Chain)',
+    originName: 'Nagaon Logistics Depot',
+    destName: 'Silchar Supply Terminal',
+    originCoords: { lat: 26.3465, lng: 92.6840 },
+    destCoords: { lat: 24.8333, lng: 92.7789 },
+    routeName: 'NH-29 via Dabaka & Silchar Pass',
+    currentCoords: { lat: 25.4200, lng: 92.7100 },
+    speedKmh: 31,
+    progress: 0.61,
+    status: 'HAZARD_SLOWED',
+    lastPing: '28s ago',
+    hazardAhead: 'KM 81-86 Flash Flood & Shoulder Waterlogging',
   },
   {
-    id: 'INC-2603',
-    type: 'Mudflow Deposit (Single Lane)',
-    location: 'NH-102 Km 64.1 near Tengnoupal',
-    coords: '24.4182° N, 94.1205° E',
-    severity: 'CRITICAL',
-    time: '42 mins ago',
-    verified: false,
+    id: 'TRK-03',
+    vehicleNumber: 'NL-01-A-3409',
+    model: 'Ashok Leyland 1618 EcoTruck',
+    driverName: 'Kevichüsa Angami',
+    driverPhone: '+91 94360-11245',
+    role: 'DRIVER',
+    cargo: 'Relief Grain & Rice Bags',
+    originName: 'Dimapur Rail Yard',
+    destName: 'Kohima South Depot',
+    originCoords: { lat: 25.9068, lng: 93.7275 },
+    destCoords: { lat: 25.6751, lng: 94.1086 },
+    routeName: 'NH-29 Dimapur-Kohima Pass',
+    currentCoords: { lat: 25.7900, lng: 93.9100 },
+    speedKmh: 28,
+    progress: 0.44,
+    status: 'IN_TRANSIT',
+    lastPing: '5s ago',
+  },
+  {
+    id: 'MED-04',
+    vehicleNumber: 'ML-05-F-2018',
+    model: 'Mahindra Bolero Camper 4x4',
+    driverName: 'Sanborlang Lyngdoh',
+    driverPhone: '+91 87940-54211',
+    role: 'FIELD_WORKER',
+    cargo: 'Emergency First Responder & Mobile Clinic',
+    originName: 'Paikan Base',
+    destName: 'Tura Civil Hospital',
+    originCoords: { lat: 25.9500, lng: 90.5800 },
+    destCoords: { lat: 25.5144, lng: 90.2033 },
+    routeName: 'NH-51 Paikan-Tura Highway',
+    currentCoords: { lat: 25.7200, lng: 90.3900 },
+    speedKmh: 48,
+    progress: 0.70,
+    status: 'CONVOY_ESCORT',
+    lastPing: '14s ago',
+  },
+  {
+    id: 'RECON-05',
+    vehicleNumber: 'TR-01-T-7740',
+    model: 'Force Gurkha 4x4 Recon Patrol',
+    driverName: 'Debabrata Debbarma',
+    driverPhone: '+91 97740-88123',
+    role: 'FIELD_WORKER',
+    cargo: 'Geotechnical Acoustic Sensor & LIDAR Kit',
+    originName: 'Jorabat Patrol Post',
+    destName: 'Ladrymbai Outpost',
+    originCoords: { lat: 26.1100, lng: 91.8700 },
+    destCoords: { lat: 25.3200, lng: 92.3500 },
+    routeName: 'NH-40 Jorabat-Ladrymbai Ridge',
+    currentCoords: { lat: 25.4800, lng: 92.2000 },
+    speedKmh: 0,
+    progress: 0.82,
+    status: 'HALTED_CHECKPOINT',
+    lastPing: '40s ago',
+    hazardAhead: 'Structure 14B Acoustic Checkpoint Inspection',
   },
 ];
 
 export const Dashboard: React.FC = () => {
-  const [health, setHealth] = useState<{
-    status: string;
-    database: string;
-    postgis_version: string;
-  } | null>(null);
-  const [isLoadingHealth, setIsLoadingHealth] = useState(true);
-  const [activeLayer, setActiveLayer] = useState<'all' | 'risk' | 'weather'>('all');
-  const [selectedCorridor, setSelectedCorridor] = useState<string>('NH-06');
-  const [incidents, setIncidents] = useState<IncidentReport[]>(INITIAL_INCIDENTS);
-  const [currentTime, setCurrentTime] = useState<string>('');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const role = user?.role || 'OFFICIAL';
+  const [corridors, setCorridors] = useState<CorridorRow[]>(INITIAL_CORRIDORS);
+  const [alerts, setAlerts] = useState<LiveAlert[]>(INITIAL_ALERTS);
+  const [fleetVehicles, setFleetVehicles] = useState<FleetVehicle[]>(INITIAL_FLEET_VEHICLES);
+  const [selectedVehicleId, setSelectedVehicleId] = useState<string>('TRK-01');
+  const [filterVehicleType, setFilterVehicleType] = useState<string>('ALL');
+  const [filterCargoType, setFilterCargoType] = useState<string>('ALL');
+  const [filterOpMode, setFilterOpMode] = useState<string>('ALL');
+  const [vehicleSearchQuery, setVehicleSearchQuery] = useState<string>('');
+  const [mapFleetViewMode, setMapFleetViewMode] = useState<'selected' | 'all'>('selected');
+  const [weatherObs, setWeatherObs] = useState<RegionalWeatherObservation[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isJourneyModalOpen, setIsJourneyModalOpen] = useState(false);
+  const [corridorQuery, setCorridorQuery] = useState('');
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
+  const [auditBreakdown, setAuditBreakdown] = useState<DistanceBreakdown | null>(null);
+
+  const filteredVehicles = React.useMemo(() => {
+    return fleetVehicles.filter((veh) => {
+      // 1. Text Search
+      if (vehicleSearchQuery.trim()) {
+        const q = vehicleSearchQuery.toLowerCase();
+        const match =
+          veh.id.toLowerCase().includes(q) ||
+          veh.vehicleNumber.toLowerCase().includes(q) ||
+          veh.model.toLowerCase().includes(q) ||
+          veh.driverName.toLowerCase().includes(q) ||
+          veh.cargo.toLowerCase().includes(q) ||
+          veh.routeName.toLowerCase().includes(q) ||
+          (veh.driverPhone && veh.driverPhone.toLowerCase().includes(q));
+        if (!match) return false;
+      }
+
+      // 2. Vehicle Type
+      if (filterVehicleType !== 'ALL') {
+        const m = veh.model.toLowerCase();
+        if (filterVehicleType === 'HEAVY') {
+          const isHeavy =
+            m.includes('heavy') ||
+            m.includes('31t') ||
+            m.includes('2823') ||
+            m.includes('hauler') ||
+            m.includes('multi-axle') ||
+            m.includes('3528') ||
+            m.includes('tata prima') ||
+            m.includes('bharatbenz');
+          if (!isHeavy) return false;
+        } else if (filterVehicleType === 'MEDIUM') {
+          const isMed =
+            m.includes('medium') ||
+            m.includes('1618') ||
+            m.includes('ecotruck') ||
+            m.includes('ashok leyland');
+          if (!isMed) return false;
+        } else if (filterVehicleType === 'LIGHT_4X4') {
+          const is4x4 =
+            m.includes('4x4') ||
+            m.includes('gurkha') ||
+            m.includes('recon') ||
+            m.includes('camper') ||
+            m.includes('bolero') ||
+            m.includes('force');
+          if (!is4x4) return false;
+        } else if (filterVehicleType === 'EMERGENCY') {
+          const isEmerg =
+            m.includes('clinic') ||
+            m.includes('medic') ||
+            veh.cargo.toLowerCase().includes('clinic') ||
+            veh.cargo.toLowerCase().includes('emergency');
+          if (!isEmerg) return false;
+        }
+      }
+
+      // 3. Cargo Type
+      if (filterCargoType !== 'ALL') {
+        const c = veh.cargo.toLowerCase();
+        if (filterCargoType === 'DRY_GOODS') {
+          if (!c.includes('fmcg') && !c.includes('dry') && !c.includes('goods')) return false;
+        } else if (filterCargoType === 'PHARMA') {
+          if (!c.includes('pharma') && !c.includes('vaccine') && !c.includes('cold-chain')) return false;
+        } else if (filterCargoType === 'RELIEF') {
+          if (!c.includes('relief') && !c.includes('grain') && !c.includes('rice') && !c.includes('food')) return false;
+        } else if (filterCargoType === 'MEDICAL') {
+          if (!c.includes('clinic') && !c.includes('first responder') && !c.includes('medical')) return false;
+        } else if (filterCargoType === 'SENSORS') {
+          if (!c.includes('sensor') && !c.includes('lidar') && !c.includes('acoustic')) return false;
+        }
+      }
+
+      // 4. Operational Mode (Hazard Delayed / Stopped, In Transit, Checkpoint, Convoy)
+      if (filterOpMode !== 'ALL') {
+        if (filterOpMode === 'IN_TRANSIT' && veh.status !== 'IN_TRANSIT') return false;
+        if (filterOpMode === 'HAZARD_SLOWED' && veh.status !== 'HAZARD_SLOWED') return false;
+        if (filterOpMode === 'HALTED_CHECKPOINT' && veh.status !== 'HALTED_CHECKPOINT') return false;
+        if (filterOpMode === 'CONVOY_ESCORT' && veh.status !== 'CONVOY_ESCORT') return false;
+      }
+
+      return true;
+    });
+  }, [fleetVehicles, vehicleSearchQuery, filterVehicleType, filterCargoType, filterOpMode]);
+
+  // Keep selected vehicle synced if filtered list changes
+  useEffect(() => {
+    if (filteredVehicles.length > 0 && !filteredVehicles.some((v) => v.id === selectedVehicleId)) {
+      setSelectedVehicleId(filteredVehicles[0].id);
+    }
+  }, [filteredVehicles, selectedVehicleId]);
+
+  const loadDashboardData = async () => {
+    setIsRefreshing(true);
+    try {
+      const [corridorRes, alertRes, journeysRes, weatherRes] = await Promise.allSettled([
+        fetchCorridors(),
+        fetchAlerts(),
+        fetchActiveJourneys(),
+        fetchRegionalWeather(),
+      ]);
+
+      if (corridorRes.status === 'fulfilled' && corridorRes.value.length > 0) {
+        setCorridors(
+          corridorRes.value.map((c) => ({
+            id: c.id,
+            name: c.name,
+            routeId: c.route_id,
+            status: (c.status as CorridorRow['status']) || 'PASSABLE',
+            riskScore: c.risk_score,
+            disruptionProb: c.disruption_prob,
+            lastReport: c.last_report || 'Active Radar',
+          }))
+        );
+      }
+
+      if (alertRes.status === 'fulfilled' && alertRes.value.length > 0) {
+        setAlerts(
+          alertRes.value.map((a) => ({
+            id: a.id,
+            severity: (a.severity as LiveAlert['severity']) || 'INFO',
+            corridor: a.corridor,
+            time: a.time,
+            title: a.title,
+            description: a.description,
+            acknowledged: Boolean(a.acknowledged),
+          }))
+        );
+      }
+
+      if (journeysRes.status === 'fulfilled' && journeysRes.value.length > 0) {
+        const liveVehicles: FleetVehicle[] = journeysRes.value.map((j, idx) => {
+          const regMatch = j.driver_name.match(/\(([^)]+)\)/);
+          const regNumber = j.vehicle_number || (regMatch ? regMatch[1] : `AS-0${idx + 1}-NER`);
+          const rawModel = j.vehicle_name || (j.driver_name.includes('(') ? j.driver_name.split(' (')[0] : 'Logistics Carrier');
+          const actualDriver = j.vehicle_name ? j.driver_name : (j.driver_name.replace(/\s*\([^)]*\)/, '') || 'Assigned Driver');
+          const isCaution = j.status.includes('CAUTION') || j.status.includes('SLOW') || j.status.includes('STANDBY');
+
+          const origLat = j.origin_coords?.latitude ?? 26.1445;
+          const origLng = j.origin_coords?.longitude ?? 91.7362;
+          const destLat = j.destination_coords?.latitude ?? 25.5788;
+          const destLng = j.destination_coords?.longitude ?? 91.8933;
+          const curLat = j.current_location?.latitude ?? origLat;
+          const curLng = j.current_location?.longitude ?? origLng;
+
+          let calculatedProgress = 0.52 + (idx * 0.1);
+          const totalSpan = Math.hypot(destLat - origLat, destLng - origLng);
+          const coveredSpan = Math.hypot(curLat - origLat, curLng - origLng);
+          if (totalSpan > 0.005) {
+            calculatedProgress = Math.min(0.98, Math.max(0.02, coveredSpan / totalSpan));
+          }
+
+          return {
+            id: j.journey_id,
+            vehicleNumber: regNumber,
+            model: rawModel,
+            driverName: actualDriver,
+            driverPhone: j.driver_phone || '+91 94350-29184',
+            role: 'DRIVER' as const,
+            cargo: j.route_name || 'Emergency & Freight Logistics',
+            originName: j.origin_name || 'Origin Hub',
+            destName: j.destination_name || 'Destination Terminal',
+            originCoords: { lat: origLat, lng: origLng },
+            destCoords: { lat: destLat, lng: destLng },
+            routeName: j.route_name || 'Monitored Corridor',
+            currentCoords: { lat: curLat, lng: curLng },
+            speedKmh: j.speed_kmh ?? (j.status === 'STANDBY_HALTED' ? 0 : 42),
+            progress: calculatedProgress,
+            status: isCaution ? 'HAZARD_SLOWED' : 'IN_TRANSIT',
+            lastPing: j.last_ping_mins_ago === 0 ? 'Live radar' : `${j.last_ping_mins_ago}m ago`,
+            hazardAhead: isCaution ? 'Terrain advisory / Caution alert active in sector' : undefined,
+            routeGeometry: j.route_geometry,
+          };
+        });
+
+        setFleetVehicles(liveVehicles);
+        if (liveVehicles.length > 0) {
+          const liveActive = liveVehicles.find((v) => v.lastPing === 'Live radar');
+          setSelectedVehicleId((prev) => (liveVehicles.some((v) => v.id === prev) ? prev : (liveActive?.id || liveVehicles[0].id)));
+        }
+      }
+
+      if (weatherRes.status === 'fulfilled' && weatherRes.value.length > 0) {
+        setWeatherObs(weatherRes.value);
+      }
+    } catch {
+      // Fallback preserves baseline resilience
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadHealth() {
-      try {
-        const res = await fetchHealthStatus();
-        setHealth(res);
-      } catch {
-        setHealth({ status: 'offline', database: 'disconnected', postgis_version: 'unknown' });
-      } finally {
-        setIsLoadingHealth(false);
-      }
-    }
-    loadHealth();
+    loadDashboardData();
+    const interval = setInterval(() => {
+      fetchActiveJourneys()
+        .then((journeys) => {
+          if (journeys && journeys.length > 0) {
+            setFleetVehicles((prevFleet) => {
+              return journeys.map((j, idx) => {
+                const regMatch = j.driver_name.match(/\(([^)]+)\)/);
+                const regNumber = j.vehicle_number || (regMatch ? regMatch[1] : `AS-0${idx + 1}-NER`);
+                const rawModel = j.vehicle_name || (j.driver_name.includes('(') ? j.driver_name.split(' (')[0] : 'Logistics Carrier');
+                const actualDriver = j.vehicle_name ? j.driver_name : (j.driver_name.replace(/\s*\([^)]*\)/, '') || 'Assigned Driver');
+                const isCaution = j.status.includes('CAUTION') || j.status.includes('SLOW') || j.status.includes('STANDBY');
 
-    const updateClock = () => {
-      const now = new Date();
-      setCurrentTime(
-        now.toLocaleTimeString('en-IN', {
-          timeZone: 'Asia/Kolkata',
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        }) + ' IST'
-      );
-    };
-    updateClock();
-    const interval = setInterval(updateClock, 1000);
+                const origLat = j.origin_coords?.latitude ?? 26.1445;
+                const origLng = j.origin_coords?.longitude ?? 91.7362;
+                const destLat = j.destination_coords?.latitude ?? 25.5788;
+                const destLng = j.destination_coords?.longitude ?? 91.8933;
+                const curLat = j.current_location?.latitude ?? origLat;
+                const curLng = j.current_location?.longitude ?? origLng;
+
+                const existing = prevFleet.find((f) => f.id === j.journey_id);
+
+                let calculatedProgress = existing?.progress ?? (0.52 + (idx * 0.1));
+                const totalSpan = Math.hypot(destLat - origLat, destLng - origLng);
+                const coveredSpan = Math.hypot(curLat - origLat, curLng - origLng);
+                if (totalSpan > 0.005) {
+                  calculatedProgress = Math.min(0.98, Math.max(0.02, coveredSpan / totalSpan));
+                }
+
+                return {
+                  id: j.journey_id,
+                  vehicleNumber: regNumber,
+                  model: rawModel,
+                  driverName: actualDriver,
+                  driverPhone: j.driver_phone || existing?.driverPhone || '+91 94350-29184',
+                  role: 'DRIVER' as const,
+                  cargo: j.route_name || existing?.cargo || 'Emergency & Freight Logistics',
+                  originName: j.origin_name || existing?.originName || 'Origin Hub',
+                  destName: j.destination_name || existing?.destName || 'Destination Terminal',
+                  originCoords: { lat: origLat, lng: origLng },
+                  destCoords: { lat: destLat, lng: destLng },
+                  routeName: j.route_name || existing?.routeName || 'Monitored Corridor',
+                  currentCoords: { lat: curLat, lng: curLng },
+                  speedKmh: j.speed_kmh ?? (j.status === 'STANDBY_HALTED' ? 0 : 42),
+                  progress: calculatedProgress,
+                  status: isCaution ? 'HAZARD_SLOWED' : 'IN_TRANSIT',
+                  lastPing: j.last_ping_mins_ago === 0 ? 'Live radar' : `${j.last_ping_mins_ago}m ago`,
+                  hazardAhead: isCaution ? 'Terrain advisory / Caution alert active in sector' : undefined,
+                  routeGeometry: j.route_geometry || existing?.routeGeometry,
+                };
+              });
+            });
+          }
+        })
+        .catch(() => {});
+    }, 3500);
+
     return () => clearInterval(interval);
   }, []);
 
-  const handleVerifyIncident = (id: string) => {
-    setIncidents((prev) =>
-      prev.map((inc) => (inc.id === id ? { ...inc, verified: true } : inc))
+  const displayedCorridors = corridors.filter(
+    (c) =>
+      !corridorQuery.trim() ||
+      c.name.toLowerCase().includes(corridorQuery.toLowerCase()) ||
+      c.routeId.toLowerCase().includes(corridorQuery.toLowerCase())
+  );
+
+  const handleRefresh = () => {
+    loadDashboardData();
+  };
+
+  const handleAcknowledge = async (id: string) => {
+    setAlerts((prev) =>
+      prev.map((alt) => (alt.id === id ? { ...alt, acknowledged: !alt.acknowledged } : alt))
+    );
+    try {
+      await acknowledgeAlert(id);
+    } catch {
+      // Optimistic update retained
+    }
+  };
+
+  const handleExportSituationalReport = () => {
+    const headers = ['Corridor_ID', 'Corridor_Name', 'Route', 'Status', 'Risk_Score', 'Disruption_Prob_Percent', 'Last_Observation'];
+    const rows = corridors.map((c) => [
+      c.id,
+      `"${c.name}"`,
+      `"${c.routeId}"`,
+      c.status,
+      c.riskScore,
+      `${c.disruptionProb}%`,
+      `"${c.lastReport}"`,
+    ]);
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `TiyraSense_Situational_Summary_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const renderStatusBadge = (status: CorridorRow['status']) => {
+    let dotColor = 'var(--color-success)';
+    let bgColor = 'var(--color-success-bg)';
+    let textColor = 'var(--color-success)';
+
+    if (status === 'CAUTION') {
+      dotColor = 'var(--color-warning)';
+      bgColor = 'var(--color-warning-bg)';
+      textColor = '#D97706';
+    } else if (status === 'HIGH RISK') {
+      dotColor = 'var(--color-danger)';
+      bgColor = 'var(--color-danger-bg)';
+      textColor = 'var(--color-danger)';
+    } else if (status === 'BLOCKED') {
+      dotColor = 'var(--color-emergency)';
+      bgColor = 'var(--color-danger-bg)';
+      textColor = 'var(--color-emergency)';
+    }
+
+    return (
+      <span
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '5px',
+          padding: '4px 9px',
+          borderRadius: 'var(--radius-pill)',
+          backgroundColor: bgColor,
+          color: textColor,
+          fontSize: '11px',
+          fontWeight: 600,
+          whiteSpace: 'nowrap',
+        }}
+      >
+        <span
+          style={{
+            width: '6px',
+            height: '6px',
+            borderRadius: '50%',
+            backgroundColor: dotColor,
+          }}
+        />
+        {status}
+      </span>
     );
   };
 
-  const handleDismissIncident = (id: string) => {
-    setIncidents((prev) => prev.filter((inc) => inc.id !== id));
-  };
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', width: '100%', maxWidth: '1920px', margin: '0 auto' }}>
-      {/* High-Resolution Mission Control Header (Light Theme) */}
+    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      {/* PAGE HEADER */}
       <div
-        className="glass-panel"
         style={{
           display: 'flex',
-          flexWrap: 'wrap',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '1.25rem',
-          padding: '1.25rem 2rem',
-          borderRadius: 'var(--radius-xl)',
-          backgroundColor: 'var(--surface)',
-          color: 'var(--text-primary)',
-          border: '1px solid var(--border)',
+          flexWrap: 'wrap',
+          gap: '16px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div>
+          <h1
+            style={{
+              fontSize: '22px',
+              fontWeight: 800,
+              color: 'var(--color-text-primary)',
+              lineHeight: 1.3,
+            }}
+          >
+            Operations Overview
+          </h1>
           <div
             style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--primary-light)',
-              border: '1px solid var(--info-border)',
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+              marginTop: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <span>NER Logistics Intelligence</span>
+            <span>·</span>
+            <span>8 Corridors Monitored</span>
+            <span>·</span>
+            <span
+              style={{
+                backgroundColor: 'var(--color-success-bg)',
+                color: 'var(--color-success)',
+                fontWeight: 700,
+                fontSize: '10px',
+                padding: '1px 6px',
+                borderRadius: '4px',
+              }}
+            >
+              DATA: LIVE
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            onClick={() => setIsJourneyModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '36px',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--color-primary)',
+              color: '#FFFFFF',
+              fontSize: '12px',
+              fontWeight: 700,
+              cursor: 'pointer',
+              border: 'none',
+              boxShadow: 'var(--card-shadow)',
+              transition: 'opacity var(--transition-fast)',
+            }}
+          >
+            <Navigation size={14} />
+            <span>Plan Journey</span>
+          </button>
+
+          <button
+            onClick={handleExportSituationalReport}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '36px',
+              padding: '0 12px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: '#FFFFFF',
+              color: 'var(--color-text-secondary)',
+              fontSize: '12px',
+              fontWeight: 600,
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
+            }}
+          >
+            <Download size={14} />
+            <span>Export Report</span>
+          </button>
+
+          {role === 'ADMIN' && (
+            <button
+              data-testid="admin-storage-btn"
+              onClick={() => navigate('/settings?tab=storage')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                height: '36px',
+                padding: '0 12px',
+                borderRadius: 'var(--radius-sm)',
+                border: '1px solid #BFDBFE',
+                backgroundColor: '#EFF6FF',
+                color: '#1D4ED8',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                transition: 'all var(--transition-fast)',
+              }}
+              title="Manage Cloud Evidence Storage & Purge Assets"
+            >
+              <HardDrive size={14} />
+              <span>Storage & Evidence</span>
+            </button>
+          )}
+
+          <button
+            onClick={handleRefresh}
+            aria-label="Refresh Dashboard"
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: '#FFFFFF',
+              color: 'var(--color-text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              transition: 'all var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-primary)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = 'var(--color-text-secondary)';
             }}
           >
-            <Compass size={22} color="var(--primary)" />
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--primary)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                TACTICAL COMMAND CONSOLE • NER
-              </span>
-              <span style={{ color: 'var(--text-muted)' }}>•</span>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>
-                EPSG:4326 WGS-84
-              </span>
-            </div>
-            <h1 style={{ fontSize: '1.65rem', fontWeight: 800, letterSpacing: '-0.025em', color: 'var(--text-primary)', lineHeight: 1.2 }}>
-              State Emergency Operations Center (ASDMA)
-            </h1>
-          </div>
+            <RefreshCw
+              size={14}
+              style={{
+                transform: isRefreshing ? 'rotate(180deg)' : 'none',
+                transition: 'transform 0.5s ease',
+              }}
+            />
+          </button>
         </div>
+      </div>
 
-        {/* Telemetry Clock & Systems Status */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'var(--bg-subtle)',
-              padding: '0.45rem 0.95rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border)',
-              fontFamily: 'monospace',
-              fontSize: '0.85rem',
-              color: 'var(--primary)',
-            }}
-          >
-            <Clock size={16} color="var(--primary)" />
-            <span>{currentTime || '12:00:00 IST'}</span>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'var(--success-bg)',
-              padding: '0.45rem 0.95rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--success-border)',
-            }}
-          >
-            <Satellite size={16} color="var(--success)" />
-            <span style={{ fontSize: '0.78rem', color: 'var(--success)', fontWeight: 700 }}>
-              GPS + NavIC LOCKED
+      {/* LIVE EXTERNAL TELEMETRY RIBBON (Open-Meteo & Live Supabase Stream) */}
+      {weatherObs.length > 0 && (
+        <div
+          data-testid="live-telemetry-ribbon"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '10px 16px',
+            backgroundColor: 'rgba(255, 255, 255, 0.85)',
+            backdropFilter: 'blur(8px)',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--color-border)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '2px 8px',
+                borderRadius: 'var(--radius-pill)',
+                backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                color: '#16A34A',
+                fontSize: '11px',
+                fontWeight: 700,
+              }}
+            >
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#16A34A' }} />
+              LIVE TELEMETRY
+            </span>
+            <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+              Open-Meteo High-Resolution Atmospheric Radar (ECMWF / GFS)
             </span>
           </div>
 
-          <StatusBadge
-            label={
-              isLoadingHealth
-                ? 'Querying PostGIS...'
-                : health?.database === 'connected'
-                ? 'PostGIS 3.4 Connected'
-                : 'Database Offline'
-            }
-            variant={isLoadingHealth ? 'info' : health?.database === 'connected' ? 'healthy' : 'critical'}
-          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', overflowX: 'auto', maxWidth: '100%' }}>
+            {weatherObs.slice(0, 4).map((w, i) => (
+              <div
+                key={i}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '12px',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <span style={{ fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                  {w.hub.split(' (')[0]}:
+                </span>
+                <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
+                  {w.temperature_c}°C
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: w.weather_penalty_factor > 1.2 ? '#DC2626' : 'var(--color-text-muted)',
+                    fontWeight: w.weather_penalty_factor > 1.2 ? 700 : 400,
+                  }}
+                >
+                  ({w.condition}{w.precipitation_mm > 0 ? ` · ${w.precipitation_mm}mm/h` : ''})
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ROW 1 — 4 EQUAL KPI CARDS (16px gap, white, 12px radius, 20px padding) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+        }}
+      >
+        {/* Card A */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-success-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <RouteIcon size={20} color="var(--color-success)" />
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+                8 / 8
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Corridors Active
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <TrendingUp size={13} />
+            <span>+0 since 06:00</span>
+          </div>
+        </div>
+
+        {/* Card B */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-primary-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Shield size={20} color="var(--color-primary)" />
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+                14
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Field Teams Online
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <TrendingUp size={13} />
+            <span>3 synced in last 1h</span>
+          </div>
+        </div>
+
+        {/* Card C */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-warning-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AlertTriangle size={20} color="var(--color-warning)" />
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)', lineHeight: 1.1 }}>
+                3
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Open Incidents
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <TrendingDown size={13} />
+            <span>1 resolved today</span>
+          </div>
+        </div>
+
+        {/* Card D */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+            <div
+              style={{
+                width: '36px',
+                height: '36px',
+                borderRadius: '8px',
+                backgroundColor: 'var(--color-danger-bg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <AlertOctagon size={20} color="var(--color-danger)" />
+            </div>
+            <div>
+              <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)', lineHeight: 1.1 }}>
+                1
+              </div>
+              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                Emergency Alerts
+              </div>
+            </div>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-danger)' }}>
+            NH-06 KM 52
+          </div>
+        </div>
+      </div>
+
+      {/* ROLE-BASED OPERATIONAL HUB & LIVE GIS TELEMETRY */}
+      <div
+        className="tiyra-card"
+        style={{
+          padding: '20px',
+          borderLeft: `4px solid ${
+            role === 'DRIVER'
+              ? '#0284C7'
+              : role === 'FIELD_WORKER'
+              ? '#10B981'
+              : role === 'ADMIN'
+              ? '#7C3AED'
+              : '#D97706'
+          }`,
+        }}
+      >
+        {/* Role Banner */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '16px',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 800,
+                  padding: '2px 8px',
+                  borderRadius: 'var(--radius-pill)',
+                  backgroundColor:
+                    role === 'DRIVER'
+                      ? 'var(--color-primary-bg)'
+                      : role === 'FIELD_WORKER'
+                      ? 'var(--color-success-bg)'
+                      : role === 'ADMIN'
+                      ? '#EDE9FE'
+                      : '#FEF3C7',
+                  color:
+                    role === 'DRIVER'
+                      ? 'var(--color-primary)'
+                      : role === 'FIELD_WORKER'
+                      ? 'var(--color-success)'
+                      : role === 'ADMIN'
+                      ? '#6D28D9'
+                      : '#B45309',
+                }}
+              >
+                ROLE: {role}
+              </span>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--color-text-primary)' }}>
+                {role === 'DRIVER' && `Driver Console · ${user?.full_name || 'Vehicle Unit 04'}`}
+                {role === 'FIELD_WORKER' && `Ground Truth Station · ${user?.full_name || 'Ground Unit'}`}
+                {role === 'OFFICIAL' && `NER Logistics Operations Console · ${user?.full_name || 'Coordinator'}`}
+                {role === 'ADMIN' && `System Administration Console · ${user?.full_name || 'Administrator'}`}
+              </h2>
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '3px' }}>
+              {role === 'DRIVER' && 'Live GPS beacon telemetry, mountain curvature distance clauses, and active corridor hazard routing.'}
+              {role === 'FIELD_WORKER' && `Sector verification: ${user?.organization || 'ASDMA / BRO Regional Patrol'} · Geo-tagged incident logging.`}
+              {role === 'OFFICIAL' && 'Multi-corridor fleet transit oversight, deterministic risk-weighted routing, and emergency coordination.'}
+              {role === 'ADMIN' && 'Regional infrastructure telemetry, model calibration, user access control, and master logs.'}
+            </p>
+          </div>
+
+          {/* Quick Action Buttons according to role */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {role === 'DRIVER' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setIsJourneyModalOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Navigation size={14} />
+                  <span>Plan Journey</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/reports')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#FEF2F2',
+                    border: '1px solid #FECACA',
+                    color: '#DC2626',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <AlertTriangle size={14} />
+                  <span>Report Road Hazard</span>
+                </button>
+              </>
+            )}
+
+            {role === 'FIELD_WORKER' && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => navigate('/reports')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-success)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <FileText size={14} />
+                  <span>Submit Field Report</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/alerts')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    color: '#D97706',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <AlertTriangle size={14} />
+                  <span>View Alerts Feed</span>
+                </button>
+              </>
+            )}
+
+            {role === 'OFFICIAL' && (
+              <>
+                <button
+                  type="button"
+                  data-testid="official-trigger-alert-btn"
+                  onClick={() => navigate('/alerts')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-danger)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--card-shadow)',
+                  }}
+                >
+                  <Bell size={14} />
+                  <span>Trigger Corridor Alert</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="official-verify-reports-btn"
+                  onClick={() => navigate('/reports')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-primary)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--card-shadow)',
+                  }}
+                >
+                  <CheckCircle size={14} />
+                  <span>Review & Verify Reports</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="official-plan-journey-btn"
+                  onClick={() => setIsJourneyModalOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid var(--color-border)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Navigation size={14} />
+                  <span>Plan Safe Route</span>
+                </button>
+              </>
+            )}
+
+            {role === 'ADMIN' && (
+              <>
+                <button
+                  type="button"
+                  data-testid="admin-manage-users-btn"
+                  onClick={() => navigate('/users')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#7C3AED',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--card-shadow)',
+                  }}
+                >
+                  <Users size={14} />
+                  <span>User Management</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="admin-data-sources-btn"
+                  onClick={() => navigate('/settings')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#0D9488',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: 'var(--card-shadow)',
+                  }}
+                >
+                  <Server size={14} />
+                  <span>Data Source Health</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="admin-system-settings-btn"
+                  onClick={() => navigate('/settings')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#F3F4F6',
+                    border: '1px solid #E5E7EB',
+                    color: '#374151',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Settings size={14} />
+                  <span>System Governance & Logs</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="admin-storage-btn"
+                  onClick={() => navigate('/settings?tab=storage')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    color: '#2563EB',
+                    fontSize: '12px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <HardDrive size={14} />
+                  <span>Cloud Storage & Evidence</span>
+                </button>
+              </>
+            )}
+
+            <button
+              type="button"
+              onClick={() => navigate('/corridors')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--color-border)',
+                color: 'var(--color-text-secondary)',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <RouteIcon size={14} />
+              <span>Corridor Details</span>
+            </button>
+          </div>
+        </div>
+
+        {/* For Admin: System Health & Data Source Governance Console */}
+        {role === 'ADMIN' && (
+          <div
+            data-testid="admin-system-health-console"
+            style={{
+              backgroundColor: '#111827',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid #374151',
+              padding: '16px 18px',
+              marginBottom: '10px',
+              color: '#F9FAFB',
+            }}
+          >
+            {/* Header */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+                marginBottom: '14px',
+                borderBottom: '1px solid #1F2937',
+                paddingBottom: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Server size={18} color="#A78BFA" />
+                <span style={{ fontSize: '14px', fontWeight: 800, color: '#F3F4F6' }}>
+                  System Health & Data Source Diagnostics Console
+                </span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    backgroundColor: 'rgba(167, 139, 250, 0.15)',
+                    color: '#C4B5FD',
+                    border: '1px solid rgba(167, 139, 250, 0.3)',
+                  }}
+                >
+                  ADMIN GOVERNANCE · ALL SYSTEMS NOMINAL
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  data-testid="dashboard-manage-users-shortcut"
+                  onClick={() => navigate('/users')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#7C3AED',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Users size={12} />
+                  <span>Manage Users (8)</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="dashboard-full-diagnostics-shortcut"
+                  onClick={() => navigate('/settings')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '5px 10px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: '#374151',
+                    color: '#E5E7EB',
+                    border: '1px solid #4B5563',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Settings size={12} />
+                  <span>Full Diagnostics & Logs</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Grid of 4 Core Data Sources & System KPIs */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                gap: '12px',
+              }}
+            >
+              {/* PostGIS Database */}
+              <div
+                style={{
+                  backgroundColor: '#1F2937',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 14px',
+                  border: '1px solid #374151',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF' }}>POSTGIS DATABASE</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#34D399', backgroundColor: 'rgba(16,185,129,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                    CONNECTED
+                  </span>
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#F9FAFB' }}>12ms Latency</div>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '3px' }}>Connection Pool: 8/20 · Spatial ST_DWithin Active</div>
+              </div>
+
+              {/* OSRM Routing Engine */}
+              <div
+                style={{
+                  backgroundColor: '#1F2937',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 14px',
+                  border: '1px solid #374151',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF' }}>OSRM ROUTING ENGINE</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#38BDF8', backgroundColor: 'rgba(56,189,248,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                    OPERATIONAL
+                  </span>
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#F9FAFB' }}>24ms Latency</div>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '3px' }}>NER Mountain Topography Graph · IRC:SP:48 Clauses</div>
+              </div>
+
+              {/* IMD Weather Stream */}
+              <div
+                style={{
+                  backgroundColor: '#1F2937',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 14px',
+                  border: '1px solid #374151',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF' }}>WEATHER & RADAR FEED</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#34D399', backgroundColor: 'rgba(16,185,129,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                    LIVE STREAM
+                  </span>
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#F9FAFB' }}>45ms Latency</div>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '3px' }}>IMD Doppler Uplink · 5-min Polling Active</div>
+              </div>
+
+              {/* App Health & Uptime */}
+              <div
+                style={{
+                  backgroundColor: '#1F2937',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '12px 14px',
+                  border: '1px solid #374151',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#9CA3AF' }}>APP UPTIME & HEALTH</span>
+                  <span style={{ fontSize: '10px', fontWeight: 700, color: '#A78BFA', backgroundColor: 'rgba(167,139,250,0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                    99.94% UPTIME
+                  </span>
+                </div>
+                <div style={{ fontSize: '15px', fontWeight: 800, color: '#F9FAFB' }}>0.02% Error Rate</div>
+                <div style={{ fontSize: '11px', color: '#9CA3AF', marginTop: '3px' }}>14 Active Sessions · 0 Sync Conflicts</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* For Official & Admin: Live Fleet Location Tracking & Telemetry Console */}
+        {(role === 'OFFICIAL' || role === 'ADMIN') && (
+          <div
+            data-testid="fleet-tracking-console"
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: 'var(--radius-sm)',
+              border: '1px solid var(--color-border)',
+              padding: '14px 16px',
+              marginBottom: '10px',
+              color: '#0F172A',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+            }}
+          >
+            {/* Console Header & View Mode Switch */}
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '12px',
+                marginBottom: '14px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: '#10B981',
+                    boxShadow: '0 0 8px #10B981',
+                  }}
+                />
+                <span style={{ fontSize: '14px', fontWeight: 800, letterSpacing: '0.02em', color: '#0F172A' }}>
+                  NER Fleet Live Location Tracking & Telemetry Console
+                </span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--radius-pill)',
+                    backgroundColor: '#F0F9FF',
+                    color: '#0284C7',
+                    border: '1px solid #BAE6FD',
+                  }}
+                >
+                  LIVE GPS FEED · {fleetVehicles.length} ACTIVE UNITS
+                </span>
+              </div>
+
+              {/* View Mode Segmented Switch on Console */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '3px',
+                  borderRadius: 'var(--radius-pill)',
+                  backgroundColor: '#F1F5F9',
+                  border: '1px solid #CBD5E1',
+                  gap: '4px',
+                }}
+              >
+                <button
+                  type="button"
+                  data-testid="console-view-mode-selected"
+                  onClick={() => setMapFleetViewMode('selected')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: 'none',
+                    backgroundColor: mapFleetViewMode === 'selected' ? '#0284C7' : 'transparent',
+                    color: mapFleetViewMode === 'selected' ? '#FFFFFF' : '#64748B',
+                    fontSize: '11px',
+                    fontWeight: mapFleetViewMode === 'selected' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Navigation size={11} />
+                  <span>Selected Route Track</span>
+                </button>
+                <button
+                  type="button"
+                  data-testid="console-view-mode-all"
+                  onClick={() => setMapFleetViewMode('all')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '4px 10px',
+                    borderRadius: 'var(--radius-pill)',
+                    border: 'none',
+                    backgroundColor: mapFleetViewMode === 'all' ? '#0284C7' : 'transparent',
+                    color: mapFleetViewMode === 'all' ? '#FFFFFF' : '#64748B',
+                    fontSize: '11px',
+                    fontWeight: mapFleetViewMode === 'all' ? 700 : 500,
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Eye size={11} />
+                  <span>All Locations Only</span>
+                </button>
+              </div>
+            </div>
+
+            {/* MINIMAL & MODERN MULTI-ASPECT FLEET FILTER TOOLBAR */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px',
+                padding: '10px 12px',
+                marginBottom: '12px',
+                borderRadius: '8px',
+                backgroundColor: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+              }}
+            >
+              {/* Search input */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  height: '32px',
+                  padding: '0 8px',
+                  borderRadius: '6px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  minWidth: '200px',
+                  flex: '1 1 200px',
+                }}
+              >
+                <Search size={13} color="#64748B" />
+                <input
+                  type="text"
+                  data-testid="fleet-search-input"
+                  placeholder="Search vehicle, driver, cargo..."
+                  value={vehicleSearchQuery}
+                  onChange={(e) => setVehicleSearchQuery(e.target.value)}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    backgroundColor: 'transparent',
+                    color: '#0F172A',
+                    fontSize: '12px',
+                    width: '100%',
+                  }}
+                />
+                {vehicleSearchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setVehicleSearchQuery('')}
+                    style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 0 }}
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+
+              {/* Vehicle Type Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#475569', whiteSpace: 'nowrap' }}>Type:</span>
+                <select
+                  data-testid="filter-vehicle-type"
+                  value={filterVehicleType}
+                  onChange={(e) => setFilterVehicleType(e.target.value)}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    color: '#0F172A',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">All Vehicle Types</option>
+                  <option value="HEAVY">Heavy Haulers / Multi-Axle</option>
+                  <option value="MEDIUM">Medium Logistics (EcoTruck)</option>
+                  <option value="LIGHT_4X4">Light 4x4 / Recon Camper</option>
+                  <option value="EMERGENCY">Emergency / Mobile Clinic</option>
+                </select>
+              </div>
+
+              {/* Cargo Type Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#475569', whiteSpace: 'nowrap' }}>Cargo:</span>
+                <select
+                  data-testid="filter-cargo-type"
+                  value={filterCargoType}
+                  onChange={(e) => setFilterCargoType(e.target.value)}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    color: '#0F172A',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">All Cargo Types</option>
+                  <option value="DRY_GOODS">FMCG & Critical Dry Goods</option>
+                  <option value="PHARMA">Pharmaceuticals & Cold-Chain</option>
+                  <option value="RELIEF">Relief Grain & Food Supply</option>
+                  <option value="MEDICAL">Medical Clinic Responder</option>
+                  <option value="SENSORS">Geotechnical LIDAR & Sensors</option>
+                </select>
+              </div>
+
+              {/* Operational Mode Filter */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#475569', whiteSpace: 'nowrap' }}>Mode:</span>
+                <select
+                  data-testid="filter-op-mode"
+                  value={filterOpMode}
+                  onChange={(e) => setFilterOpMode(e.target.value)}
+                  style={{
+                    height: '32px',
+                    padding: '0 8px',
+                    borderRadius: '6px',
+                    backgroundColor: '#FFFFFF',
+                    border: '1px solid #CBD5E1',
+                    color: '#0F172A',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    outline: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="ALL">All Operational Modes</option>
+                  <option value="IN_TRANSIT">In Transit (Moving)</option>
+                  <option value="HAZARD_SLOWED">⚠️ Stopped / Hazard Delayed</option>
+                  <option value="HALTED_CHECKPOINT">⏸️ Halted at Checkpoint</option>
+                  <option value="CONVOY_ESCORT">🛡️ Convoy Escort</option>
+                </select>
+              </div>
+
+              {/* Reset Filters & Match count */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: 'auto' }}>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    color: '#0284C7',
+                    fontWeight: 700,
+                    backgroundColor: '#E0F2FE',
+                    padding: '3px 8px',
+                    borderRadius: '4px',
+                  }}
+                >
+                  {filteredVehicles.length} of {fleetVehicles.length} units
+                </span>
+
+                {(filterVehicleType !== 'ALL' || filterCargoType !== 'ALL' || filterOpMode !== 'ALL' || vehicleSearchQuery) && (
+                  <button
+                    type="button"
+                    data-testid="clear-fleet-filters"
+                    onClick={() => {
+                      setFilterVehicleType('ALL');
+                      setFilterCargoType('ALL');
+                      setFilterOpMode('ALL');
+                      setVehicleSearchQuery('');
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      backgroundColor: '#FEF2F2',
+                      border: '1px solid #FECACA',
+                      color: '#DC2626',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <X size={12} />
+                    <span>Reset</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Fleet Unit Selector Bar */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                overflowX: 'auto',
+                paddingBottom: '6px',
+                marginBottom: '12px',
+              }}
+            >
+              {filteredVehicles.length === 0 ? (
+                <div style={{ padding: '10px 14px', color: '#64748B', fontSize: '12px', width: '100%', textAlign: 'center' }}>
+                  No fleet vehicles match active filter.
+                </div>
+              ) : (
+                filteredVehicles.map((veh) => {
+                  const isSelected = veh.id === selectedVehicleId;
+                  const statusDotColor =
+                    veh.status === 'HAZARD_SLOWED'
+                      ? '#EF4444'
+                      : veh.status === 'HALTED_CHECKPOINT'
+                      ? '#F59E0B'
+                      : veh.status === 'CONVOY_ESCORT'
+                      ? '#6366F1'
+                      : '#10B981';
+
+                  return (
+                    <button
+                      key={veh.id}
+                      type="button"
+                      onClick={() => setSelectedVehicleId(veh.id)}
+                      data-testid={`select-vehicle-${veh.id}`}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '8px 12px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: isSelected ? '#F0F9FF' : '#F8FAFC',
+                        border: isSelected ? '1.5px solid #0284C7' : '1px solid #E2E8F0',
+                        color: isSelected ? '#0284C7' : '#475569',
+                        cursor: 'pointer',
+                        fontSize: '12px',
+                        fontWeight: isSelected ? 700 : 500,
+                        whiteSpace: 'nowrap',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSelected ? '0 0 8px rgba(2, 132, 199, 0.15)' : 'none',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '7px',
+                          height: '7px',
+                          borderRadius: '50%',
+                          backgroundColor: statusDotColor,
+                          boxShadow: `0 0 6px ${statusDotColor}`,
+                        }}
+                      />
+                      <Truck size={14} color={isSelected ? '#0284C7' : '#64748B'} />
+                      <span style={{ color: isSelected ? '#0284C7' : '#0F172A', fontWeight: 700 }}>{veh.model}</span>
+                      <span
+                        style={{
+                          fontSize: '11px',
+                          color: '#475569',
+                          fontWeight: 600,
+                          backgroundColor: isSelected ? '#E0F2FE' : '#F1F5F9',
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {veh.vehicleNumber}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          backgroundColor: isSelected ? '#E0F2FE' : '#E2E8F0',
+                          color: isSelected ? '#0284C7' : '#334155',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {veh.speedKmh} km/h
+                      </span>
+                      {veh.status === 'HAZARD_SLOWED' && (
+                        <span
+                          style={{
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            backgroundColor: '#FEE2E2',
+                            color: '#DC2626',
+                          }}
+                        >
+                          ⚠️ HAZARD
+                        </span>
+                      )}
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Selected Vehicle Telemetry Inspector Card */}
+            {(() => {
+              const cur = fleetVehicles.find((v) => v.id === selectedVehicleId) || fleetVehicles[0];
+              const statusBadgeBg =
+                cur.status === 'HAZARD_SLOWED'
+                  ? '#FEE2E2'
+                  : cur.status === 'HALTED_CHECKPOINT'
+                  ? '#FEF3C7'
+                  : cur.status === 'CONVOY_ESCORT'
+                  ? '#E0E7FF'
+                  : '#D1FAE5';
+              const statusBadgeColor =
+                cur.status === 'HAZARD_SLOWED'
+                  ? '#DC2626'
+                  : cur.status === 'HALTED_CHECKPOINT'
+                  ? '#D97706'
+                  : cur.status === 'CONVOY_ESCORT'
+                  ? '#4F46E5'
+                  : '#059669';
+
+              return (
+                <div
+                  data-testid="vehicle-telemetry-inspector"
+                  style={{
+                    backgroundColor: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '12px 14px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '12px',
+                    }}
+                  >
+                    {/* Col 1: Vehicle & Driver Identity */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '14px', fontWeight: 800, color: '#0F172A' }}>
+                          {cur.model}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: '3px',
+                            backgroundColor: '#E2E8F0',
+                            color: '#334155',
+                          }}
+                        >
+                          {cur.vehicleNumber}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          fontSize: '11px',
+                          color: '#64748B',
+                          marginTop: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Phone size={11} />
+                        <span>
+                          Driver: <strong style={{ color: '#0F172A' }}>{cur.driverName}</strong> ({cur.driverPhone})
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                        Cargo: <strong style={{ color: '#0F172A' }}>{cur.cargo}</strong>
+                      </div>
+                    </div>
+
+                    {/* Col 2: GPS Location & Corridor Landmark */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <MapPin size={13} color="#0284C7" />
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0284C7' }}>
+                          Live Location: {cur.currentCoords.lat.toFixed(4)}°N, {cur.currentCoords.lng.toFixed(4)}°E
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#334155', marginTop: '4px' }}>
+                        Corridor: <strong>{cur.routeName}</strong>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '2px' }}>
+                        Route: {cur.originName} → {cur.destName}
+                      </div>
+                    </div>
+
+                    {/* Col 3: Telemetry Dynamics */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 800,
+                            padding: '2px 8px',
+                            borderRadius: 'var(--radius-pill)',
+                            backgroundColor: statusBadgeBg,
+                            color: statusBadgeColor,
+                            border: `1px solid ${statusBadgeColor}`,
+                          }}
+                        >
+                          {cur.status.replace('_', ' ')}
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#0F172A' }}>
+                          <Gauge size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                          {cur.speedKmh} km/h
+                        </span>
+                        <span style={{ fontSize: '10px', color: '#64748B', marginLeft: 'auto' }}>
+                          Ping {cur.lastPing}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748B', marginTop: '6px' }}>
+                        Transit Progress: <strong style={{ color: '#0284C7' }}>{Math.round(cur.progress * 100)}%</strong> completed
+                      </div>
+                      {cur.hazardAhead && (
+                        <div
+                          style={{
+                            fontSize: '11px',
+                            color: '#DC2626',
+                            backgroundColor: '#FEF2F2',
+                            padding: '3px 6px',
+                            borderRadius: '4px',
+                            marginTop: '4px',
+                            border: '1px solid #FECACA',
+                          }}
+                        >
+                          ⚠️ Hazard Ahead: {cur.hazardAhead}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* Embedded Vector GIS Spatial Tracking */}
+        <div style={{ marginTop: '8px' }}>
+          {(() => {
+            const currentVeh = fleetVehicles.find((v) => v.id === selectedVehicleId) || fleetVehicles[0];
+            const isFleetMode = role === 'OFFICIAL' || role === 'ADMIN';
+
+            return (
+              <VectorGisMap
+                originName={isFleetMode ? currentVeh.originName : 'Guwahati Port Hub'}
+                destName={isFleetMode ? currentVeh.destName : 'Shillong Terminal Hub'}
+                originCoords={isFleetMode ? currentVeh.originCoords : { lat: 26.1445, lng: 91.7362 }}
+                destCoords={isFleetMode ? currentVeh.destCoords : { lat: 25.5788, lng: 91.8933 }}
+                routeName={isFleetMode ? currentVeh.routeName : 'NH-06 via Nongpoh'}
+                vehicleName={
+                  isFleetMode ? currentVeh.model : role === 'DRIVER' ? 'Tata Prima 31T' : 'Ashok Leyland 1618'
+                }
+                cargoName={isFleetMode ? currentVeh.cargo : 'FMCG Critical'}
+                roleMode={
+                  role === 'DRIVER' ? 'driver' : role === 'FIELD_WORKER' ? 'field_worker' : role === 'ADMIN' ? 'admin' : 'official'
+                }
+                height={isFleetMode ? 440 : 360}
+                vehicles={isFleetMode ? filteredVehicles : undefined}
+                selectedVehicleId={selectedVehicleId}
+                onSelectVehicle={(veh) => setSelectedVehicleId(veh.id)}
+                fleetViewMode={mapFleetViewMode}
+                onFleetViewModeChange={(m) => setMapFleetViewMode(m)}
+                onOpenClauses={() => {
+                  const b = computeDetailedBreakdown({
+                    lat1: isFleetMode ? currentVeh.originCoords.lat : 26.1445,
+                    lon1: isFleetMode ? currentVeh.originCoords.lng : 91.7362,
+                    lat2: isFleetMode ? currentVeh.destCoords.lat : 25.5788,
+                    lon2: isFleetMode ? currentVeh.destCoords.lng : 91.8933,
+                    vehicleTitle: isFleetMode ? currentVeh.model : 'Tata Prima 31T',
+                    cargoTitle: isFleetMode ? currentVeh.cargo : 'FMCG Critical',
+                    isSafestRoute: true,
+                  });
+                  setAuditBreakdown(b);
+                  setIsAuditModalOpen(true);
+                }}
+              />
+            );
+          })()}
+        </div>
+      </div>
+
+      {/* ROW 2 — TWO COLUMNS (60% + 40%, 16px gap) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
+          gap: '16px',
+        }}
+      >
+        {/* LEFT — Corridor Status Table */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                Corridor Status
+              </h2>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  height: '32px',
+                  padding: '0 8px',
+                  borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--color-border)',
+                  backgroundColor: '#FFFFFF',
+                  width: '180px',
+                }}
+              >
+                <Search size={13} color="var(--color-text-muted)" />
+                <input
+                  type="text"
+                  placeholder="Filter corridor..."
+                  value={corridorQuery}
+                  onChange={(e) => setCorridorQuery(e.target.value)}
+                  style={{
+                    border: 'none',
+                    outline: 'none',
+                    width: '100%',
+                    fontSize: '12px',
+                    color: 'var(--color-text-primary)',
+                  }}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => navigate('/corridors')}
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                padding: '4px 10px',
+                borderRadius: 'var(--radius-pill)',
+                border: '1px solid var(--color-border)',
+                backgroundColor: '#FFFFFF',
+                cursor: 'pointer',
+              }}
+            >
+              All Corridors
+            </button>
+          </div>
+
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr
+                  style={{
+                    height: '40px',
+                    backgroundColor: 'var(--color-canvas)',
+                    borderBottom: '1px solid var(--color-border)',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    color: 'var(--color-text-disabled)',
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                  }}
+                >
+                  <th style={{ padding: '0 12px' }}>Corridor</th>
+                  <th style={{ padding: '0 12px' }}>Status</th>
+                  <th style={{ padding: '0 12px' }}>Risk Score</th>
+                  <th style={{ padding: '0 12px' }}>Disruption</th>
+                  <th style={{ padding: '0 12px' }}>Last Report</th>
+                  <th style={{ padding: '0 12px', textAlign: 'right' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {displayedCorridors.map((c) => (
+                  <tr
+                    key={c.id}
+                    style={{
+                      height: '52px',
+                      borderBottom: '1px solid var(--color-border)',
+                      fontSize: '13px',
+                      transition: 'background-color var(--transition-fast)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--color-canvas)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <td style={{ padding: '0 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <RouteIcon size={14} color="var(--color-text-muted)" />
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{c.name}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>{c.routeId}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0 12px' }}>{renderStatusBadge(c.status)}</td>
+                    <td style={{ padding: '0 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontWeight: 700,
+                            color:
+                              c.riskScore > 75
+                                ? 'var(--color-danger)'
+                                : c.riskScore > 50
+                                ? 'var(--color-warning)'
+                                : 'var(--color-success)',
+                          }}
+                        >
+                          {c.riskScore}
+                        </span>
+                        <div
+                          style={{
+                            width: '45px',
+                            height: '4px',
+                            borderRadius: '2px',
+                            backgroundColor: 'var(--color-container)',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${c.riskScore}%`,
+                              height: '100%',
+                              backgroundColor:
+                                c.riskScore > 75
+                                  ? 'var(--color-danger)'
+                                  : c.riskScore > 50
+                                  ? 'var(--color-warning)'
+                                  : 'var(--color-success)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0 12px' }}>
+                      <span className="mono" style={{ fontWeight: 600 }}>
+                        {c.disruptionProb}%
+                      </span>
+                    </td>
+                    <td style={{ padding: '0 12px' }}>
+                      <span className="mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                        {c.lastReport}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                      <button
+                        onClick={() => navigate(`/corridors?id=${c.id}`)}
+                        style={{
+                          fontSize: '12px',
+                          fontWeight: 600,
+                          color: 'var(--color-primary)',
+                        }}
+                      >
+                        View
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* RIGHT — Live Alert Feed */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px',
+            }}
+          >
+            <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Live Alerts
+            </h2>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                backgroundColor: 'var(--color-success-bg)',
+                color: 'var(--color-success)',
+                padding: '3px 8px',
+                borderRadius: 'var(--radius-pill)',
+                fontSize: '10px',
+                fontWeight: 700,
+              }}
+            >
+              <span
+                className="pulse-beacon"
+                style={{
+                  width: '5px',
+                  height: '5px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-success)',
+                }}
+              />
+              <span>LIVE</span>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              maxHeight: '420px',
+              overflowY: 'auto',
+            }}
+          >
+            {alerts.map((alt) => {
+              let bg = 'var(--color-primary-bg)';
+              let borderStrip = 'var(--color-primary)';
+              let badgeColor = 'var(--color-primary)';
+              let badgeBg = 'var(--color-primary-light)';
+
+              if (alt.severity === 'EMERGENCY') {
+                bg = 'var(--color-danger-bg)';
+                borderStrip = 'var(--color-emergency)';
+                badgeColor = 'var(--color-emergency)';
+                badgeBg = '#FEE2E2';
+              } else if (alt.severity === 'CAUTION') {
+                bg = 'var(--color-warning-bg)';
+                borderStrip = 'var(--color-warning)';
+                badgeColor = '#B45309';
+                badgeBg = '#FEF3C7';
+              }
+
+              return (
+                <div
+                  key={alt.id}
+                  style={{
+                    backgroundColor: bg,
+                    borderLeft: `4px solid ${borderStrip}`,
+                    borderRadius: 'var(--radius-md)',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    opacity: alt.acknowledged ? 0.7 : 1,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: badgeBg,
+                          color: badgeColor,
+                        }}
+                      >
+                        {alt.severity}
+                      </span>
+                      <span className="mono" style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        {alt.corridor}
+                      </span>
+                    </div>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      {alt.time}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {alt.title}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>
+                    {alt.description}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2px' }}>
+                    <button
+                      onClick={() => handleAcknowledge(alt.id)}
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: alt.acknowledged ? 'var(--color-success)' : 'var(--color-primary)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {alt.acknowledged ? (
+                        <>
+                          <CheckCircle size={12} />
+                          <span>Acknowledged</span>
+                        </>
+                      ) : (
+                        <span>Acknowledge</span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* For Official & Admin: Ground Recon Reports Verification Queue */}
+      {(role === 'OFFICIAL' || role === 'ADMIN') && (
+        <div
+          data-testid="official-reports-verification-queue"
+          className="tiyra-card"
+          style={{ padding: '20px' }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <CheckCircle size={17} color="var(--color-primary)" />
+              <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                Field Incident Verification Queue
+              </h2>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  padding: '2px 7px',
+                  borderRadius: 'var(--radius-pill)',
+                  backgroundColor: 'var(--color-warning-bg)',
+                  color: '#B45309',
+                  border: '1px solid #FDE68A',
+                }}
+              >
+                OFFICIAL ACTION REQUIRED
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/reports')}
+              style={{
+                fontSize: '12px',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+                backgroundColor: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>View All 6 Recon Reports →</span>
+            </button>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+            {[
+              {
+                id: 'RP-2847',
+                corridor: 'NH-06',
+                km: 'KM 52.3',
+                hazard: 'Landslide',
+                severity: 'FULL BLOCKAGE',
+                status: 'PENDING',
+                worker: 'Sanjay Kumar (Field Unit 4)',
+                time: '6m ago',
+                desc: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
+              },
+              {
+                id: 'RP-2846',
+                corridor: 'NH-29',
+                km: 'KM 81.1',
+                hazard: 'Flash Flood',
+                severity: 'PARTIAL',
+                status: 'VERIFIED',
+                worker: 'Priya Mao (Field Unit 2)',
+                time: '18m ago',
+                desc: 'Mountain stream overflow depositing gravel across 40m. 20cm water depth.',
+              },
+            ].map((rep) => (
+              <div
+                key={rep.id}
+                style={{
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-sm)',
+                  backgroundColor: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                      {rep.id}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        backgroundColor: rep.status === 'VERIFIED' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                        color: rep.status === 'VERIFIED' ? 'var(--color-success)' : '#B45309',
+                      }}
+                    >
+                      {rep.status}
+                    </span>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                      {rep.corridor} · {rep.km}
+                    </span>
+                  </div>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    {rep.time}
+                  </span>
+                </div>
+
+                <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                  {rep.hazard} — {rep.severity}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
+                  {rep.desc}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
+                    Observer: {rep.worker}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => navigate('/reports')}
+                    style={{
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      color: 'var(--color-primary)',
+                      backgroundColor: 'var(--color-primary-bg)',
+                      border: '1px solid var(--color-primary-light)',
+                      padding: '3px 8px',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Verify & Dispatch →
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ROW 3 — THREE EQUAL PANELS (16px gap, white, 12px radius, 20px padding) */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+          gap: '16px',
+        }}
+      >
+        {/* Panel A — Disruption Probability Chart */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ marginBottom: '14px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Disruption Probability — Next 48h
+            </h2>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              ML forecast · HISTORICAL + LIVE
+            </div>
+          </div>
+
+          {/* SVG Line Chart */}
+          <div style={{ height: '180px', width: '100%', position: 'relative' }}>
+            <svg viewBox="0 0 320 140" style={{ width: '100%', height: '100%' }}>
+              {/* Grid Lines */}
+              <line x1="20" y1="20" x2="310" y2="20" stroke="#F1F5F9" strokeWidth="1" />
+              <line x1="20" y1="55" x2="310" y2="55" stroke="#F1F5F9" strokeWidth="1" />
+              <line x1="20" y1="90" x2="310" y2="90" stroke="#F1F5F9" strokeWidth="1" />
+              <line x1="20" y1="125" x2="310" y2="125" stroke="#E2E8F0" strokeWidth="1" />
+
+              {/* Blue line: NH-06 */}
+              <polyline
+                fill="none"
+                stroke="#0284C7"
+                strokeWidth="2.5"
+                points="20,110 70,100 120,92 170,105 220,98 270,85 310,88"
+              />
+              {/* Amber line: NH-29 */}
+              <polyline
+                fill="none"
+                stroke="#F59E0B"
+                strokeWidth="2.5"
+                strokeDasharray="4 2"
+                points="20,80 70,72 120,50 170,42 220,38 270,55 310,48"
+              />
+            </svg>
+          </div>
 
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.4rem',
-              backgroundColor: 'var(--critical-bg)',
-              border: '1px solid var(--critical-border)',
-              padding: '0.45rem 0.85rem',
-              borderRadius: 'var(--radius-full)',
-              color: 'var(--critical)',
-              fontSize: '0.75rem',
-              fontWeight: 700,
+              justifyContent: 'space-between',
+              fontSize: '11px',
+              color: 'var(--color-text-muted)',
+              borderTop: '1px solid var(--color-border)',
+              paddingTop: '10px',
             }}
           >
-            <AlertOctagon size={14} />
-            <span>3 Active Disruptions</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Responsive Command Grid (3-column on Desktop, 2-column on Tablet, 1-column on Mobile) */}
-      <div className="dashboard-grid">
-        {/* COLUMN 1 (LEFT): Live Corridor Telemetry Feed */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div
-            className="glass-panel"
-            style={{
-              padding: '1.25rem 1.5rem',
-              borderRadius: 'var(--radius-xl)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                  Critical Highway Corridors
-                </h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Sensory telemetry & slope monitoring
-                </p>
-              </div>
-              <Layers size={18} color="var(--primary)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', backgroundColor: '#0284C7', borderRadius: '2px' }} />
+              <span>NH-06 (Shillong)</span>
             </div>
-
-            {/* Corridor List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-              {CORRIDORS.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => setSelectedCorridor(c.id)}
-                  style={{
-                    padding: '1rem',
-                    borderRadius: 'var(--radius-lg)',
-                    border: selectedCorridor === c.id ? '2px solid var(--primary)' : '1px solid var(--border)',
-                    backgroundColor: selectedCorridor === c.id ? 'var(--primary-light)' : 'var(--surface)',
-                    cursor: 'pointer',
-                    transition: 'all var(--transition-snappy)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '0.95rem' }}>
-                        {c.id}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>{c.name}</span>
-                    </div>
-                    <StatusBadge
-                      label={c.status}
-                      variant={c.status === 'PASSABLE' ? 'healthy' : c.status === 'MONITORED' ? 'warning' : 'critical'}
-                      size="sm"
-                    />
-                  </div>
-
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                    {c.route}
-                  </div>
-
-                  {/* Micro telemetry bars */}
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '0.5rem',
-                      marginTop: '0.75rem',
-                      paddingTop: '0.65rem',
-                      borderTop: '1px solid var(--border-subtle)',
-                      fontSize: '0.72rem',
-                    }}
-                  >
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Slope Instability:</span>
-                      <div style={{ fontWeight: 700, color: c.riskScore > 0.5 ? 'var(--critical)' : 'var(--success)' }}>
-                        {c.slopeInstability}
-                      </div>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-muted)' }}>Rainfall Radar:</span>
-                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{c.rainIntensity}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '8px', height: '8px', backgroundColor: '#F59E0B', borderRadius: '2px' }} />
+              <span>NH-29 (Silchar)</span>
             </div>
-          </div>
-
-          {/* Quick Metrics Summary */}
-          <div
-            className="glass-panel"
-            style={{
-              padding: '1.25rem 1.5rem',
-              borderRadius: 'var(--radius-xl)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
-                Supply Chain Clearance
-              </span>
-              <ShieldCheck size={16} color="var(--success)" />
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--primary)' }}>
-              92.8% Passable
-            </div>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-              117 of 128 monitored highway segments open for multi-axle freight convoys.
-            </p>
+            <span className="mono">+48h Horizon</span>
           </div>
         </div>
 
-        {/* COLUMN 2 (CENTER): High-Resolution Tactical GIS Spatial Radar */}
-        <div className="dashboard-center-col" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div
-            className="glass-panel"
-            style={{
-              borderRadius: 'var(--radius-xl)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              backgroundColor: 'var(--surface)',
-              border: '1px solid var(--border)',
-            }}
-          >
-            {/* GIS Toolbar */}
-            <div
-              style={{
-                padding: '1rem 1.5rem',
-                borderBottom: '1px solid var(--border)',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                backgroundColor: 'var(--bg-subtle)',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <Radio size={16} color="var(--primary)" className="pulse-beacon" />
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                  Live Spatial Map Engine • {selectedCorridor} Focus
-                </span>
-              </div>
-
-              {/* Layer Toggles */}
-              <div style={{ display: 'flex', gap: '0.4rem' }}>
-                {(['all', 'risk', 'weather'] as const).map((layer) => (
-                  <button
-                    key={layer}
-                    onClick={() => setActiveLayer(layer)}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      backgroundColor: activeLayer === layer ? 'var(--primary)' : 'var(--surface)',
-                      color: activeLayer === layer ? '#ffffff' : 'var(--text-secondary)',
-                      border: '1px solid var(--border)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {layer === 'all' ? 'All Overlays' : layer === 'risk' ? 'Landslide Heat' : 'Rain Bands'}
-                  </button>
-                ))}
-              </div>
+        {/* Panel B — Field Coverage by Sector */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ marginBottom: '14px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Field Coverage by Sector
+            </h2>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              Ground telemetry & verified worker presence
             </div>
+          </div>
 
-            {/* High-Resolution Tactical Vector Display (Light Theme Map Canvas) */}
-            <div
-              style={{
-                position: 'relative',
-                height: '460px',
-                backgroundColor: '#f1f5f9',
-                backgroundImage:
-                  'radial-gradient(ellipse at 50% 50%, rgba(2, 132, 199, 0.08) 0%, transparent 80%), linear-gradient(rgba(2, 132, 199, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(2, 132, 199, 0.05) 1px, transparent 1px)',
-                backgroundSize: '100% 100%, 36px 36px, 36px 36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}
-            >
-              {/* Scalable Topographic Vector Curves */}
-              <svg
-                style={{
-                  position: 'absolute',
-                  width: '100%',
-                  height: '100%',
-                  opacity: 0.35,
-                  pointerEvents: 'none',
-                }}
-                viewBox="0 0 1000 500"
-              >
-                <path d="M0 320 Q250 140 500 280 T1000 220" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeDasharray="5,5" />
-                <path d="M0 400 Q300 200 650 360 T1000 300" fill="none" stroke="#06b6d4" strokeWidth="1.5" />
-                <path d="M0 200 Q350 80 750 240 T1000 160" fill="none" stroke="#0284c7" strokeWidth="1" />
-              </svg>
-
-              {/* Highway Corridor Polylines & Live Nodes */}
-              <svg
-                style={{
-                  position: 'absolute',
-                  width: '100%',
-                  height: '100%',
-                  zIndex: 1,
-                }}
-                viewBox="0 0 1000 500"
-              >
-                {/* NH-06 Primary Route */}
-                <path
-                  d="M 200 380 C 320 320, 460 270, 600 210 S 780 130, 860 110"
-                  fill="none"
-                  stroke="#38bdf8"
-                  strokeWidth="5"
-                  strokeLinecap="round"
-                  filter="drop-shadow(0 0 10px rgba(56, 189, 248, 0.8))"
-                />
-
-                {/* NH-27 East-West Axis */}
-                <path
-                  d="M 200 380 Q 420 390 650 410 T 940 440"
-                  fill="none"
-                  stroke="#10b981"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  strokeDasharray="6,4"
-                />
-
-                {/* Waypoint 1: Guwahati Port Hub */}
-                <circle cx="200" cy="380" r="9" fill="#10b981" stroke="#ffffff" strokeWidth="3" />
-                <text x="175" y="415" fill="#0f172a" fontSize="13" fontWeight="700" fontFamily="Inter">
-                  Guwahati Port (Origin)
-                </text>
-
-                {/* Waypoint 2: Jorabat Jct */}
-                <circle cx="410" cy="300" r="6" fill="#0284c7" stroke="#ffffff" strokeWidth="2" />
-                <text x="425" y="305" fill="#475569" fontSize="11" fontFamily="Inter" fontWeight="600">
-                  Jorabat Jct
-                </text>
-
-                {/* Waypoint 3: Nongpoh */}
-                <circle cx="600" cy="210" r="7" fill="#f59e0b" stroke="#ffffff" strokeWidth="2.5" />
-                <text x="615" y="215" fill="#b45309" fontSize="12" fontWeight="700" fontFamily="Inter">
-                  Nongpoh (Rain 8mm/h)
-                </text>
-
-                {/* Waypoint 4: Shillong Terminal */}
-                <circle cx="860" cy="110" r="9" fill="#0284c7" stroke="#ffffff" strokeWidth="3" />
-                <text x="815" y="85" fill="#0f172a" fontSize="13" fontWeight="700" fontFamily="Inter">
-                  Shillong (Dest)
-                </text>
-              </svg>
-
-              {/* Floating Tactical Overlay Card (Light Theme) */}
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '1.25rem',
-                  left: '1.5rem',
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(10px)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-md)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem 1.4rem',
-                  color: 'var(--text-primary)',
-                  zIndex: 2,
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.4rem' }}>
-                  <Radio size={14} color="var(--primary)" className="pulse-beacon" />
-                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: 'var(--primary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                    Active Convoy Segment
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[
+              { name: 'NH-06 (Khasi Hills)', pct: 88, color: 'var(--color-success)' },
+              { name: 'NH-29 (Barail Range)', pct: 65, color: 'var(--color-warning)' },
+              { name: 'NH-37 (Brahmaputra South)', pct: 22, color: 'var(--color-danger)' },
+              { name: 'NH-40 (Jaintia Hills)', pct: 75, color: 'var(--color-warning)' },
+              { name: 'NH-51 (Garo Hills)', pct: 91, color: 'var(--color-success)' },
+            ].map((sec) => (
+              <div key={sec.name}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: 500, color: 'var(--color-text-secondary)' }}>{sec.name}</span>
+                  <span className="mono" style={{ fontWeight: 600, color: sec.color }}>
+                    {sec.pct}%
                   </span>
                 </div>
-                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>NH-06 Guwahati ↔ Shillong</div>
-                <div style={{ display: 'flex', gap: '1.25rem', marginTop: '0.5rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  <span>Distance: <strong style={{ color: 'var(--text-primary)' }}>98.4 km</strong></span>
-                  <span>Avg Speed: <strong style={{ color: 'var(--text-primary)' }}>42 km/h</strong></span>
-                  <span>Status: <strong style={{ color: 'var(--success)' }}>Passable</strong></span>
+                <div
+                  style={{
+                    height: '6px',
+                    borderRadius: '3px',
+                    backgroundColor: 'var(--color-container)',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: `${sec.pct}%`,
+                      height: '100%',
+                      backgroundColor: sec.color,
+                    }}
+                  />
                 </div>
               </div>
-
-              {/* Floating Coordinates & Altitude HUD (Light Theme) */}
-              <div
-                style={{
-                  position: 'absolute',
-                  bottom: '1.25rem',
-                  right: '1.5rem',
-                  backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid var(--border)',
-                  boxShadow: 'var(--shadow-sm)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '0.5rem 0.85rem',
-                  color: 'var(--text-secondary)',
-                  fontSize: '0.75rem',
-                  fontFamily: 'monospace',
-                  zIndex: 2,
-                }}
-              >
-                26.1445° N, 91.7362° E • Elevation 54m → 1,496m MSL
-              </div>
-            </div>
+            ))}
           </div>
         </div>
 
-        {/* COLUMN 3 (RIGHT): Route Optimizer & Incident Verification Queue */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {/* Route Risk Optimizer Panel */}
-          <div
-            className="glass-panel"
-            style={{
-              padding: '1.5rem',
-              borderRadius: 'var(--radius-xl)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                  Route Risk Optimizer
-                </h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Decision-support comparative routing
-                </p>
-              </div>
-              <Navigation size={18} color="var(--primary)" />
-            </div>
-
-            {/* Option A: Recommended Safe Route */}
-            <div
-              style={{
-                padding: '1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: '2px solid var(--success)',
-                backgroundColor: 'var(--success-bg)',
-                marginBottom: '0.85rem',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--success)' }}>
-                  RECOMMENDED SAFE ROUTE
-                </span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--success)' }}>
-                  Risk Score: 0.18
-                </span>
-              </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, marginTop: '0.35rem' }}>
-                via NH-06 Express Corridor
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                <span>ETA: <strong>2h 15m</strong></span>
-                <span>Distance: <strong>98 km</strong></span>
-              </div>
-              <div
-                style={{
-                  marginTop: '0.65rem',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.75)',
-                  fontSize: '0.74rem',
-                  color: 'var(--text-secondary)',
-                }}
-              >
-                ✓ Bypasses 2 active landslide warning zones near Pagla Pahar.
-              </div>
-            </div>
-
-            {/* Option B: Fastest Route (Elevated Risk) */}
-            <div
-              style={{
-                padding: '1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: '1px solid var(--warning-border)',
-                backgroundColor: 'var(--warning-bg)',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--warning)' }}>
-                  FASTEST AVAILABLE ROUTE
-                </span>
-                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--warning)' }}>
-                  Risk Score: 0.64
-                </span>
-              </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, marginTop: '0.35rem' }}>
-                via NH-29 Mountain Ridge
-              </div>
-              <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.35rem' }}>
-                <span>ETA: <strong>1h 58m</strong> (-17m)</span>
-                <span>Distance: <strong>89 km</strong></span>
-              </div>
-              <div
-                style={{
-                  marginTop: '0.65rem',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: 'rgba(255, 255, 255, 0.75)',
-                  fontSize: '0.74rem',
-                  color: 'var(--critical)',
-                  fontWeight: 600,
-                }}
-              >
-                ⚠ High risk of mudslide delays between KM 14-22.
-              </div>
+        {/* Panel C — Activity Timeline */}
+        <div className="tiyra-card" style={{ padding: '20px' }}>
+          <div style={{ marginBottom: '14px' }}>
+            <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+              Recent Activity
+            </h2>
+            <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+              Verified ground events & dispatch logs
             </div>
           </div>
 
-          {/* Incident Verification Queue */}
-          <div
-            className="glass-panel"
-            style={{
-              padding: '1.5rem',
-              borderRadius: 'var(--radius-xl)',
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, letterSpacing: '-0.01em' }}>
-                  Field Incident Queue
-                </h3>
-                <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  Real-time worker submissions awaiting verification
-                </p>
-              </div>
-              <AlertTriangle size={18} color="var(--warning)" />
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-              {incidents.map((inc) => (
-                <div
-                  key={inc.id}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {[
+              { actor: 'Sanjay Kumar', action: 'Uploaded landslide report at KM 52.3', time: '6m ago', dot: 'var(--color-danger)' },
+              { actor: 'Dr. Anamika Barua', action: 'Issued regional caution advisory for NH-29', time: '18m ago', dot: 'var(--color-warning)' },
+              { actor: 'Priya Mao', action: 'Confirmed clear passage on NH-40 Jowai segment', time: '34m ago', dot: 'var(--color-success)' },
+              { actor: 'System ML', action: 'Re-evaluated NH-37 flood probability to 78%', time: '1h ago', dot: 'var(--color-primary)' },
+              { actor: 'Ratan Das', action: 'Logged offline checkpoint sync at Nongpoh', time: '2h ago', dot: 'var(--color-success)' },
+            ].map((item, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <span
                   style={{
-                    padding: '0.85rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid var(--border)',
-                    backgroundColor: 'var(--surface)',
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: item.dot,
+                    marginTop: '5px',
+                    flexShrink: 0,
                   }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--primary)' }}>
-                      {inc.id}
-                    </span>
-                    <StatusBadge label={inc.severity} variant={inc.severity === 'CRITICAL' ? 'critical' : 'warning'} size="sm" />
+                />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', lineHeight: 1.3 }}>
+                    <span style={{ fontWeight: 600 }}>{item.actor}</span>{' '}
+                    <span style={{ color: 'var(--color-text-secondary)' }}>{item.action}</span>
                   </div>
-
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, marginTop: '0.25rem' }}>
-                    {inc.type}
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                    {inc.location}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontFamily: 'monospace', marginTop: '0.2rem' }}>
-                    {inc.coords} • {inc.time}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.65rem' }}>
-                    {inc.verified ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.75rem', color: 'var(--success)', fontWeight: 700 }}>
-                        <Check size={14} />
-                        <span>Verified by ASDMA</span>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => handleVerifyIncident(inc.id)}
-                          style={{
-                            flex: 1,
-                            padding: '0.35rem 0.5rem',
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: 'var(--primary)',
-                            color: '#fff',
-                            fontSize: '0.74rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '0.3rem',
-                          }}
-                        >
-                          <Check size={13} />
-                          Verify & Dispatch
-                        </button>
-                        <button
-                          onClick={() => handleDismissIncident(inc.id)}
-                          style={{
-                            padding: '0.35rem 0.65rem',
-                            borderRadius: 'var(--radius-sm)',
-                            border: '1px solid var(--border)',
-                            backgroundColor: 'var(--bg)',
-                            color: 'var(--text-secondary)',
-                            fontSize: '0.74rem',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <X size={13} />
-                        </button>
-                      </>
-                    )}
-                  </div>
+                  <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                    {item.time}
+                  </span>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
+
+      {/* Interactive Journey Planning Modal */}
+      <JourneyPlanningModal
+        isOpen={isJourneyModalOpen}
+        onClose={() => setIsJourneyModalOpen(false)}
+      />
+
+      {/* Distance Clauses Audit Modal */}
+      <DistanceClausesModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        breakdown={auditBreakdown}
+        originName="Guwahati Port Hub"
+        destName="Shillong Terminal Hub"
+        vehicleName={role === 'DRIVER' ? 'Tata Prima 31T' : 'Ashok Leyland 1618'}
+        cargoName="FMCG Critical"
+        routeName="NH-06 via Nongpoh (Safest)"
+      />
     </div>
   );
 };

@@ -1,118 +1,306 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
-import { StatusBadge } from './StatusBadge';
-import { LogOut, Radio, User as UserIcon } from 'lucide-react';
-import logo from '../assets/logo.png';
+import { ChevronDown, Menu } from 'lucide-react';
+import appIcon from '../assets/app_icon.png';
+import { AccountDetailsModal } from './AccountDetailsModal';
 
-export const Header: React.FC = () => {
-  const { user, logout } = useAuth();
+interface HeaderProps {
+  onToggleSidebar?: () => void;
+  isSidebarOpen?: boolean;
+}
+
+export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen = false }) => {
+  const { user } = useAuth();
+  const [isAccountModalOpen, setIsAccountModalOpen] = useState(false);
+
+  const getInitials = (name?: string) => {
+    if (!name) return 'TS';
+    const parts = name.trim().split(' ');
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
-    <header
-      style={{
-        height: '68px',
-        backgroundColor: 'rgba(255, 255, 255, 0.85)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid var(--border)',
-        boxShadow: 'var(--shadow-xs)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 2rem',
-        position: 'sticky',
-        top: 0,
-        zIndex: 20,
-      }}
-    >
-      {/* Brand & Provenance */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <img
-            src={logo}
-            alt="TiyraSense"
-            style={{
-              height: '32px',
-              width: 'auto',
-              display: 'block',
-              objectFit: 'contain',
-            }}
-          />
-          <div style={{ borderLeft: '1px solid var(--border)', paddingLeft: '0.85rem', display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: '0.70rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-              NER Logistics Intelligence
-            </span>
-          </div>
-        </div>
-
-        {/* Live Data Badge */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginLeft: '0.25rem' }}>
-          <Radio size={14} color="var(--success)" style={{ animation: 'pulse 2s infinite' }} />
-          <StatusBadge label="LIVE DATA" variant="LIVE" size="sm" />
-        </div>
-      </div>
-
-      {/* User Information & Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-        {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: '#f1f5f9',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              <UserIcon size={18} />
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>{user.full_name}</span>
-                <StatusBadge label={user.role} variant={user.role} size="sm" />
-              </div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {user.organization || user.email}
-              </span>
-            </div>
-          </div>
-        )}
-
-        <button
-          onClick={logout}
-          aria-label="Logout"
+    <>
+      <header
+        style={{
+          height: '60px',
+          backgroundColor: 'var(--color-surface)',
+          borderBottom: '1px solid var(--color-border)',
+          boxShadow: 'var(--topbar-shadow)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '0 24px',
+          position: 'sticky',
+          top: 0,
+          zIndex: 30,
+          width: '100%',
+        }}
+      >
+        {/* Left zone: 3-lines hamburger button + App icon + TiyraSense branding */}
+        <div
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '0.4rem',
-            padding: '0.5rem 0.85rem',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--border)',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            color: 'var(--text-secondary)',
-            backgroundColor: '#ffffff',
-            transition: 'all var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--critical-bg)';
-            e.currentTarget.style.color = 'var(--critical)';
-            e.currentTarget.style.borderColor = 'var(--critical)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = '#ffffff';
-            e.currentTarget.style.color = 'var(--text-secondary)';
-            e.currentTarget.style.borderColor = 'var(--border)';
+            gap: '12px',
           }}
         >
-          <LogOut size={16} />
-          <span>Exit</span>
-        </button>
-      </div>
-    </header>
+          {/* 3 lines button to toggle side panel */}
+          <button
+            type="button"
+            data-testid="sidebar-toggle-btn"
+            aria-label={isSidebarOpen ? 'Hide navigation panel' : 'Open navigation panel'}
+            title={isSidebarOpen ? 'Hide side panel' : 'Open side panel (3 lines)'}
+            onClick={onToggleSidebar}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '38px',
+              height: '38px',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--color-border)',
+              backgroundColor: isSidebarOpen ? 'var(--color-primary-bg)' : 'var(--color-surface)',
+              color: isSidebarOpen ? 'var(--color-primary)' : 'var(--color-text-primary)',
+              cursor: 'pointer',
+              transition: 'all var(--transition-fast)',
+              flexShrink: 0,
+              padding: 0,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-bg)';
+              e.currentTarget.style.borderColor = 'var(--color-primary-light)';
+              e.currentTarget.style.color = 'var(--color-primary)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = isSidebarOpen ? 'var(--color-primary-bg)' : 'var(--color-surface)';
+              e.currentTarget.style.borderColor = 'var(--color-border)';
+              e.currentTarget.style.color = isSidebarOpen ? 'var(--color-primary)' : 'var(--color-text-primary)';
+            }}
+          >
+            <Menu size={22} strokeWidth={2.2} />
+          </button>
+
+          <Link
+            to="/dashboard"
+            data-testid="navbar-logo-link"
+            aria-label="TiyraSense - Navigate to Dashboard"
+            title="Navigate to Dashboard"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              borderRadius: 'var(--radius-md)',
+              padding: '4px 6px',
+              margin: '-4px -6px',
+              transition: 'opacity var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.opacity = '0.85';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.opacity = '1';
+            }}
+          >
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid var(--color-border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                overflow: 'hidden',
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src={appIcon}
+                alt="TiyraSense Icon"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  objectFit: 'contain',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span
+                style={{
+                  fontSize: '15px',
+                  fontWeight: 800,
+                  color: 'var(--color-text-primary)',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.1,
+                }}
+              >
+                TiyraSense
+              </span>
+              <span
+                style={{
+                  fontSize: '10px',
+                  fontWeight: 700,
+                  color: 'var(--color-primary)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                NER INTELLIGENCE
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Center zone: Horizontal inline status strip */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+          }}
+        >
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              backgroundColor: 'var(--color-success-bg)',
+              color: 'var(--color-success)',
+              padding: '4px 10px',
+              borderRadius: 'var(--radius-pill)',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span
+              className="pulse-beacon"
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-success)',
+                display: 'inline-block',
+              }}
+            />
+            <span>LIVE FEED</span>
+          </div>
+
+          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--color-border)' }} />
+
+          <span
+            style={{
+              fontSize: '13px',
+              color: 'var(--color-text-secondary)',
+              fontWeight: 500,
+            }}
+          >
+            Coverage: NER 8 Corridors
+          </span>
+
+          <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--color-border)' }} />
+
+          <span
+            className="mono"
+            style={{
+              fontSize: '12px',
+              color: 'var(--color-text-muted)',
+              fontWeight: 500,
+            }}
+          >
+            Updated 2m ago
+          </span>
+        </div>
+
+        {/* Right zone */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {/* User profile (clickable to open account details modal) */}
+          {user && (
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsAccountModalOpen(true)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  setIsAccountModalOpen(true);
+                }
+              }}
+              title="Click to view & update account details"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '4px 8px',
+                borderRadius: 'var(--radius-md)',
+                cursor: 'pointer',
+                transition: 'background-color var(--transition-fast)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'var(--color-canvas)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }}
+            >
+              <div
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-primary)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 700,
+                  flexShrink: 0,
+                  boxShadow: 'var(--card-shadow)',
+                }}
+              >
+                {getInitials(user.full_name)}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                <span
+                  style={{
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    color: 'var(--color-text-primary)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {user.full_name || 'Official'}
+                </span>
+                <span
+                  style={{
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    color: 'var(--color-text-muted)',
+                  }}
+                >
+                  {user.role}
+                </span>
+              </div>
+
+              <ChevronDown size={14} color="var(--color-text-disabled)" />
+            </div>
+          )}
+        </div>
+      </header>
+
+      {/* Account Details Modal */}
+      <AccountDetailsModal
+        isOpen={isAccountModalOpen}
+        onClose={() => setIsAccountModalOpen(false)}
+      />
+    </>
   );
 };

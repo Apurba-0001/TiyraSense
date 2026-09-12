@@ -28,63 +28,81 @@ class AuthProvider extends ChangeNotifier {
   bool _isInitialized = false;
   String? _errorMessage;
 
+  static const _androidOptions = AndroidOptions(
+    resetOnError: true,
+  );
+  static const _iosOptions = IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock,
+  );
+
   AuthProvider({
     ApiService? apiService,
     FlutterSecureStorage? secureStorage,
   })  : _apiService = apiService ?? ApiService(),
-        _secureStorage = secureStorage ?? const FlutterSecureStorage();
+        _secureStorage = secureStorage ??
+            const FlutterSecureStorage(
+              aOptions: _androidOptions,
+              iOptions: _iosOptions,
+            );
 
   UserModel? get currentUser => _currentUser;
   String? get token => _token;
   bool get isLoading => _isLoading;
+  ApiService get apiService => _apiService;
   bool get isInitialized => _isInitialized;
   String? get errorMessage => _errorMessage;
-  bool get isAuthenticated => _token != null && _currentUser != null;
+  bool get isAuthenticated => _token != null || _currentUser != null;
 
   /// Called on application startup before rendering the initial screen.
   ///
   /// Restores credentials from OS secure storage. If cached credentials exist,
-  /// the user enters the app immediately without seeing the login screen.
-  /// Background revalidation verifies the token against the backend; transient
-  /// network failures or offline conditions do NOT log the user out.
+  /// the user stays logged in and enters the app immediately without seeing
+  /// the login screen. The user only logs out when they explicitly tap "Sign Out".
   Future<void> initialize() async {
     _isLoading = true;
     notifyListeners();
     try {
-      final savedToken = await _secureStorage.read(key: _kTokenKey);
-      final savedUserJson = await _secureStorage.read(key: _kUserDataKey);
+      final savedToken = await _secureStorage.read(
+        key: _kTokenKey,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
+      final savedUserJson = await _secureStorage.read(
+        key: _kUserDataKey,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
 
       if (savedToken != null && savedToken.isNotEmpty) {
         _token = savedToken;
-        if (savedUserJson != null && savedUserJson.isNotEmpty) {
-          try {
-            _currentUser = UserModel.fromJson(
-              jsonDecode(savedUserJson) as Map<String, dynamic>,
-            );
-          } catch (_) {}
-        }
+      }
 
-        // Attempt live profile refresh with the backend
+      if (savedUserJson != null && savedUserJson.isNotEmpty) {
         try {
-          final profile = await _apiService.fetchProfile(savedToken);
+          _currentUser = UserModel.fromJson(
+            jsonDecode(savedUserJson) as Map<String, dynamic>,
+          );
+        } catch (_) {}
+      }
+
+      // If token is present, attempt background profile refresh with backend
+      if (_token != null && _token!.isNotEmpty) {
+        try {
+          final profile = await _apiService.fetchProfile(_token!);
           _currentUser = profile;
           await _secureStorage.write(
             key: _kUserDataKey,
             value: jsonEncode(profile.toJson()),
+            aOptions: _androidOptions,
+            iOptions: _iosOptions,
           );
-        } on ApiException catch (e) {
-          // Authoritative auth rejection (token revoked or expired on server)
-          if (e.statusCode == 401 || e.statusCode == 403) {
-            await logout();
-            return;
-          }
-          // Network errors or 5xx server issues keep the cached offline session intact
         } catch (_) {
-          // Offline / connectivity failure preserves the cached session
+          // Never log the user out automatically on startup or network/server errors.
+          // The cached user profile keeps the user logged in until they explicitly click Sign Out.
         }
       }
     } catch (_) {
-      // Secure storage read error
+      // Secure storage read error handled safely
     } finally {
       _isInitialized = true;
       _isLoading = false;
@@ -103,10 +121,17 @@ class AuthProvider extends ChangeNotifier {
       _currentUser = UserModel.fromJson(data['user'] as Map<String, dynamic>);
 
       // Persist token and cached user data in OS-level encrypted storage
-      await _secureStorage.write(key: _kTokenKey, value: _token);
+      await _secureStorage.write(
+        key: _kTokenKey,
+        value: _token,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
       await _secureStorage.write(
         key: _kUserDataKey,
         value: jsonEncode(_currentUser!.toJson()),
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
       );
 
       _isLoading = false;
@@ -125,6 +150,53 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  Future<bool> register(String fullName, String email, String password, UserRole role) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.register(fullName, email, password, role);
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on ApiException catch (e) {
+      _errorMessage = e.message;
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = 'Registration error: $e';
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+  Future<void> updateProfile({
+    required String fullName,
+    String? phoneNumber,
+    String? organization,
+  }) async {
+    if (_currentUser == null) return;
+    _currentUser = UserModel(
+      id: _currentUser!.id,
+      email: _currentUser!.email,
+      fullName: fullName,
+      role: _currentUser!.role,
+      phoneNumber: phoneNumber ?? _currentUser!.phoneNumber,
+      organization: organization ?? _currentUser!.organization,
+    );
+    try {
+      await _secureStorage.write(
+        key: _kUserDataKey,
+        value: jsonEncode(_currentUser!.toJson()),
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
+    } catch (_) {}
+    notifyListeners();
+  }
+
   /// Explicit user logout. Completely wipes tokens and cached profile.
   Future<void> logout() async {
     _token = null;
@@ -136,8 +208,20 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> _clearStoredSession() async {
     try {
-      await _secureStorage.delete(key: _kTokenKey);
-      await _secureStorage.delete(key: _kUserDataKey);
+      await _secureStorage.delete(
+        key: _kTokenKey,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
+      await _secureStorage.delete(
+        key: _kUserDataKey,
+        aOptions: _androidOptions,
+        iOptions: _iosOptions,
+      );
     } catch (_) {}
   }
 }
+
+/// Global AuthProvider instance for app-wide access
+final authProvider = AuthProvider();
+

@@ -1,9 +1,17 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../services/alert_service.dart';
+import '../services/localization_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
-import '../widgets/sync_status_badge.dart';
-import 'login_screen.dart';
+import '../widgets/status_pill_badge.dart';
+import '../widgets/app_logo.dart';
+import '../widgets/side_drawer.dart';
+import '../widgets/hazard_report_sheet.dart';
+import 'field_worker_map_screen.dart';
+import 'profile_screen.dart';
+import 'report_history_screen.dart';
+import 'alerts_screen.dart';
 
 class FieldWorkerHomeScreen extends StatefulWidget {
   final UserModel user;
@@ -19,87 +27,79 @@ class FieldWorkerHomeScreen extends StatefulWidget {
   State<FieldWorkerHomeScreen> createState() => _FieldWorkerHomeScreenState();
 }
 
-class _FieldReport {
-  final String title;
-  final String location;
-  final String time;
-  final String status;
-  final Color statusColor;
-
-  _FieldReport({
-    required this.title,
-    required this.location,
-    required this.time,
-    required this.status,
-    required this.statusColor,
-  });
-}
-
 class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
-  final SyncStatus _syncStatus = SyncStatus.online;
-  int _pendingSyncCount = 0;
-
-  final List<_FieldReport> _reports = [
-    _FieldReport(
-      title: 'Boulder Roll-Down on NH-06 Shoulder',
-      location: 'KM 52.3 near Nongpoh',
-      time: 'Today, 06:20 AM',
-      status: 'VERIFIED',
-      statusColor: AppTheme.success,
-    ),
-    _FieldReport(
-      title: 'Culvert Water Inundation (20cm)',
-      location: 'KM 38.1 Jorabat Section',
-      time: 'Yesterday, 04:45 PM',
-      status: 'CLEARED',
-      statusColor: AppTheme.primary,
-    ),
-  ];
+  int _currentTabIndex = 0;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      key: _scaffoldKey,
+      backgroundColor: AppTheme.canvas,
+      drawer: SideDrawer(
+        role: UserRole.fieldWorker,
+        activeItem: _currentTabIndex == 0
+            ? 'Dashboard'
+            : (_currentTabIndex == 1 ? 'Map' : (_currentTabIndex == 2 ? 'My Reports' : 'Profile')),
+        onSubmitReportTap: () => HazardReportSheet.show(context),
+      ),
+      body: IndexedStack(
+        index: _currentTabIndex,
+        children: [
+          _buildHomeDashboard(context),
+          FieldWorkerMapScreen(onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer()),
+          ReportHistoryScreen(onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer()),
+          ProfileScreen(
+            role: UserRole.fieldWorker,
+            onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+        ],
+      ),
+      bottomNavigationBar: _buildBottomNavigationBar(),
+    );
+  }
+
+  Widget _buildHomeDashboard(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.canvas,
       appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: Image.asset(
-              'assets/icon/app_icon.png',
-              fit: BoxFit.cover,
-            ),
+        backgroundColor: AppTheme.surface,
+        elevation: 0,
+        leading: GestureDetector(
+          onTap: () => _scaffoldKey.currentState?.openDrawer(),
+          child: const Padding(
+            padding: EdgeInsets.all(10.0),
+            child: AppLogo.icon(size: 36, radius: 9),
           ),
         ),
-        titleSpacing: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Field Worker Console',
-              style: TextStyle(
-                fontSize: 18,
+            Text(
+              widget.user.fullName,
+              style: const TextStyle(
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
-                color: AppTheme.textPrimary,
+                color: AppTheme.textHigh,
               ),
             ),
+            const SizedBox(height: 2),
             Row(
               children: [
                 Container(
                   width: 7,
                   height: 7,
                   decoration: const BoxDecoration(
-                    color: AppTheme.warning,
+                    color: AppTheme.amber,
                     shape: BoxShape.circle,
                   ),
                 ),
-                const SizedBox(width: 6),
+                const SizedBox(width: 5),
                 Text(
-                  '${widget.user.fullName} • Disaster Response Unit',
+                  localizationService.tr('field_recon_active'),
                   style: const TextStyle(
                     fontSize: 12,
-                    color: AppTheme.textSecondary,
+                    color: AppTheme.textLow,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -108,65 +108,113 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
           ],
         ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout_rounded, color: AppTheme.textSecondary),
-            tooltip: 'Sign Out',
-            onPressed: () async {
-              await widget.authProvider.logout();
-              if (context.mounted) {
-                Navigator.of(context).pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => LoginScreen(authProvider: widget.authProvider),
+          ListenableBuilder(
+            listenable: alertService,
+            builder: (context, _) {
+              final hasUnread = alertService.unreadCount > 0;
+              return Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_outlined, color: AppTheme.textMid),
+                    tooltip: 'Alerts',
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => Scaffold(
+                            body: AlertsScreen(
+                              onOpenDrawer: () => Navigator.pop(context),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              }
+                  if (hasUnread)
+                    Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppTheme.red,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              );
             },
           ),
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Container(
+                width: 12,
+                height: 12,
+                decoration: BoxDecoration(
+                  color: AppTheme.green,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 2),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppTheme.green.withValues(alpha: 0.5),
+                      blurRadius: 6,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(color: AppTheme.borderLight, height: 1),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Connectivity & GPS Precision Status Card
+            // Card 1 — Connectivity Card
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                border: Border.all(color: AppTheme.borderLight),
+                boxShadow: AppTheme.cardShadow,
               ),
               child: Column(
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(Icons.wifi_tethering_rounded, size: 20, color: AppTheme.primary),
-                          SizedBox(width: 8),
+                          const Icon(Icons.wifi_tethering_rounded, size: 20, color: AppTheme.primaryBlue),
+                          const SizedBox(width: 8),
                           Text(
-                            'Connectivity & Sync',
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w800,
-                              color: AppTheme.textPrimary,
+                            localizationService.tr('connectivity_sync'),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.textHigh,
                             ),
                           ),
                         ],
                       ),
-                      SyncStatusBadge(status: _syncStatus, pendingCount: _pendingSyncCount),
+                      const StatusPillBadge(status: BadgeStatusType.online),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
-                      color: AppTheme.surfaceContainer,
+                      color: AppTheme.container,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: const Row(
@@ -174,20 +222,24 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.my_location_rounded, size: 16, color: AppTheme.success),
+                            Icon(Icons.my_location_rounded, size: 16, color: AppTheme.green),
                             SizedBox(width: 6),
                             Text(
                               'Sector: NH-06 KM 42.8',
-                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.textHigh,
+                              ),
                             ),
                           ],
                         ),
                         Text(
-                          '±2.1m Precision • WGS-84',
+                          '+/- 2.1m · WGS-84',
                           style: TextStyle(
-                            fontSize: 11,
-                            color: AppTheme.textSecondary,
                             fontFamily: 'monospace',
+                            fontSize: 11,
+                            color: AppTheme.textLow,
                           ),
                         ),
                       ],
@@ -198,46 +250,73 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
             ),
             const SizedBox(height: 14),
 
-            // Primary Emergency Action: Report Road Hazard / Blockage
-            ElevatedButton.icon(
-              onPressed: () => _openHazardReportSheet(context),
-              icon: const Icon(Icons.add_alert_rounded, size: 22),
-              label: const Text(
-                'Report Road Hazard / Blockage',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.critical,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+            // Button 2 — Primary Hazard Report (Visually Dominant)
+            SizedBox(
+              height: 58,
+              child: ElevatedButton(
+                onPressed: () => HazardReportSheet.show(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.red,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  elevation: 2,
                 ),
-                elevation: 2,
+                child: Row(
+                  children: [
+                    const Icon(Icons.add_alert_rounded, size: 24, color: Colors.white),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            localizationService.tr('report_road_hazard'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          const Text(
+                            'GPS tagged · synced to ASDMA command',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Color(0xCCFFFFFF),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
-            // Quick Category Selector
+            // Card 3 — Quick Dispatch 2x2 Grid
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                border: Border.all(color: AppTheme.borderLight),
+                boxShadow: AppTheme.cardShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'QUICK HAZARD DISPATCH',
-                    style: TextStyle(
+                  Text(
+                    localizationService.tr('quick_dispatch'),
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      color: AppTheme.textMuted,
+                      color: AppTheme.textLow,
                       letterSpacing: 0.6,
                     ),
                   ),
@@ -248,45 +327,51 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 10,
                     crossAxisSpacing: 10,
-                    childAspectRatio: 2.1,
+                    childAspectRatio: 2.3,
                     children: [
-                      _buildHazardCategoryTile(
+                      _buildQuickDispatchTile(
                         icon: Icons.landscape_rounded,
-                        label: 'Landslide',
-                        color: const Color(0xFFD97706),
+                        label: localizationService.tr('hazard_landslide'),
+                        color: AppTheme.amber,
+                        bgColor: AppTheme.amberBg,
+                        onTap: () => HazardReportSheet.show(context, initialHazardType: 'Landslide'),
                       ),
-                      _buildHazardCategoryTile(
+                      _buildQuickDispatchTile(
                         icon: Icons.flood_rounded,
-                        label: 'Flash Flood',
-                        color: const Color(0xFF0284C7),
+                        label: localizationService.tr('hazard_flood'),
+                        color: AppTheme.primaryBlue,
+                        bgColor: AppTheme.blueBg,
+                        onTap: () => HazardReportSheet.show(context, initialHazardType: 'Flash Flood'),
                       ),
-                      _buildHazardCategoryTile(
+                      _buildQuickDispatchTile(
                         icon: Icons.broken_image_rounded,
-                        label: 'Subsidence',
-                        color: const Color(0xFFDC2626),
+                        label: localizationService.tr('hazard_subsidence'),
+                        color: AppTheme.red,
+                        bgColor: AppTheme.redBg,
+                        onTap: () => HazardReportSheet.show(context, initialHazardType: 'Subsidence'),
                       ),
-                      _buildHazardCategoryTile(
+                      _buildQuickDispatchTile(
                         icon: Icons.park_rounded,
-                        label: 'Fallen Tree',
-                        color: const Color(0xFF059669),
+                        label: localizationService.tr('hazard_fallen_tree'),
+                        color: AppTheme.green,
+                        bgColor: AppTheme.greenBg,
+                        onTap: () => HazardReportSheet.show(context, initialHazardType: 'Fallen Tree'),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 16),
 
-            // Recent Field Submissions Queue
+            // Card 4 — Recent Reports
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.surfaceCard,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppTheme.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(color: Color(0x0A000000), blurRadius: 8, offset: Offset(0, 2)),
-                ],
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                border: Border.all(color: AppTheme.borderLight),
+                boxShadow: AppTheme.cardShadow,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,75 +380,95 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       const Text(
-                        'Recent Field Reports',
-                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+                        'Recent Reports',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.textHigh,
+                        ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppTheme.surfaceContainer,
+                          color: AppTheme.container,
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: const Text(
-                          'Synced with ASDMA',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.textSecondary,
-                          ),
+                          'Synced',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textLow),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: _reports.length,
-                    separatorBuilder: (context, index) => const Divider(height: 20),
-                    itemBuilder: (ctx, index) {
-                      final r = _reports[index];
-                      return _buildReportItem(
-                        title: r.title,
-                        location: r.location,
-                        time: r.time,
-                        status: r.status,
-                        statusColor: r.statusColor,
-                      );
-                    },
+                  _buildRecentReportRow(
+                    title: 'Boulder Roll-Down on NH-06 Shoulder',
+                    subtitle: 'KM 52.3 · Today 06:20 AM',
+                    statusDotColor: AppTheme.green,
+                    badge: const StatusPillBadge(status: BadgeStatusType.passable, customLabel: 'VERIFIED'),
+                  ),
+                  const Divider(color: AppTheme.borderLight, height: 20),
+                  _buildRecentReportRow(
+                    title: 'Culvert Water Inundation',
+                    subtitle: 'KM 38.1 · Yesterday 17:45',
+                    statusDotColor: AppTheme.amber,
+                    badge: const StatusPillBadge(status: BadgeStatusType.caution, customLabel: 'DISPATCHED'),
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => setState(() => _currentTabIndex = 2),
+                      icon: const Icon(Icons.history_edu_rounded, size: 16),
+                      label: const Text('View All Incident Reports', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppTheme.primaryBlue,
+                        side: const BorderSide(color: AppTheme.blueLight),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHazardCategoryTile({
+  Widget _buildQuickDispatchTile({
     required IconData icon,
     required String label,
     required Color color,
+    required Color bgColor,
+    required VoidCallback onTap,
   }) {
-    return InkWell(
-      onTap: () => _openHazardReportSheet(context, preselectedType: label),
-      borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: bgColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
-            Icon(icon, color: color, size: 22),
+            Icon(icon, size: 22, color: color),
             const SizedBox(width: 8),
-            Text(
-              label,
-              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: color,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
         ),
@@ -371,23 +476,24 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
     );
   }
 
-  Widget _buildReportItem({
+  Widget _buildRecentReportRow({
     required String title,
-    required String location,
-    required String time,
-    required String status,
-    required Color statusColor,
+    required String subtitle,
+    required Color statusDotColor,
+    required Widget badge,
   }) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          margin: const EdgeInsets.only(top: 5),
-          decoration: BoxDecoration(
-            color: statusColor,
-            shape: BoxShape.circle,
+        Padding(
+          padding: const EdgeInsets.only(top: 5),
+          child: Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: statusDotColor,
+              shape: BoxShape.circle,
+            ),
           ),
         ),
         const SizedBox(width: 10),
@@ -397,185 +503,80 @@ class _FieldWorkerHomeScreenState extends State<FieldWorkerHomeScreen> {
             children: [
               Text(
                 title,
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
               ),
               const SizedBox(height: 2),
               Text(
-                '$location • $time',
-                style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+                subtitle,
+                style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
               ),
             ],
           ),
         ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: statusColor.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-          ),
-          child: Text(
-            status,
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: statusColor),
-          ),
-        ),
+        badge,
       ],
     );
   }
 
-  void _openHazardReportSheet(BuildContext context, {String preselectedType = 'Landslide'}) {
-    String selectedType = preselectedType;
-    String selectedSeverity = 'Partial Lane Blockage';
-    final noteController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildBottomNavigationBar() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: AppTheme.surface,
+        boxShadow: AppTheme.navShadow,
       ),
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (context, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(ctx).viewInsets.bottom + 20,
+      child: SafeArea(
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildNavTab(0, Icons.home_rounded, localizationService.tr('home')),
+              _buildNavTab(1, Icons.map_rounded, localizationService.tr('map')),
+              _buildNavTab(2, Icons.list_alt_rounded, localizationService.tr('report_history')),
+              _buildNavTab(3, Icons.person_rounded, localizationService.tr('profile')),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNavTab(int index, IconData icon, String label) {
+    final isSelected = _currentTabIndex == index;
+    return GestureDetector(
+      onTap: () => setState(() => _currentTabIndex = index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 60,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 16,
+              height: 2,
+              decoration: BoxDecoration(
+                color: isSelected ? AppTheme.primaryBlue : Colors.transparent,
+                borderRadius: BorderRadius.circular(1),
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppTheme.borderStrong,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Submit Field Hazard Report',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-                  ),
-                  const Text(
-                    'Report real-time obstruction tagged with current GPS coordinates',
-                    style: TextStyle(fontSize: 12, color: AppTheme.textSecondary),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // GPS Geolocation auto-tag
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.surfaceContainer,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.borderSubtle),
-                    ),
-                    child: const Row(
-                      children: [
-                        Icon(Icons.gps_fixed_rounded, size: 16, color: AppTheme.success),
-                        SizedBox(width: 8),
-                        Text(
-                          'NH-06 KM 42.8 (26.0124° N, 91.8901° E)',
-                          style: TextStyle(fontSize: 11, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Hazard Type Selector
-                  const Text('Hazard Type', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    children: ['Landslide', 'Flash Flood', 'Subsidence', 'Fallen Tree'].map((type) {
-                      final isSelected = selectedType == type;
-                      return ChoiceChip(
-                        label: Text(type),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) setSheetState(() => selectedType = type);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Blockage Severity
-                  const Text('Passage Impact', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 6),
-                  Wrap(
-                    spacing: 8,
-                    children: ['Partial Lane Blockage', 'Full Road Closure', 'Shoulder Erosion'].map((sev) {
-                      final isSelected = selectedSeverity == sev;
-                      return ChoiceChip(
-                        label: Text(sev),
-                        selected: isSelected,
-                        onSelected: (selected) {
-                          if (selected) setSheetState(() => selectedSeverity = sev);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                  const SizedBox(height: 14),
-
-                  // Notes TextField
-                  TextField(
-                    controller: noteController,
-                    decoration: const InputDecoration(
-                      labelText: 'Observations (optional)',
-                      hintText: 'e.g., Heavy gravel, clearance team on site',
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-
-                  // Submit Button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.critical,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _reports.insert(
-                            0,
-                            _FieldReport(
-                              title: '$selectedType: $selectedSeverity',
-                              location: 'KM 42.8 Jorabat-Nongpoh',
-                              time: 'Just now',
-                              status: 'DISPATCHED',
-                              statusColor: AppTheme.warning,
-                            ),
-                          );
-                          _pendingSyncCount++;
-                        });
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('$selectedType report dispatched to ASDMA queue!'),
-                            backgroundColor: AppTheme.success,
-                          ),
-                        );
-                      },
-                      child: const Text('Broadcast Incident Report', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
+            ),
+            const SizedBox(height: 4),
+            Icon(
+              icon,
+              size: 24,
+              color: isSelected ? AppTheme.primaryBlue : AppTheme.textLow,
+            ),
+            if (isSelected)
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.primaryBlue,
+                ),
               ),
-            );
-          },
-        );
-      },
+          ],
+        ),
+      ),
     );
   }
 }
