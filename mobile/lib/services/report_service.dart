@@ -8,7 +8,7 @@ import 'offline_storage_service.dart';
 import '../widgets/status_pill_badge.dart';
 
 class ReportItem {
-  final String id;
+  String id;
   final String corridor;
   final String km;
   final String hazardType; // Landslide, Flash Flood, Subsidence, Fallen Tree, Debris, Bridge Strain, Other
@@ -106,7 +106,7 @@ class ReportItem {
       status: json['status']?.toString() ?? json['verification_status']?.toString() ?? 'PENDING',
       notes: json['notes']?.toString() ?? json['description']?.toString(),
       photoPath: json['photoPath']?.toString(),
-      photoUrl: json['photoUrl']?.toString() ?? json['photo_url']?.toString(),
+      photoUrl: json['photoUrl']?.toString() ?? json['photo_url']?.toString() ?? json['evidence_url']?.toString() ?? json['storage_uri']?.toString(),
       workerName: json['workerName']?.toString() ?? json['reporter_name']?.toString() ?? 'Field Scout',
       workerInitials: json['workerInitials']?.toString(),
       workerUnit: json['workerUnit']?.toString() ?? json['reporter_unit']?.toString() ?? 'Field Recon',
@@ -205,13 +205,24 @@ class ReportService extends ChangeNotifier {
         final existingIdx = _reports.indexWhere((r) => r.id == item.id);
         if (existingIdx != -1) {
           final ex = _reports[existingIdx];
-          if (ex.status != item.status || ex.dispatchUnit != item.dispatchUnit || (ex.photoUrl == null && item.photoUrl != null)) {
+          bool itemChanged = false;
+          if (ex.status != item.status) {
             ex.status = item.status;
-            ex.dispatchUnit = item.dispatchUnit;
-            ex.dispatchNotes = item.dispatchNotes;
-            if (item.photoUrl != null) ex.photoUrl = item.photoUrl;
-            changed = true;
+            itemChanged = true;
           }
+          if (ex.dispatchUnit != item.dispatchUnit) {
+            ex.dispatchUnit = item.dispatchUnit;
+            itemChanged = true;
+          }
+          if (ex.dispatchNotes != item.dispatchNotes) {
+            ex.dispatchNotes = item.dispatchNotes;
+            itemChanged = true;
+          }
+          if (item.photoUrl != null && item.photoUrl!.isNotEmpty && ex.photoUrl != item.photoUrl) {
+            ex.photoUrl = item.photoUrl;
+            itemChanged = true;
+          }
+          if (itemChanged) changed = true;
         } else {
           _reports.add(item);
           changed = true;
@@ -350,8 +361,16 @@ class ReportService extends ChangeNotifier {
     for (final r in _reports) {
       if (r.isOfflineQueued && r.syncStatus == 'PENDING_SYNC') {
         r.syncStatus = 'SYNCED';
+        r.isOfflineQueued = false;
+        try {
+          final matchingQueued = offlineStorageService.pendingReports.firstWhere((q) => q.id == r.id);
+          if (matchingQueued.photoUrl != null && matchingQueued.photoUrl!.isNotEmpty) {
+            r.photoUrl = matchingQueued.photoUrl;
+          }
+        } catch (_) {}
       }
     }
+    await _persistReports();
     notifyListeners();
     return synced;
   }
@@ -440,6 +459,7 @@ class ReportService extends ChangeNotifier {
           remotePhotoUrl = await ApiService().uploadEvidencePhoto(imageFile: f);
           if (remotePhotoUrl != null) {
             report.photoUrl = remotePhotoUrl;
+            await _persistReports();
             notifyListeners();
           }
         }
@@ -465,8 +485,15 @@ class ReportService extends ChangeNotifier {
       };
 
       final res = await ApiService().createFieldReport(payload);
-      if (res != null && res['id'] != null) {
+      if (res != null) {
+        if (res['id'] != null) {
+          report.id = res['id'].toString();
+        }
+        if (res['photo_url'] != null) {
+          report.photoUrl = res['photo_url'].toString();
+        }
         report.syncStatus = 'SYNCED';
+        await _persistReports();
         notifyListeners();
       }
     } catch (e) {

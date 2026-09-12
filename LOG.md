@@ -15,6 +15,22 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 40: Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts
+- Work: Implemented database synchronization for mobile incident evidence photos and ensured field reports and evidence images persist across app restarts:
+  1. `backend/app/api/v1/endpoints/field_reports.py`: In `create_field_report`, added insertion into PostgreSQL `incident_evidence` table whenever `report.photo_url` is provided. In `list_field_reports`, joined `incident_evidence` on `field_reports.id` to include `storage_uri` as `photo_url` in `FieldReportOut`.
+  2. `mobile/lib/services/report_service.dart`: Made `ReportItem.id` mutable to sync server IDs; updated `fromJson` to deserialize `photoUrl` from `photoUrl`, `photo_url`, `evidence_url`, or `storage_uri`; updated `_dispatchReportToServer` to immediately persist `report.photoUrl` to secure storage upon upload, update server id and synced status, and call `_persistReports()`; enhanced `syncLiveReports` to preserve local attributes and merge remote photo URLs; updated `syncAllPending` to link uploaded photo URLs and persist reports.
+  3. `mobile/lib/services/offline_storage_service.dart`: Added `photoUrl` to `QueuedReportData` model and updated `syncPendingData` to retain server-returned photo URL.
+  4. `mobile/lib/screens/report_history_screen.dart`: Updated card thumbnail condition to verify both `item.photoPath` and `item.photoUrl`; upgraded `_buildThumbnail` and `_showFullImageDialog` to support both local files and remote CDN network images with loading indicators and error fallbacks.
+  5. `mobile/test/widget_test.dart`: Added `reports with evidence photos persist across app restarts and remain visible in history` widget test.
+- Files: `backend/app/api/v1/endpoints/field_reports.py`, `mobile/lib/services/report_service.dart`, `mobile/lib/services/offline_storage_service.dart`, `mobile/lib/screens/report_history_screen.dart`, `mobile/test/widget_test.dart`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `flutter test` (54/54 passed); `pytest backend/tests/test_reports_alerts.py` (6/6 passed); `npm test -- --run` (26/26 passed); `npm run build` (zero TS errors).
+- Decisions: Incident evidence photos captured on mobile must be persisted to both local secure storage and remote relational/CDN databases, and report history must render both local files and remote URLs seamlessly across app restarts.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & TESTED.
+- Next: Commit and push changes to GitHub `origin main`.
+
 ## 2026-09-12 — Phase 39: Cross-Stack Data Persistence Until Deleted (Mobile Storage, Web Profile Sync, and Deleted ID Tombstones)
 - Work: Implemented full end-to-end data persistence and lifecycle suppression across mobile, web, and backend:
   1. `backend/app/api/v1/endpoints/field_reports.py`: Added `_DELETED_REPORT_IDS` tombstone set; updated `list_field_reports` and `delete_field_report` to ensure deleted reports remain permanently suppressed across Supabase, PostgreSQL, and in-memory lists.

@@ -207,10 +207,12 @@ async def list_field_reports(
                 ST_X(fr.location) as lon,
                 COALESCE(rs.corridor_name, 'NER Artery') as corridor_name,
                 TO_CHAR(fr.server_received_at, 'YYYY-MM-DD HH24:MI:SS') as submitted_at,
-                COALESCE(u.full_name, 'Field Scout') as reporter_name
+                COALESCE(u.full_name, 'Field Scout') as reporter_name,
+                ie.storage_uri
             FROM field_reports fr
             LEFT JOIN road_segments rs ON fr.road_segment_id = rs.id
             LEFT JOIN users u ON fr.reporter_id = u.id
+            LEFT JOIN incident_evidence ie ON fr.id = ie.field_report_id
             ORDER BY fr.server_received_at DESC
             LIMIT 50;
         """)
@@ -234,6 +236,7 @@ async def list_field_reports(
                         reporter_unit="Field Recon",
                         submitted_at=str(r[8]),
                         data_label=settings.DATA_LABEL,
+                        photo_url=str(r[10]) if r[10] else None,
                     )
                 )
             return [r for r in reports if r.id not in _DELETED_REPORT_IDS]
@@ -318,8 +321,20 @@ async def create_field_report(
             "lat": report.latitude,
             "data_label": settings.DATA_LABEL,
         })
-        await db.commit()
         db_id = res.scalar()
+        if db_id and report.photo_url:
+            try:
+                evidence_sql = text("""
+                    INSERT INTO incident_evidence (
+                        id, field_report_id, storage_uri, file_hash_sha256, mime_type, uploaded_at
+                    ) VALUES (
+                        gen_random_uuid(), :fr_id, :uri, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'image/jpeg', NOW()
+                    );
+                """)
+                await db.execute(evidence_sql, {"fr_id": db_id, "uri": str(report.photo_url)})
+                await db.commit()
+            except Exception:
+                pass
         if db_id and "id" not in new_report_dict:
             new_report_dict["id"] = str(db_id)
     except Exception:

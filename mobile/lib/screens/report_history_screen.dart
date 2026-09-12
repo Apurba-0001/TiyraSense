@@ -540,10 +540,11 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
             ),
             const SizedBox(height: 8),
 
-            // Photo Thumbnail (if photo attached)
-            if (item.photoPath != null && item.photoPath!.isNotEmpty) ...[
+            // Photo Thumbnail (if photo attached locally or on remote CDN/database)
+            if ((item.photoPath != null && item.photoPath!.isNotEmpty) ||
+                (item.photoUrl != null && item.photoUrl!.isNotEmpty)) ...[
               GestureDetector(
-                onTap: () => _showFullImageDialog(item.photoPath!),
+                onTap: () => _showFullImageDialog(item.photoPath, item.photoUrl),
                 child: Container(
                   height: 120,
                   width: double.infinity,
@@ -558,7 +559,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
-                        _buildThumbnail(item.photoPath!),
+                        _buildThumbnail(item.photoPath, item.photoUrl),
                         Positioned(
                           bottom: 6,
                           right: 8,
@@ -675,13 +676,40 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     );
   }
 
-  Widget _buildThumbnail(String path) {
-    if (File(path).existsSync()) {
+  Widget _buildThumbnail(String? localPath, String? remoteUrl) {
+    if (localPath != null && localPath.isNotEmpty && File(localPath).existsSync()) {
       return Image.file(
-        File(path),
+        File(localPath),
         fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => const Center(
-          child: Icon(Icons.broken_image_rounded, color: AppTheme.textLow),
+        errorBuilder: (context, error, stackTrace) => _buildRemoteOrFallback(remoteUrl),
+      );
+    }
+    return _buildRemoteOrFallback(remoteUrl);
+  }
+
+  Widget _buildRemoteOrFallback(String? remoteUrl) {
+    if (remoteUrl != null && remoteUrl.isNotEmpty) {
+      return Image.network(
+        remoteUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            color: AppTheme.container,
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryBlue),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          color: AppTheme.container,
+          child: const Center(
+            child: Icon(Icons.broken_image_rounded, color: AppTheme.textLow),
+          ),
         ),
       );
     }
@@ -700,7 +728,47 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     );
   }
 
-  void _showFullImageDialog(String path) {
+  void _showFullImageDialog(String? localPath, String? remoteUrl) {
+    Widget imageWidget;
+    if (localPath != null && localPath.isNotEmpty && File(localPath).existsSync()) {
+      imageWidget = Image.file(File(localPath), fit: BoxFit.contain);
+    } else if (remoteUrl != null && remoteUrl.isNotEmpty) {
+      imageWidget = Image.network(
+        remoteUrl,
+        fit: BoxFit.contain,
+        loadingBuilder: (context, child, progress) {
+          if (progress == null) return child;
+          return Container(
+            height: 250,
+            color: AppTheme.surface,
+            child: const Center(child: CircularProgressIndicator(color: AppTheme.primaryBlue)),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => Container(
+          height: 250,
+          color: AppTheme.surface,
+          child: const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.broken_image_rounded, color: AppTheme.textLow, size: 36),
+                SizedBox(height: 8),
+                Text('Unable to load photo evidence.', style: TextStyle(color: AppTheme.textMid, fontSize: 12)),
+              ],
+            ),
+          ),
+        ),
+      );
+    } else {
+      imageWidget = Container(
+        height: 250,
+        color: AppTheme.surface,
+        child: const Center(
+          child: Text('Image file saved on local device storage.', style: TextStyle(color: AppTheme.textMid)),
+        ),
+      );
+    }
+
     showDialog(
       context: context,
       builder: (ctx) => Dialog(
@@ -718,15 +786,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
             ),
             ClipRRect(
               borderRadius: BorderRadius.circular(12),
-              child: File(path).existsSync()
-                  ? Image.file(File(path), fit: BoxFit.contain)
-                  : Container(
-                      height: 250,
-                      color: AppTheme.surface,
-                      child: const Center(
-                        child: Text('Image file saved on local device storage.'),
-                      ),
-                    ),
+              child: imageWidget,
             ),
           ],
         ),

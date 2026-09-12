@@ -18,38 +18,48 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 39 — Cross-Stack Data Persistence Until Deleted (Mobile Secure Storage, Web Profile Sync, and Deleted ID Tombstones) (COMPLETE)
-- **Status:** COMPLETE. Profile details and field reports now persist locally and remotely across mobile restarts and browser refreshes until explicitly deleted, preventing deleted records from resurfacing.
+- **Phase:** Phase 40 — Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts (COMPLETE)
+- **Status:** COMPLETE. Incident photos uploaded via mobile app actively persist to database (PostgreSQL `incident_evidence` and Supabase `field_reports.photo_url`). On app restart, evidence photos and field reports remain permanently visible in history via encrypted local cache (`FlutterSecureStorage`) and live sync.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 39: Cross-Stack Data Persistence Until Deleted (COMPLETE)
+## Latest session — 2026-09-12 — Phase 40: Mobile Evidence Photo Database Synchronization & Persistent History Across App Restarts (COMPLETE)
 **Did:**
-- **`backend/app/api/v1/endpoints/field_reports.py`**: Added `_DELETED_REPORT_IDS` tombstone set; updated `list_field_reports` (for Supabase, PostgreSQL, and in-memory lists) and `delete_field_report` to ensure deleted reports remain permanently suppressed.
-- **`web/src/services/api.ts`**: Implemented `updateCurrentUserProfile` sending `PATCH /api/v1/auth/me` with Bearer token.
-- **`web/src/state/AuthContext.tsx`**: Updated `updateUserProfile` to asynchronously sync changes to backend database and update `localStorage`.
-- **`web/src/components/AccountDetailsModal.tsx`**: Connected profile editing and password updates to `updateUserProfile` with submission state and error feedback.
-- **`mobile/lib/services/api_service.dart`**: Added `fetchFieldReports` to retrieve active reports with Supabase PostgREST fallback.
-- **`mobile/lib/services/report_service.dart`**: Implemented `toJson`/`fromJson` on `ReportItem`, integrated `FlutterSecureStorage` caching (`tiyrasense_stored_reports_v1`), added `_deletedReportIds` tracking (`tiyrasense_deleted_report_ids_v1`), background `syncLiveReports()`, and asynchronous `deleteReport` dispatching to backend.
+- **`backend/app/api/v1/endpoints/field_reports.py`**:
+  - In `create_field_report`: inserted into `incident_evidence (field_report_id, storage_uri, file_hash_sha256, mime_type, uploaded_at)` in local PostgreSQL whenever an evidence `photo_url` is provided.
+  - In `list_field_reports`: joined `incident_evidence` (`LEFT JOIN incident_evidence ie ON fr.id = ie.field_report_id`) and mapped `ie.storage_uri` to `FieldReportOut.photo_url`.
+- **`mobile/lib/services/report_service.dart`**:
+  - Made `ReportItem.id` mutable to sync server-assigned UUIDs without losing identity.
+  - Enhanced `ReportItem.fromJson` to parse photo URLs from `photoUrl`, `photo_url`, `evidence_url`, or `storage_uri`.
+  - In `_dispatchReportToServer`: immediately persisted `report.photoUrl` upon Cloudinary/backend upload, updated `report.id` and `syncStatus = 'SYNCED'` on server success, and wrote to `_persistReports()`.
+  - In `syncLiveReports`: preserved local attributes (`isMine`, `photoPath`) and synced remote `photoUrl` updates.
+  - In `syncAllPending`: linked uploaded `photoUrl` from queued items and persisted state to secure storage.
+- **`mobile/lib/services/offline_storage_service.dart`**:
+  - Added `photoUrl` to `QueuedReportData` model and JSON serialization.
+  - In `syncPendingData`: recorded returned `photoUrl` on queued report data.
+- **`mobile/lib/screens/report_history_screen.dart`**:
+  - Updated card thumbnail condition to verify both `item.photoPath` (local file) and `item.photoUrl` (CDN/network URL).
+  - Enhanced `_buildThumbnail` and `_showFullImageDialog` to render either local files or remote network images with progress indicators and error handling.
+- **`mobile/test/widget_test.dart`**:
+  - Added regression test `reports with evidence photos persist across app restarts and remain visible in history`.
 - **Verification Evidence:**
-  - Backend: `pytest backend/tests/` passed (all 45/45 tests passing).
-  - Mobile: `flutter test` passed (all 53/53 tests passing).
-  - Web: `npm test -- --run` passed (all 26/26 tests passing), `npm run build` compiled with zero TypeScript errors.
+  - Backend: `pytest backend/tests/test_reports_alerts.py` (6/6 passed in 89s); full suite passing (45/45 passed).
+  - Mobile: `flutter test` (all 54/54 tests passed).
+  - Web: `npm test -- --run` (all 26/26 tests passed); `npm run build` compiled cleanly with zero TypeScript errors.
 **State:** COMPLETE & VERIFIED.
 **Files touched:**
 - `backend/app/api/v1/endpoints/field_reports.py`
-- `mobile/lib/services/api_service.dart`
 - `mobile/lib/services/report_service.dart`
-- `web/src/components/AccountDetailsModal.tsx`
-- `web/src/services/api.ts`
-- `web/src/state/AuthContext.tsx`
+- `mobile/lib/services/offline_storage_service.dart`
+- `mobile/lib/screens/report_history_screen.dart`
+- `mobile/test/widget_test.dart`
 - `SESSION.md`
 - `LOG.md`
 **Scratch files cleaned up:** Yes (no temporary files created).
 **Next:** Commit and push changes to GitHub `origin main`.
 **Blockers/open questions:** None.
-**Verify by:** Run `pytest backend/tests/`, `flutter test` in `mobile/`, and `npm test` in `web/`.
+**Verify by:** Run `flutter test` in `mobile/`, `pytest backend/tests/test_reports_alerts.py` in `backend/`, and `npm test` in `web/`.
 
-## Previous session — 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence (COMPLETE)
+## Previous session — 2026-09-12 — Phase 39: Cross-Stack Data Persistence Until Deleted (COMPLETE)
 **Did:**
 - **`backend/app/schemas/auth.py`**: Added `UserUpdate` schema with strict control-character and null-byte sanitization and phone format validation.
 - **`backend/app/services/supabase_service.py`**: Added `update_user_profile` method to patch user metadata in Supabase PostgREST.

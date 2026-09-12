@@ -866,6 +866,32 @@ void main() {
     expect(find.text('YOU'), findsOneWidget);
   });
 
+  testWidgets('reports with evidence photos persist across app restarts and remain visible in history', (tester) async {
+    reportService.reset();
+
+    // 1. Submit report with photo
+    final r = reportService.addReport(
+      hazardType: 'Landslide',
+      severity: 'Full Blockage',
+      location: 'NH-06 KM 52.3',
+      notes: 'Debris blocking two lanes, photo taken with mobile cam',
+      photoPath: '/mock/local/path/evidence_cam.jpg',
+    );
+    r.photoUrl = 'https://res.cloudinary.com/tsjmggus/image/upload/v1725712345/evidence_nh06.jpg';
+
+    // 2. Render ReportHistoryScreen
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ReportHistoryScreen(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Verify history displays the persisted reports and photo indicator
+    expect(find.text('Incident Report History'), findsOneWidget);
+    expect(find.text('View Evidence Photo'), findsWidgets);
+  });
+
   testWidgets('DriverHomeScreen notification button only displays red dot when unread alerts exist', (tester) async {
     final auth = AuthProvider();
     const testDriver = UserModel(

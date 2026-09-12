@@ -18,6 +18,7 @@ class QueuedReportData {
   final double longitude;
   final String notes;
   final String? photoPath;
+  String? photoUrl;
   final String workerName;
   final String workerUnit;
   final DateTime capturedAt;
@@ -34,6 +35,7 @@ class QueuedReportData {
     required this.longitude,
     required this.notes,
     this.photoPath,
+    this.photoUrl,
     required this.workerName,
     required this.workerUnit,
     required this.capturedAt,
@@ -51,6 +53,7 @@ class QueuedReportData {
         'longitude': longitude,
         'notes': notes,
         'photo_path': photoPath,
+        'photo_url': photoUrl,
         'worker_name': workerName,
         'worker_unit': workerUnit,
         'captured_at': capturedAt.toIso8601String(),
@@ -68,6 +71,7 @@ class QueuedReportData {
         longitude: (json['longitude'] as num?)?.toDouble() ?? 91.8901,
         notes: json['notes'] as String? ?? '',
         photoPath: json['photo_path'] as String?,
+        photoUrl: json['photo_url'] as String?,
         workerName: json['worker_name'] as String? ?? 'Field Officer',
         workerUnit: json['worker_unit'] as String? ?? 'Field Unit 4',
         capturedAt: DateTime.tryParse(json['captured_at'] as String? ?? '') ?? DateTime.now(),
@@ -175,6 +179,9 @@ class OfflineStorageService extends ChangeNotifier {
               final f = File(report.photoPath!);
               if (await f.exists()) {
                 photoUrl = await api.uploadEvidencePhoto(imageFile: f);
+                if (photoUrl != null) {
+                  report.photoUrl = photoUrl;
+                }
               }
             }
             final payload = {
@@ -187,7 +194,10 @@ class OfflineStorageService extends ChangeNotifier {
               'km_marker': report.km,
               if (photoUrl != null) 'photo_url': photoUrl,
             };
-            await api.createFieldReport(payload);
+            final res = await api.createFieldReport(payload);
+            if (res != null && res['photo_url'] != null) {
+              report.photoUrl = res['photo_url'].toString();
+            }
           } catch (_) {}
           report.isSynced = true;
           syncedCount++;
