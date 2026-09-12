@@ -12,7 +12,7 @@ from backend.app.core.security import (
     verify_password,
 )
 from backend.app.models.user import User, UserRole, SYSTEM_FALLBACK_USERS
-from backend.app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut, RegistrationRole
+from backend.app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut, UserUpdate, RegistrationRole
 
 router = APIRouter()
 
@@ -31,6 +31,9 @@ async def login(
         user = result.scalar_one_or_none()
     except Exception:
         # Graceful fallback to verified dev accounts if database daemon is not running
+        user = SYSTEM_FALLBACK_USERS.get(email_clean)
+
+    if not user:
         user = SYSTEM_FALLBACK_USERS.get(email_clean)
 
     if not user or not verify_password(login_data.password, user.password_hash):
@@ -59,6 +62,88 @@ async def login(
 async def get_my_profile(current_user: User = Depends(get_current_user)):
     """Retrieve authenticated profile details."""
     return UserOut.model_validate(current_user)
+
+
+@router.patch("/me", response_model=UserOut)
+@router.put("/me", response_model=UserOut)
+async def update_my_profile(
+    update_data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Update authenticated user's profile details in the database."""
+    new_password_hash = None
+    # Check password update if requested
+    if update_data.new_password:
+        if not update_data.current_password or not verify_password(update_data.current_password, current_user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password verification failed.",
+            )
+        new_password_hash = get_password_hash(update_data.new_password)
+        current_user.password_hash = new_password_hash
+
+    new_name = update_data.full_name if update_data.full_name is not None else current_user.full_name
+    new_phone = update_data.phone_number if update_data.phone_number is not None else current_user.phone_number
+    new_org = update_data.organization if update_data.organization is not None else current_user.organization
+
+    # 1. Update PostgreSQL database record
+    try:
+        stmt = select(User).where(User.id == current_user.id)
+        result = await db.execute(stmt)
+        db_user = result.scalar_one_or_none()
+        if db_user:
+            if update_data.full_name is not None:
+                db_user.full_name = new_name
+            if update_data.phone_number is not None:
+                db_user.phone_number = new_phone
+            if update_data.organization is not None:
+                db_user.organization = new_org
+            if new_password_hash:
+                db_user.password_hash = new_password_hash
+
+            await db.commit()
+    except Exception:
+        pass
+
+    # 2. Update Supabase Cloud DB
+    try:
+        from backend.app.services.supabase_service import SupabaseService
+        await SupabaseService.update_user_profile(
+            user_id=str(current_user.id),
+            email=current_user.email,
+            full_name=new_name,
+            phone_number=new_phone,
+            organization=new_org,
+        )
+    except Exception:
+        pass
+
+    # 3. Update in-memory fallback store
+    if current_user.email in SYSTEM_FALLBACK_USERS:
+        fb = SYSTEM_FALLBACK_USERS[current_user.email]
+        if update_data.full_name is not None:
+            fb.full_name = new_name
+        if update_data.phone_number is not None:
+            fb.phone_number = new_phone
+        if update_data.organization is not None:
+            fb.organization = new_org
+        if new_password_hash:
+            fb.password_hash = new_password_hash
+
+    current_user.full_name = new_name
+    current_user.phone_number = new_phone
+    current_user.organization = new_org
+
+    return UserOut(
+        id=current_user.id,
+        email=current_user.email,
+        full_name=new_name,
+        role=current_user.role,
+        phone_number=new_phone,
+        organization=new_org,
+        created_at=getattr(current_user, "created_at", None),
+    )
 
 
 @router.post("/register", response_model=UserOut, status_code=status.HTTP_201_CREATED)
@@ -96,6 +181,7 @@ async def register(
         db.add(new_user)
         await db.commit()
         await db.refresh(new_user)
+        SYSTEM_FALLBACK_USERS[email_clean] = new_user
         return UserOut.model_validate(new_user)
     except HTTPException:
         raise

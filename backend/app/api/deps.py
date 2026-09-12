@@ -55,6 +55,9 @@ async def get_current_user(
         user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
 
     if user is None:
+        user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
+
+    if user is None:
         raise credentials_exception
 
     # Defensive: validate that the role stored in the DB is a known enum member.

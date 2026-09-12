@@ -132,3 +132,30 @@ class SupabaseService:
             if res.status_code == 200:
                 return res.json()
             return []
+
+    @classmethod
+    async def update_user_profile(
+        cls,
+        user_id: str,
+        email: str,
+        full_name: str,
+        phone_number: Optional[str] = None,
+        organization: Optional[str] = None,
+    ) -> bool:
+        """Update user profile in Supabase profiles/users table."""
+        try:
+            async with cls._client() as client:
+                body: Dict[str, Any] = {"full_name": full_name}
+                if phone_number is not None:
+                    body["phone_number"] = phone_number
+                if organization is not None:
+                    body["organization"] = organization
+
+                res = await client.patch(
+                    f"/users?email=eq.{email}",
+                    json=body,
+                )
+                return res.status_code in (200, 204)
+        except Exception:
+            return False
+

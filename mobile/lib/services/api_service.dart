@@ -173,6 +173,101 @@ class ApiService {
     }
   }
 
+  Future<UserModel> updateProfile({
+    required String token,
+    required String fullName,
+    String? phoneNumber,
+    String? organization,
+  }) async {
+    try {
+      final payload = <String, dynamic>{
+        'full_name': fullName.trim(),
+        if (phoneNumber != null && phoneNumber.trim().isNotEmpty) 'phone_number': phoneNumber.trim(),
+        if (organization != null && organization.trim().isNotEmpty) 'organization': organization.trim(),
+      };
+
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/me');
+        return _client.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode(payload),
+        );
+      });
+
+      if (response.statusCode == 200) {
+        final updated = UserModel.fromJson(jsonDecode(response.body));
+
+        // Also sync directly to Supabase cloud if configured
+        if (supabaseUrl.isNotEmpty && supabaseAnonKey.isNotEmpty) {
+          try {
+            await _client.patch(
+              Uri.parse('$supabaseUrl/rest/v1/users?email=eq.${updated.email}'),
+              headers: _supabaseHeaders,
+              body: jsonEncode(payload),
+            );
+          } catch (_) {}
+        }
+
+        return updated;
+      } else {
+        String msg = 'Failed to update profile (${response.statusCode})';
+        try {
+          final b = jsonDecode(response.body);
+          msg = _extractErrorMessage(b['detail'], msg);
+        } catch (_) {}
+        throw ApiException(msg, response.statusCode);
+      }
+    } on SocketException {
+      throw ApiException('Unable to reach backend to save profile.');
+    } on http.ClientException {
+      throw ApiException('Unable to reach backend to save profile.');
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Profile update network error: $e');
+    }
+  }
+
+  Future<bool> changePassword({
+    required String token,
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/me');
+        return _client.patch(
+          url,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            'current_password': currentPassword,
+            'new_password': newPassword,
+          }),
+        );
+      });
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        String msg = 'Failed to update password';
+        try {
+          final b = jsonDecode(response.body);
+          msg = _extractErrorMessage(b['detail'], msg);
+        } catch (_) {}
+        throw ApiException(msg, response.statusCode);
+      }
+    } catch (e) {
+      if (e is ApiException) rethrow;
+      throw ApiException('Password update error: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> register(
     String fullName,
     String email,

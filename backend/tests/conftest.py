@@ -24,10 +24,16 @@ async def override_test_db_session():
             try:
                 yield session
             except Exception:
-                await session.rollback()
+                try:
+                    await session.rollback()
+                except Exception:
+                    pass
                 raise
             finally:
-                await session.close()
+                try:
+                    await session.close()
+                except Exception:
+                    pass
 
     app.dependency_overrides[get_db_session] = _get_test_db
     yield

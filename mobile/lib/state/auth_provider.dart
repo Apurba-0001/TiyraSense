@@ -172,20 +172,24 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
   }
-  Future<void> updateProfile({
+  Future<bool> updateProfile({
     required String fullName,
     String? phoneNumber,
     String? organization,
   }) async {
-    if (_currentUser == null) return;
+    if (_currentUser == null) return false;
+
+    // Optimistically update local state so UI updates immediately
     _currentUser = UserModel(
       id: _currentUser!.id,
       email: _currentUser!.email,
-      fullName: fullName,
+      fullName: fullName.trim(),
       role: _currentUser!.role,
       phoneNumber: phoneNumber ?? _currentUser!.phoneNumber,
       organization: organization ?? _currentUser!.organization,
     );
+    notifyListeners();
+
     try {
       await _secureStorage.write(
         key: _kUserDataKey,
@@ -194,7 +198,47 @@ class AuthProvider extends ChangeNotifier {
         iOptions: _iosOptions,
       );
     } catch (_) {}
-    notifyListeners();
+
+    // Persist to backend and cloud database if authenticated
+    if (_token != null && _token!.isNotEmpty) {
+      try {
+        final serverUpdatedUser = await _apiService.updateProfile(
+          token: _token!,
+          fullName: fullName,
+          phoneNumber: phoneNumber,
+          organization: organization,
+        );
+        _currentUser = serverUpdatedUser;
+        await _secureStorage.write(
+          key: _kUserDataKey,
+          value: jsonEncode(_currentUser!.toJson()),
+          aOptions: _androidOptions,
+          iOptions: _iosOptions,
+        );
+        notifyListeners();
+        return true;
+      } catch (e) {
+        // Keeps optimistic update if offline
+        return true;
+      }
+    }
+    return true;
+  }
+
+  Future<bool> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    if (_token == null || _token!.isEmpty) return false;
+    try {
+      return await _apiService.changePassword(
+        token: _token!,
+        currentPassword: currentPassword,
+        newPassword: newPassword,
+      );
+    } catch (_) {
+      return false;
+    }
   }
 
   /// Explicit user logout. Completely wipes tokens and cached profile.

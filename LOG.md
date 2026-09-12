@@ -15,6 +15,26 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence
+- Work: Implemented end-to-end database persistence for profile updates made in the mobile app:
+  1. `backend/app/schemas/auth.py`: Added `UserUpdate` schema with strict input validation for `full_name`, `phone_number`, `organization`, and `current_password`/`new_password`.
+  2. `backend/app/services/supabase_service.py`: Added `update_user_profile` to update user metadata in Supabase PostgREST.
+  3. `backend/app/api/v1/endpoints/auth.py`: Added `@router.patch("/me")` and `@router.put("/me")` with current password verification, bcrypt hashing for new passwords, PostgreSQL update, Supabase Cloud synchronization, and in-memory store sync.
+  4. `backend/app/api/deps.py`: Hardened `get_current_user` to check in-memory stores if database query returns `None` during fallback.
+  5. `backend/tests/conftest.py`: Guarded session rollback and close against connection timeouts.
+  6. `backend/tests/test_auth.py`: Added `test_update_user_profile_reflects_in_database` and `test_update_user_password`.
+  7. `mobile/lib/services/api_service.dart`: Added `updateProfile` and `changePassword` methods sending `PATCH /api/v1/auth/me` with Bearer token, plus direct fallback to Supabase PostgREST.
+  8. `mobile/lib/state/auth_provider.dart`: Connected `updateProfile` and `changePassword` to update local user model, write to hardware-encrypted storage (`FlutterSecureStorage`), and invoke `apiService`.
+  9. `mobile/lib/screens/profile_screen.dart`: Connected `Edit Profile` and `Change Password` bottom sheets to `authProvider` with interactive UI validation and success/error feedback.
+- Files: `backend/app/schemas/auth.py`, `backend/app/services/supabase_service.py`, `backend/app/api/v1/endpoints/auth.py`, `backend/app/api/deps.py`, `backend/tests/conftest.py`, `backend/tests/test_auth.py`, `mobile/lib/services/api_service.dart`, `mobile/lib/state/auth_provider.dart`, `mobile/lib/screens/profile_screen.dart`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `pytest backend/tests/` (all 45/45 passed in 107s); `flutter test` in `mobile/` (all 53/53 passed in 20s).
+- Decisions: Mobile profile updates and password changes must always verify current password, persist immediately to both PostgreSQL and Supabase, and maintain local encrypted session state.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & TESTED.
+- Next: Commit and push changes to GitHub `origin main`.
+
 ## 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (Checkpoint)
 - Work: Implemented complete cross-platform pipeline allowing field scouts and drivers to take authentic photos on mobile phones and submit them with geo-tagged incident reports, streaming photos to server storage / Cloudinary and reflecting immediately across all web user dashboards:
   1. `backend/app/schemas/reports.py`: Added `photo_url: Optional[str] = None` to `FieldReportOut`.

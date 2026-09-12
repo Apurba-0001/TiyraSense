@@ -109,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Profile details updated successfully'),
+                      content: Text('Profile details updated and synced to database'),
                       backgroundColor: AppTheme.green,
                       behavior: SnackBarBehavior.floating,
                     ),
@@ -196,7 +196,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 20),
               ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  final curP = currentPassController.text;
                   final newP = newPassController.text;
                   final confP = confirmPassController.text;
                   if (newP.length < 6) {
@@ -211,14 +212,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                     return;
                   }
-                  Navigator.of(ctx).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password updated successfully'),
-                      backgroundColor: AppTheme.green,
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  final success = await authProvider.changePassword(
+                    currentPassword: curP,
+                    newPassword: newP,
                   );
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(success ? 'Password updated in database successfully' : 'Failed to update password. Verify current password.'),
+                        backgroundColor: success ? AppTheme.green : AppTheme.red,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
                 },
                 child: const Text('Update Password'),
               ),

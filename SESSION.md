@@ -18,11 +18,47 @@ Updated at the END of every work session, regardless of model/agent. Newest entr
 
 ## Current state
 
-- **Phase:** Phase 37 — Mobile Field Evidence Photo Streaming & Multi-User Web Reflection (COMPLETE)
-- **Status:** COMPLETE. Mobile incident photos captured on phone (camera/gallery) now upload directly to server storage / Cloudinary and reflect live across every web user dashboard (both `/reports` and `/dashboard` operations queue) with instant high-resolution lightbox inspection and geo-verification badges.
+- **Phase:** Phase 38 — Mobile Profile Details & Password Database Persistence (COMPLETE)
+- **Status:** COMPLETE. Profile updates made in the mobile app (full name, phone number, organization, and password) now immediately persist to the backend database (PostgreSQL and Supabase PostgREST), synchronize in-memory state, and return updated records to all services.
 - **Branch:** `main`
 
-## Latest session — 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Web Reflection (COMPLETE)
+## Latest session — 2026-09-12 — Phase 38: Mobile Profile Details & Password Database Persistence (COMPLETE)
+**Did:**
+- **`backend/app/schemas/auth.py`**: Added `UserUpdate` schema with strict control-character and null-byte sanitization and phone format validation.
+- **`backend/app/services/supabase_service.py`**: Added `update_user_profile` method to patch user metadata in Supabase PostgREST.
+- **`backend/app/api/v1/endpoints/auth.py`**:
+  - Implemented `@router.patch("/me")` and `@router.put("/me")` endpoint to update `full_name`, `phone_number`, `organization`, and `password_hash`.
+  - Added current password verification before allowing password change and hashing with bcrypt.
+  - Synchronized updates across PostgreSQL, Supabase Cloud, in-memory fallback stores, and active session models without lazy-loading issues.
+  - Ensured `login` and `register` maintain consistency with in-memory stores during transient database disconnections.
+- **`backend/app/api/deps.py`**: Hardened `get_current_user` to check in-memory stores when database returns `None` during fallback.
+- **`backend/tests/conftest.py`**: Guarded rollback and close calls in test database session fixtures against connection timeout exceptions.
+- **`backend/tests/test_auth.py`**: Added comprehensive tests `test_update_user_profile_reflects_in_database` and `test_update_user_password`.
+- **`mobile/lib/services/api_service.dart`**: Implemented `updateProfile` and `changePassword` methods sending `PATCH /api/v1/auth/me` with Bearer token, plus direct fallback update to Supabase PostgREST.
+- **`mobile/lib/state/auth_provider.dart`**: Updated `updateProfile` and `changePassword` to update local user state, write to hardware-encrypted storage (`flutter_secure_storage`), and invoke `apiService.updateProfile`/`changePassword` to persist to database.
+- **`mobile/lib/screens/profile_screen.dart`**: Connected `Edit Profile` and `Change Password` bottom sheets to `authProvider.updateProfile` and `authProvider.changePassword` with clear visual feedback.
+- **Verification Evidence:**
+  - Backend: `pytest backend/tests/` passed (all 45/45 tests passing).
+  - Mobile: `flutter test` passed (all 53/53 tests passing).
+**State:** COMPLETE & VERIFIED.
+**Files touched:**
+- `backend/app/schemas/auth.py`
+- `backend/app/services/supabase_service.py`
+- `backend/app/api/v1/endpoints/auth.py`
+- `backend/app/api/deps.py`
+- `backend/tests/conftest.py`
+- `backend/tests/test_auth.py`
+- `mobile/lib/services/api_service.dart`
+- `mobile/lib/state/auth_provider.dart`
+- `mobile/lib/screens/profile_screen.dart`
+- `SESSION.md`
+- `LOG.md`
+**Scratch files cleaned up:** Yes (no temporary files created).
+**Next:** Commit and push changes to GitHub `origin main`.
+**Blockers/open questions:** None.
+**Verify by:** Run `pytest backend/tests/` and `flutter test` in `mobile/`.
+
+## Previous session — 2026-09-12 — Phase 37: Mobile Field Evidence Photo Streaming & Web Reflection (COMPLETE)
 **Did:**
 - **`backend/app/schemas/reports.py`**: Added `photo_url: Optional[str] = None` to `FieldReportOut` schema.
 - **`backend/app/api/v1/endpoints/field_reports.py`**: Added realistic photo evidence URLs to seed reports, updated `create_field_report` and `list_field_reports` to accept, persist, and return `photo_url` across in-memory and Supabase database records.

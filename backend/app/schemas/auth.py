@@ -111,6 +111,48 @@ class UserCreate(BaseModel):
         return _reject_control_chars(v.strip(), "organization")
 
 
+class UserUpdate(BaseModel):
+    """Payload for updating user profile information."""
+
+    full_name: Optional[str] = Field(default=None, min_length=2, max_length=128)
+    phone_number: Optional[str] = Field(default=None, max_length=20)
+    organization: Optional[str] = Field(default=None, max_length=128)
+    current_password: Optional[str] = Field(default=None, min_length=6, max_length=128)
+    new_password: Optional[str] = Field(default=None, min_length=6, max_length=128)
+
+    @field_validator("full_name")
+    @classmethod
+    def full_name_no_control_chars(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _reject_control_chars(v.strip(), "full_name")
+
+    @field_validator("phone_number")
+    @classmethod
+    def phone_format(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        v = v.strip()
+        _reject_control_chars(v, "phone_number")
+        if not _PHONE_RE.match(v):
+            raise ValueError("phone_number must contain only digits, spaces, hyphens, and an optional leading +")
+        return v
+
+    @field_validator("organization")
+    @classmethod
+    def organization_no_control_chars(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _reject_control_chars(v.strip(), "organization")
+
+    @field_validator("current_password", "new_password")
+    @classmethod
+    def passwords_no_control_chars(cls, v: Optional[str], info) -> Optional[str]:
+        if v is None:
+            return v
+        return _reject_control_chars(v, info.field_name)
+
+
 __all__ = [
     "UserRole",
     "RegistrationRole",
@@ -118,5 +160,6 @@ __all__ = [
     "UserOut",
     "TokenResponse",
     "UserCreate",
+    "UserUpdate",
 ]
 

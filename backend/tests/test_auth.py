@@ -206,3 +206,118 @@ async def test_register_admin_rejected():
             },
         )
         assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_user_profile_reflects_in_database():
+    """Verify that updates to full_name, phone_number, and organization reflect in database and profile."""
+    import uuid
+    unique_email = f"driver_update_{uuid.uuid4().hex[:8]}@tiyrasense.in"
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        # 1. Register a new driver
+        reg_res = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": unique_email,
+                "password": "Password1234!",
+                "full_name": "Original Driver Name",
+                "role": "DRIVER",
+                "phone_number": "+91 94350-11111",
+                "organization": "Original Transport Union",
+            },
+        )
+        assert reg_res.status_code == 201
+
+        # 2. Login
+        login_res = await client.post(
+            "/api/v1/auth/login",
+            json={"email": unique_email, "password": "Password1234!"},
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 3. Update profile via PATCH /me
+        update_res = await client.patch(
+            "/api/v1/auth/me",
+            headers=headers,
+            json={
+                "full_name": "Updated Driver Name",
+                "phone_number": "+91 98640-99999",
+                "organization": "Meghalaya Fleet Network",
+            },
+        )
+        assert update_res.status_code == 200
+        updated_data = update_res.json()
+        assert updated_data["full_name"] == "Updated Driver Name"
+        assert updated_data["phone_number"] == "+91 98640-99999"
+        assert updated_data["organization"] == "Meghalaya Fleet Network"
+
+        # 4. Fetch profile again via GET /me to confirm persistence
+        get_res = await client.get("/api/v1/auth/me", headers=headers)
+        assert get_res.status_code == 200
+        fetched_data = get_res.json()
+        assert fetched_data["full_name"] == "Updated Driver Name"
+        assert fetched_data["phone_number"] == "+91 98640-99999"
+        assert fetched_data["organization"] == "Meghalaya Fleet Network"
+
+
+@pytest.mark.asyncio
+async def test_update_user_password():
+    """Verify password update requires correct current password and allows login with new password."""
+    import uuid
+    unique_email = f"driver_pass_{uuid.uuid4().hex[:8]}@tiyrasense.in"
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        # 1. Register driver
+        await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": unique_email,
+                "password": "OldPassword123!",
+                "full_name": "Pass Test Driver",
+                "role": "DRIVER",
+            },
+        )
+
+        # 2. Login with old password
+        login_res = await client.post(
+            "/api/v1/auth/login",
+            json={"email": unique_email, "password": "OldPassword123!"},
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 3. Attempt update with wrong current password
+        bad_update = await client.patch(
+            "/api/v1/auth/me",
+            headers=headers,
+            json={
+                "current_password": "WrongPassword!",
+                "new_password": "NewSecurePassword2026!",
+            },
+        )
+        assert bad_update.status_code == 400
+
+        # 4. Update with correct current password
+        good_update = await client.patch(
+            "/api/v1/auth/me",
+            headers=headers,
+            json={
+                "current_password": "OldPassword123!",
+                "new_password": "NewSecurePassword2026!",
+            },
+        )
+        assert good_update.status_code == 200
+
+        # 5. Login with new password succeeds
+        new_login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": unique_email, "password": "NewSecurePassword2026!"},
+        )
+        assert new_login.status_code == 200
+
