@@ -27,81 +27,10 @@ interface FeedAlert {
   resolvedAt?: string;
 }
 
-const INITIAL_ALERTS: FeedAlert[] = [
-  {
-    id: 'ALT-301',
-    severity: 'EMERGENCY',
-    corridor: 'NH-06',
-    kmRange: 'KM 52-54',
-    time: '5m ago',
-    title: 'Active Landslide & Road Blockage',
-    description: 'Major slope failure triggered by overnight precipitation at KM 52.3 near Nongpoh cutting. Both carriageways obstructed by rockfall.',
-    affects: 'NH-06 KM 52-54 (Ri-Bhoi)',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-302',
-    severity: 'CAUTION',
-    corridor: 'NH-29',
-    kmRange: 'KM 81-86',
-    time: '19m ago',
-    title: 'Flash Flood Runoff on Pavement',
-    description: 'Mountain stream overflow between KM 81-86 depositing silt and standing water (approx. 20cm). Single lane alternating escort enforced.',
-    affects: 'NH-29 KM 81-86 (Barail foothills)',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-303',
-    severity: 'CAUTION',
-    corridor: 'NH-37',
-    kmRange: 'KM 115-130',
-    time: '42m ago',
-    title: 'Heavy Rainfall Speed Restriction',
-    description: 'IMD sensor forecast indicates 45mm/h storm over southern floodplains. Safe speed advisory capped at 30 km/h.',
-    affects: 'NH-37 KM 115-130 (Bokakhat)',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-304',
-    severity: 'INFO',
-    corridor: 'NH-51',
-    kmRange: 'KM 10-60',
-    time: '1h ago',
-    title: 'Scheduled Convoy Transit Clearance',
-    description: 'State emergency fuel tankers received passage clearance through Garo Hills corridor without delay.',
-    affects: 'NH-51 All Sectors',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-305',
-    severity: 'CAUTION',
-    corridor: 'NH-40',
-    kmRange: 'KM 22-26',
-    time: '3h ago',
-    title: 'Culvert Repair Single-Lane Passage',
-    description: 'Drainage repair work completed on northern culvert wing. Speed restored to normal operational limits.',
-    affects: 'NH-40 KM 22-26 (Jowai)',
-    acknowledged: true,
-    resolvedBy: 'Official R. Agarwal',
-    resolvedAt: '14:22',
-  },
-  {
-    id: 'ALT-306',
-    severity: 'INFO',
-    corridor: 'NH-208',
-    kmRange: 'KM 05-18',
-    time: '5h ago',
-    title: 'Dense Fog Morning Advisory Cleared',
-    description: 'Valley mist lifted across Kumarghat link. Normal daytime visibility restored.',
-    affects: 'NH-208 Valley Sector',
-    acknowledged: true,
-    resolvedBy: 'Admin Team',
-    resolvedAt: '11:05',
-  },
-];
+
 
 export const AlertFeed: React.FC = () => {
-  const [alerts, setAlerts] = useState<FeedAlert[]>(INITIAL_ALERTS);
+  const [alerts, setAlerts] = useState<FeedAlert[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [severityFilter, setSeverityFilter] = useState<'ALL' | 'EMERGENCY' | 'HIGH RISK' | 'CAUTION' | 'INFO'>('ALL');
   const [corridorFilter, setCorridorFilter] = useState('ALL');

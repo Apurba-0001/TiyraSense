@@ -6,6 +6,17 @@ from backend.app.main import app
 @pytest.mark.anyio
 async def test_list_field_reports():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        # Ensure at least one report exists for listing
+        payload = {
+            "hazard_type": "Landslide",
+            "severity": "HIGH",
+            "description": "Baseline monitored report",
+            "latitude": 26.0124,
+            "longitude": 91.8901,
+            "corridor_name": "NH-06",
+            "km_marker": "KM 52.3",
+        }
+        await client.post("/api/v1/reports", json=payload)
         response = await client.get("/api/v1/reports")
         assert response.status_code == 200
         reports = response.json()

@@ -182,38 +182,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // ---------------------------------------------------------------------------
   // ADMIN STATE: AUDIT LOGS
   // ---------------------------------------------------------------------------
-  final List<Map<String, String>> _auditLogs = [
-    {
-      'time': '10:42:15',
-      'type': 'AUTH_VERIFY',
-      'event': 'Official verified incident report #RP-2847 (Landslide on NH-06)',
-      'actor': 'official@tiyrasense.gov.in',
-    },
-    {
-      'time': '10:38:00',
-      'type': 'INGEST_SYNC',
-      'event': 'Fleet telemetry batch ingested: 480 location records from 4 active units',
-      'actor': 'Telemetry Worker Daemon',
-    },
-    {
-      'time': '10:24:50',
-      'type': 'DISPATCH',
-      'event': 'NDRF Rescue Unit 9 assigned to incident #RP-2843',
-      'actor': 'official@tiyrasense.gov.in',
-    },
-    {
-      'time': '09:55:12',
-      'type': 'USER_STATUS',
-      'event': 'Account status toggled for dev.test@tiyrasense.gov.in',
-      'actor': 'admin@tiyrasense.gov.in',
-    },
-    {
-      'time': '09:15:30',
-      'type': 'DATA_PING',
-      'event': 'Full health probe completed on PostGIS and OSRM cluster (All Healthy)',
-      'actor': 'Admin Probe Daemon',
-    },
-  ];
+  // Audit logs are streamed live from the backend API. Starts empty.
+  final List<Map<String, String>> _auditLogs = [];
 
   @override
   void initState() {
@@ -1607,7 +1577,23 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           const SizedBox(height: 8),
 
           // Audit Logs List
-          ..._auditLogs.map((log) {
+          if (_auditLogs.isEmpty)
+            Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(16),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: AppTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppTheme.borderLight),
+              ),
+              child: const Text(
+                'No security audit logs recorded in session.',
+                style: TextStyle(fontSize: 11, color: AppTheme.textLow),
+              ),
+            )
+          else
+            ..._auditLogs.map((log) {
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(12),

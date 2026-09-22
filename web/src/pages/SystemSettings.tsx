@@ -217,14 +217,9 @@ export const SystemSettings: React.FC = () => {
     }
   };
 
-  const LOG_ENTRIES = [
-    { id: 'LOG-8812', timestamp: 'Today 01:14', actor: 'Official R. Agarwal', role: 'ADMIN', action: 'Route Assessment Executed', ip: '10.0.4.12', status: 'SUCCESS' },
-    { id: 'LOG-8811', timestamp: 'Today 00:52', actor: 'ASDMA Dispatcher #2', role: 'OFFICIAL', action: 'Advisory Broadcast ALT-301', ip: '10.0.4.18', status: 'SUCCESS' },
-    { id: 'LOG-8810', timestamp: 'Yesterday 23:40', actor: 'Field Unit 4 (Sanjay K.)', role: 'FIELD_WORKER', action: 'Recon Report RP-2847 Submitted', ip: '172.16.2.88', status: 'VERIFIED' },
-    { id: 'LOG-8809', timestamp: 'Yesterday 21:15', actor: 'Commercial Driver #08', role: 'DRIVER', action: 'Sync Offline Waypoints (NH-06)', ip: '192.168.1.104', status: 'SUCCESS' },
-    { id: 'LOG-8808', timestamp: 'Yesterday 19:30', actor: 'System Governance', role: 'SYSTEM', action: 'PostGIS Spatial Query Cache Flush', ip: '127.0.0.1', status: 'SUCCESS' },
-    { id: 'LOG-8807', timestamp: 'Yesterday 18:02', actor: 'Driver Bipul Mech', role: 'DRIVER', action: 'Session Expired / Token Refresh', ip: '192.168.1.115', status: 'REVOKED' },
-  ];
+  // Audit log entries are fetched from the backend in production.
+  // No hardcoded entries — starts empty until live data is loaded.
+  const LOG_ENTRIES: { id: string; timestamp: string; actor: string; role: string; action: string; ip: string; status: string }[] = [];
 
   const filteredLogs = LOG_ENTRIES.filter((l) => {
     if (!logSearch.trim()) return true;

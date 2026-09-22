@@ -54,17 +54,6 @@ interface CorridorRow {
   lastReport: string;
 }
 
-const INITIAL_CORRIDORS: CorridorRow[] = [
-  { id: 'nh-06', name: 'NH-06 Guwahati-Shillong', routeId: 'Jorabat → Nongpoh → Mawlai', status: 'PASSABLE', riskScore: 28, disruptionProb: 14, lastReport: '6m ago' },
-  { id: 'nh-29', name: 'NH-29 Guwahati-Silchar', routeId: 'Nagaon → Dabaka → Silchar', status: 'CAUTION', riskScore: 61, disruptionProb: 52, lastReport: '18m ago' },
-  { id: 'nh-37', name: 'NH-37 Numaligarh-Jorhat', routeId: 'Kaziranga → Bokakhat → Jorhat', status: 'HIGH RISK', riskScore: 84, disruptionProb: 78, lastReport: '2h ago' },
-  { id: 'nh-40', name: 'NH-40 Jorabat-Ladrymbai', routeId: 'Jorabat → Jowai → Ladrymbai', status: 'PASSABLE', riskScore: 32, disruptionProb: 19, lastReport: '14m ago' },
-  { id: 'nh-51', name: 'NH-51 Paikan-Tura', routeId: 'Paikan → Bajengdoba → Tura', status: 'PASSABLE', riskScore: 19, disruptionProb: 11, lastReport: '42m ago' },
-  { id: 'nh-102', name: 'NH-102 Imphal-Moreh', routeId: 'Thoubal → Pallel → Tengnoupal', status: 'BLOCKED', riskScore: 92, disruptionProb: 95, lastReport: '5m ago' },
-  { id: 'nh-108', name: 'NH-108 Panisagar-Aizawl', routeId: 'Damcherra → Kanchanpur → Aizawl', status: 'CAUTION', riskScore: 54, disruptionProb: 46, lastReport: '1h ago' },
-  { id: 'nh-208', name: 'NH-208 Kumarghat-Kailashahar', routeId: 'Kumarghat → Fatikroy → Kailashahar', status: 'PASSABLE', riskScore: 24, disruptionProb: 15, lastReport: '28m ago' },
-];
-
 interface LiveAlert {
   id: string;
   severity: 'EMERGENCY' | 'CAUTION' | 'INFO';
@@ -74,45 +63,6 @@ interface LiveAlert {
   description: string;
   acknowledged: boolean;
 }
-
-const INITIAL_ALERTS: LiveAlert[] = [
-  {
-    id: 'ALT-101',
-    severity: 'EMERGENCY',
-    corridor: 'NH-06',
-    time: '5m ago',
-    title: 'Landslide — Full Blockage at KM 52',
-    description: 'Both lanes blocked by boulder roll-down. BRO recovery team dispatched.',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-102',
-    severity: 'CAUTION',
-    corridor: 'NH-29',
-    time: '19m ago',
-    title: 'Flash Flood Watch & Shoulder Waterlogging',
-    description: 'Heavy rainfall between KM 81-86. Speed limit lowered to 25 km/h.',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-103',
-    severity: 'INFO',
-    corridor: 'NH-40',
-    time: '45m ago',
-    title: 'Culvert Inspection Cleared',
-    description: 'Structure 14B passed structural strain acoustic check.',
-    acknowledged: false,
-  },
-  {
-    id: 'ALT-104',
-    severity: 'INFO',
-    corridor: 'NH-51',
-    time: '1h ago',
-    title: 'Convoy Escort Operational',
-    description: 'Fuel convoy 04 departed Paikan toward Tura with standard telemetry.',
-    acknowledged: true,
-  },
-];
 
 const INITIAL_FLEET_VEHICLES: FleetVehicle[] = [
   {
@@ -219,8 +169,8 @@ export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const role = user?.role || 'OFFICIAL';
-  const [corridors, setCorridors] = useState<CorridorRow[]>(INITIAL_CORRIDORS);
-  const [alerts, setAlerts] = useState<LiveAlert[]>(INITIAL_ALERTS);
+  const [corridors, setCorridors] = useState<CorridorRow[]>([]);
+  const [alerts, setAlerts] = useState<LiveAlert[]>([]);
   const [fleetVehicles, setFleetVehicles] = useState<FleetVehicle[]>(INITIAL_FLEET_VEHICLES);
   const [selectedVehicleId, setSelectedVehicleId] = useState<string>('TRK-01');
   const [filterVehicleType, setFilterVehicleType] = useState<string>('ALL');
@@ -1905,6 +1855,24 @@ export const Dashboard: React.FC = () => {
             {/* Selected Vehicle Telemetry Inspector Card */}
             {(() => {
               const cur = fleetVehicles.find((v) => v.id === selectedVehicleId) || fleetVehicles[0];
+              if (!cur) {
+                return (
+                  <div
+                    data-testid="vehicle-telemetry-inspector"
+                    style={{
+                      backgroundColor: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '16px',
+                      color: 'var(--color-text-muted)',
+                      fontSize: '12px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    No active fleet telemetry signals available.
+                  </div>
+                );
+              }
               const statusBadgeBg =
                 cur.status === 'HAZARD_SLOWED'
                   ? '#FEE2E2'
@@ -2048,7 +2016,7 @@ export const Dashboard: React.FC = () => {
         <div style={{ marginTop: '8px' }}>
           {(() => {
             const currentVeh = fleetVehicles.find((v) => v.id === selectedVehicleId) || fleetVehicles[0];
-            const isFleetMode = role === 'OFFICIAL' || role === 'ADMIN';
+            const isFleetMode = (role === 'OFFICIAL' || role === 'ADMIN') && !!currentVeh;
 
             return (
               <VectorGisMap

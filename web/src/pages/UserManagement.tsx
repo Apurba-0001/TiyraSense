@@ -16,19 +16,10 @@ interface ManagedUser {
   registered: string;
 }
 
-const INITIAL_USERS: ManagedUser[] = [
-  { id: '1', name: 'Ratan Das', email: 'ratan.das@example.in', initials: 'RD', role: 'DRIVER', status: 'ACTIVE', lastActive: '2h ago', registered: 'Jan 12, 2026' },
-  { id: '2', name: 'Priya Mao', email: 'priya.mao@field.gov.in', initials: 'PM', role: 'FIELD_WORKER', status: 'ACTIVE', lastActive: '18m ago', registered: 'Jan 15, 2026' },
-  { id: '3', name: 'Dr. Anamika Barua', email: 'official@tiyrasense.in', initials: 'AB', role: 'OFFICIAL', status: 'ACTIVE', lastActive: 'Just now', registered: 'Jan 02, 2026' },
-  { id: '4', name: 'Rajeev Agarwal', email: 'admin@tiyrasense.in', initials: 'RA', role: 'ADMIN', status: 'ACTIVE', lastActive: 'Just now', registered: 'Jan 01, 2026' },
-  { id: '5', name: 'Sanjay Kumar', email: 'sanjay.k@field.gov.in', initials: 'SK', role: 'FIELD_WORKER', status: 'ACTIVE', lastActive: '6m ago', registered: 'Feb 03, 2026' },
-  { id: '6', name: 'Amitav Gogoi', email: 'amitav.gogoi@fleet.in', initials: 'AG', role: 'DRIVER', status: 'ACTIVE', lastActive: '1d ago', registered: 'Feb 10, 2026' },
-  { id: '7', name: 'Tsering Wangdi', email: 'tsering@arunachal.gov.in', initials: 'TW', role: 'OFFICIAL', status: 'PENDING', lastActive: 'Never', registered: 'Sep 02, 2026' },
-  { id: '8', name: 'Bipul Mech', email: 'bipul.mech@haul.in', initials: 'BM', role: 'DRIVER', status: 'SUSPENDED', lastActive: '3w ago', registered: 'Jan 22, 2026' },
-];
+
 
 export const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState<ManagedUser[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<ManagedUser[]>([]);
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'DRIVER' | 'FIELD_WORKER' | 'OFFICIAL' | 'ADMIN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);

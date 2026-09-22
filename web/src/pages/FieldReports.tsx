@@ -53,7 +53,6 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     workerUnit: 'Field Unit 4',
     coordinates: '26.0124° N, 91.8901° E',
     description: 'Large boulder roll-down on left shoulder. One lane blocked, second lane at risk of secondary debris flow. Immediate earth-mover intervention requested.',
-    photoUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2846',
@@ -68,7 +67,6 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     workerUnit: 'Field Unit 2',
     coordinates: '25.6812° N, 93.7145° E',
     description: 'Mountain stream overflow depositing gravel across 40 meters of roadway. Water depth approximately 20cm. Light vehicles diverted.',
-    photoUrl: 'https://images.unsplash.com/photo-1515694346937-94d85e41e6f0?auto=format&fit=crop&w=800&q=80',
   },
   {
     id: 'RP-2845',
@@ -84,52 +82,6 @@ const INITIAL_REPORTS: FieldReportItem[] = [
     coordinates: '26.5410° N, 93.1892° E',
     description: 'Uprooted tree branches partially encroaching eastbound emergency shoulder. Clearance squad en route.',
     dispatchUnit: 'BRO Rapid Clearance #1',
-    photoUrl: 'https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'RP-2844',
-    submitted: '1h ago',
-    corridor: 'NH-40',
-    km: 'KM 14.8',
-    hazardType: 'Road Subsidance',
-    severity: 'PARTIAL',
-    status: 'VERIFIED',
-    workerName: 'Arunav Sharma',
-    workerInitials: 'AS',
-    workerUnit: 'Field Unit 3',
-    coordinates: '25.5780° N, 91.8821° E',
-    description: 'Bitumen cracking along outer mountain edge due to continuous saturation. Heavy vehicle weight restriction implemented.',
-    photoUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'RP-2843',
-    submitted: '2h ago',
-    corridor: 'NH-102',
-    km: 'KM 68.2',
-    hazardType: 'Landslide',
-    severity: 'FULL BLOCKAGE',
-    status: 'DISPATCHED',
-    workerName: 'Lalith Sangma',
-    workerInitials: 'LS',
-    workerUnit: 'Border Unit 1',
-    coordinates: '24.4921° N, 94.0215° E',
-    description: 'Severe cut slope collapse blocking entire double lane corridor near Tengnoupal ridge. Excavator units mobilizing.',
-    dispatchUnit: 'Excavator 12T (Jowai Base)',
-    photoUrl: 'https://images.unsplash.com/photo-1502082553048-f009c37129b9?auto=format&fit=crop&w=800&q=80',
-  },
-  {
-    id: 'RP-2842',
-    submitted: '3h ago',
-    corridor: 'NH-51',
-    km: 'KM 32.5',
-    hazardType: 'Debris',
-    severity: 'SHOULDER',
-    status: 'REJECTED',
-    workerName: 'Nipen Das',
-    workerInitials: 'ND',
-    workerUnit: 'Garo Patrol 2',
-    coordinates: '25.8820° N, 90.4120° E',
-    description: 'Reported branch obstruction already cleared by local highway maintenance prior to reconnaissance verification.',
   },
 ];
 
@@ -151,7 +103,7 @@ function formatRelativeTime(dateStr?: string | null): string {
 
 export const FieldReports: React.FC = () => {
   const [reports, setReports] = useState<FieldReportItem[]>(INITIAL_REPORTS);
-  const [selectedReport, setSelectedReport] = useState<FieldReportItem | null>(INITIAL_REPORTS[0]);
+  const [selectedReport, setSelectedReport] = useState<FieldReportItem | null>(INITIAL_REPORTS[0] || null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'DISPATCHED' | 'REJECTED'>('ALL');
   const [corridorFilter, setCorridorFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');

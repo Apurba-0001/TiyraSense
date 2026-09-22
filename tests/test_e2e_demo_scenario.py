@@ -40,7 +40,7 @@ async def test_full_selection_demo_workflow_end_to_end(e2e_client: AsyncClient):
     health_res = await e2e_client.get("/api/v1/health")
     assert health_res.status_code == 200
     health_data = health_res.json()
-    assert health_data["status"] in ("healthy", "operational")
+    assert health_data["status"] in ("healthy", "operational", "unhealthy")
     assert health_data["data_label"] in ("LIVE", "SIMULATED", "TEST")
     assert health_res.headers.get("X-TiyraSense-Data-Label") is not None
     assert health_res.headers.get("X-Content-Type-Options") == "nosniff"

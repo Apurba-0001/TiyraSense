@@ -14,6 +14,10 @@
 !.env.example
 !.env.sample
 !.env.template
+env.json
+*.env.json
+!env.example.json
+!*.env.example.json
 
 *.secret
 *.secrets
@@ -175,6 +179,7 @@ mobile/ios/Runner.xcworkspace/xcuserdata/
 mobile/ios/Runner.xcodeproj/xcuserdata/
 mobile/ios/Runner.xcodeproj/project.xcworkspace/xcuserdata/
 **/Pods/
+**/Flutter/ephemeral/
 DerivedData/
 
 # FVM (Flutter Version Manager)
@@ -185,6 +190,7 @@ mobile/.fvm/flutter_sdk
 #  6. NODE / REACT / VITE (WEB)
 # ═══════════════════════════════════════════════════════════
 
+node_modules/
 web/node_modules/
 web/dist/
 web/build/
@@ -321,13 +327,13 @@ generated-data/
 #  12. UPLOADS & RUNTIME MEDIA
 # ═══════════════════════════════════════════════════════════
 
-uploads/
-user_uploads/
-incident_uploads/
-local_uploads/
-test_uploads/
-runtime_media/
-storage/
+/uploads/
+/user_uploads/
+/incident_uploads/
+/local_uploads/
+/test_uploads/
+/runtime_media/
+/storage/
 camera_cache/
 recordings/
 
@@ -451,6 +457,7 @@ security-reports/
 .agent/
 .agent-cache/
 .agent-state/
+.system_generated/
 prompt-cache/
 context-cache/
 agent-cache/
@@ -536,3 +543,17 @@ Images/*.png
 !Images/TiyraSense.png
 !Images/TiyraSense_horizontal.png
 !Images/TiyraSense.svg
+
+
+# ═══════════════════════════════════════════════════════════
+#  21. BACKEND STATIC UPLOADS (TEST-GENERATED ARTIFACTS)
+# ═══════════════════════════════════════════════════════════
+#
+#  backend/app/static/uploads/ is the runtime mount-point for
+#  evidence photo storage. Files written here during test runs
+#  (tiny dummy PNGs from test_upload_photo_and_create_report_with_photo)
+#  must never be committed. The .gitkeep preserves the directory.
+
+backend/app/static/uploads/*
+backend/app/static/uploads/.*
+!backend/app/static/uploads/.gitkeep

@@ -180,6 +180,19 @@ async def get_monitored_corridors(
                 segment_count=2,
             )
         )
+    if "nh-06-shillong-silchar" not in known_ids:
+        corridors.append(
+            CorridorSummaryOut(
+                id="nh-06-shillong-silchar",
+                name="NH-06 Shillong-Silchar",
+                route_id="Monitored Artery (3 segments)",
+                status="CAUTION",
+                risk_score=28,
+                disruption_prob=22,
+                last_report="Live PostGIS",
+                segment_count=3,
+            )
+        )
 
     return corridors
 
