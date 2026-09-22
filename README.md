@@ -278,14 +278,14 @@ The platform comes pre-seeded with primary North Eastern Region supply corridors
 - **NH-37 (Numaligarh $\rightarrow$ Jorhat):** Upper Assam logistics corridor traversing flood-prone riverine tracts.
 - **NH-102 (Imphal $\rightarrow$ Moreh):** Cross-border logistics route with high tectonic slope vulnerability.
 
-### 6.2 Pre-Seeded Demonstration Accounts (`scripts/seed_users.py`)
+### 6.2 Demonstration Accounts (Sample Credentials)
 
-| Role | Email | Password | Full Name | Organization |
+| Role | Demo Email | Demo Password | Persona | Department / Organization |
 |---|---|---|---|---|
-| **Driver** | `driver@tiyrasense.in` | `DriverPass2026!` | Ramen Borah | All Assam Commercial Truckers Union |
-| **Field Worker** | `worker@tiyrasense.in` | `WorkerPass2026!` | Dipankar Saikia | Nongpoh Disaster Inspection Unit |
-| **Official** | `official@tiyrasense.in` | `OfficialPass2026!` | Dr. Anamika Barua | Assam State Disaster Management Authority (ASDMA) |
-| **Admin** | `admin@tiyrasense.in` | `AdminPass2026!` | System Administrator | North Eastern Council Logistics Tech Cell |
+| **Driver** | `demo-driver@tiyrasense.in` | `Demo@2026` | Commercial Freight Driver | Regional Highway Logistics Fleet |
+| **Field Worker** | `demo-worker@tiyrasense.in` | `Demo@2026` | Field Incident Scout | Emergency Ground Survey Cell |
+| **Official** | `demo-official@tiyrasense.in` | `Demo@2026` | Disaster Operations Officer | State Disaster Management Authority |
+| **Admin** | `demo-admin@tiyrasense.in` | `Demo@2026` | Platform Administrator | NER Logistics Command Center |
 
 ---
 
@@ -325,7 +325,7 @@ npm install
 npm run dev
 ```
 - Console will be available at: `http://localhost:5173`
-- Log in with `official@tiyrasense.in` or `admin@tiyrasense.in` to access command features.
+- Log in with your Official or Admin credentials (e.g. `demo-official@tiyrasense.in` or `demo-admin@tiyrasense.in`) to access command features.
 
 ### 7.4 Run the Flutter Mobile Client
 ```bash
