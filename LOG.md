@@ -15,6 +15,20 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-23 — .gitignore: Exclude Dev-Only and Potentially Sensitive Files
+- Work: Extended `.gitignore` to exclude dev-only files that were incorrectly tracked. Ran `git rm --cached` to remove them from the index without deleting local copies. Files remain on disk; they will no longer appear in future commits.
+- Files:
+  - Updated: `.gitignore` (added sections for `.agents/`, `skills-lock.json`, dev session docs, Stitch design prompt files, `*.med`, `Images/*.webp` mockup screenshots)
+  - Removed from index (git rm --cached): `.agents/` (40 files), `CONTINUE_SESSION.md`, `FIRST_SESSION.md`, `DOCUMENTATION_REVIEW.md`, `STITCH_PROMPTS.md`, `TiyraSense_MASTER_AGENT_PROMPT.md`, `TiyraSense_Stitch_Prompts.md`, `TiyraSense_Flutter_UI_Design.md`, `TiyraSense_Web_UI_Design.md`, `skills-lock.json`, `Images/app.webp`, `Images/bg.webp`, `Images/login.webp`, `Images/mapview.webp`, `Images/signup.webp`
+  - Kept tracked: `Images/TiyraSense.png`, `Images/TiyraSense_horizontal.png`, `Images/TiyraSense.svg` (brand logos, legitimate project assets)
+- Scratch: None.
+- Tests: `git check-ignore -v --no-index` verified all new rules fire correctly; negation exceptions for brand logos confirmed working.
+- Decisions: None.
+- Problems: None.
+- External docs: none.
+- Result: Repository index cleaned. On next commit these deletions will be recorded and the files will be fully excluded going forward.
+- Next: Commit the .gitignore update and index cleanup.
+
 ## 2026-09-14 — Phase 49: Full Repository Audit, Connectivity Verification & Redundant Code Removal
 - Work: Conducted exhaustive architectural and code-level audit across all repository modules, verified full cross-tier connectivity, safely deleted 3 verified redundant files, and resolved all 47 backend Pyright static analysis errors:
   1. Full Architecture & Connectivity Verification: Inspected every module in `backend/app/`, `web/src/`, `mobile/lib/`, `ml/`, `scripts/`, and `tests/`. Confirmed all models, REST routes, services, schemas, and UI components are properly connected across the intelligence lifecycle.

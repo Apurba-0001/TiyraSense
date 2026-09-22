@@ -471,6 +471,13 @@ prompt-cache/
 context-cache/
 agent-cache/
 
+# Workspace-local agent skill definitions (Antigravity / Gemini IDE)
+# Contains locally installed skills, not project source code.
+.agents/
+
+# skills-lock.json — local agent toolchain lock, not a project artifact
+skills-lock.json
+
 # IMPORTANT:
 # AGENTS.md MUST remain tracked.
 # SESSION.md MUST remain tracked.
@@ -572,7 +579,7 @@ kubeconfig.*
 
 
 # ============================================================
-# 26. LOCAL NOTES
+# 26. LOCAL NOTES & DEV-ONLY DOCUMENTS
 # ============================================================
 
 *.local.md
@@ -582,6 +589,33 @@ TODO.local.md
 
 private/
 personal/
+
+# Dev session helpers — not project documentation
+CONTINUE_SESSION.md
+FIRST_SESSION.md
+DOCUMENTATION_REVIEW.md
+
+# Stitch / AI design prompt files — dev tooling, not source
+STITCH_PROMPTS.md
+TiyraSense_MASTER_AGENT_PROMPT.md
+TiyraSense_Stitch_Prompts.md
+TiyraSense_Flutter_UI_Design.md
+TiyraSense_Web_UI_Design.md
+
+# ============================================================
+# 29. MEDIA / LARGE BINARY DEV FILES
+# ============================================================
+
+# *.med — media/binary development files
+*.med
+
+# Stitch mockup screenshots (dev-only UI previews in Images/)
+# The actual app icons and assets under mobile/ and web/ remain tracked.
+Images/*.webp
+Images/*.png
+!Images/TiyraSense.png
+!Images/TiyraSense_horizontal.png
+!Images/TiyraSense.svg
 
 
 # ============================================================
