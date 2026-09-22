@@ -72,12 +72,8 @@ $RECYCLE.BIN/
 #  3. EDITORS & IDEs
 # ═══════════════════════════════════════════════════════════
 
-# VS Code — keep shared config, ignore personal state
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/launch.json
-!.vscode/tasks.json
+# VS Code
+.vscode/
 
 # JetBrains (IntelliJ / Android Studio / Fleet)
 .idea/
