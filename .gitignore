@@ -641,5 +641,32 @@ appsettings.Local.json
 
 
 # ============================================================
+# 30. ROOT-LEVEL DEV/PROJECT-MANAGEMENT DOCS
+# ============================================================
+
+# Keep only README.md, .env.example, and .gitignore at root.
+# All other root-level markdown files are internal project/agent docs.
+AGENTS.md
+BUILD_GUIDE.md
+DECISIONS.md
+LOG.md
+PROJECT_CONTEXT.md
+SECURITY.md
+SESSION.md
+TODO.md
+
+# ============================================================
+# 31. LOCAL DEV TOOL CONFIG FILES
+# ============================================================
+
+# Docker compose — local dev orchestration, not for CI consumers
+docker-compose.yml
+
+# Python tool config — local dev quality tooling
+pytest.ini
+pyrightconfig.json
+
+
+# ============================================================
 # END OF FILE
 # ============================================================
