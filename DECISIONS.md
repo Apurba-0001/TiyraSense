@@ -106,35 +106,35 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 - **Decision:** Driver and Field Worker mobile capabilities are offline-first, retaining queued reports and relevant journey data with timestamps.
 - **Why:** NER travel includes intermittent/weak connectivity; incident reporting and safety information must degrade safely.
 - **Alternatives considered / ruled out:** Online-only mobile operation is unsuitable for the operating environment.
-- **Status:** FINALIZED product direction; implementation details remain open.
+- **Status:** FINALIZED. (Implemented via `flutter_secure_storage` and `OfflineStorageService` per D-017).
 
 ### D-008 — Road-segment-centric intelligence
 
 - **Decision:** Geographic intelligence is organised around road segments and time, so observations, predictions, risk, routing, and alerts share traceable geographic units.
 - **Why:** This supports consistent evidence mapping, prediction, route assessment, and operational views.
 - **Alternatives considered / ruled out:** Isolated, route-only or report-only intelligence would lose reuse and traceability across the platform.
-- **Status:** FINALIZED architectural direction; detailed data model is pending specification.
+- **Status:** FINALIZED. (18-table PostGIS spatial schema specified in `docs/data_model.md` and implemented in `backend/migrations/init.sql`).
 
 ### D-007 — LLM excluded from safety-critical routing decisions
 
 - **Decision:** LLM components are limited to explanation, summarization, multilingual messaging, and natural-language dashboard queries. Deterministic risk, routing, and optimization layers make route recommendations.
 - **Why:** LLM output is not reliably calibrated or auditable enough for safety-critical decisions.
 - **Alternatives considered / ruled out:** Direct LLM route/accessibility/risk decisions are ruled out.
-- **Status:** FINALIZED safety boundary; provider is open.
+- **Status:** FINALIZED. (Provider finalized as Google Gemini API per D-013 with strict isolation from safety routing).
 
 ### D-006 — Safety-first routing over fastest-route-first
 
 - **Decision:** Recommend the safest viable route while keeping the fastest available route visible.
 - **Why:** Reducing disruption risk is the core logistics value proposition; travel time is important but secondary to safety and viability.
 - **Alternatives considered / ruled out:** Fastest-route-only recommendation is ruled out.
-- **Status:** FINALIZED product behavior; exact risk weights remain open.
+- **Status:** FINALIZED. (Multi-factor risk weights finalized per D-015 and calibrated in Phase 6).
 
 ### D-005 — Three separate risk concepts
 
 - **Decision:** Track and display Current Accessibility, Disruption Probability, and Route Risk separately, each with provenance.
 - **Why:** A single blended number hides whether evidence is a current fact, a prediction, or a route-level assessment and damages explainability.
 - **Alternatives considered / ruled out:** A single opaque "risk score" is ruled out.
-- **Status:** FINALIZED conceptual model; formula/threshold validation remains open.
+- **Status:** FINALIZED. (Formulas and thresholds finalized per D-015 and verified in Phase 6 & Phase 8).
 
 ### D-004 — Four-wheelers as the initial vehicle baseline
 
@@ -148,7 +148,7 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 - **Decision:** Integrate an established routing engine rather than building global navigation from scratch.
 - **Why:** TiyraSense adds safety/risk intelligence over routing; it should not reimplement commodity route computation.
 - **Alternatives considered / ruled out:** A custom navigation engine is ruled out for the MVP.
-- **Status:** FINALIZED direction; engine and deployment remain open.
+- **Status:** FINALIZED. (Engine finalized as OSRM with PostGIS segment penalization per D-011).
 
 ### D-002 — Core technology direction
 
@@ -164,12 +164,21 @@ A decision marked `OPEN` is not permission to implement. A decision becomes bind
 - **Alternatives considered / ruled out:** Prior working names are not authoritative.
 - **Status:** FINALIZED.
 
+### D-018 — Pilot corridor fine-tuning (NH-06 Guwahati-Shillong & Damra Bypass)
+
+- **Decision:** Establish National Highway 06 (NH-06) connecting Guwahati Logistics Hub to Shillong Command Terminal as the primary arterial evaluation corridor, backed by the Damra-Mawkyrwat State Highway bypass as the secondary safety alternative, and NH-27 (Guwahati-Silchar) as the secondary long-haul corridor.
+- **Why:** NH-06 is the vital economic lifeline into Meghalaya, Mizoram, Tripura, and the Barak Valley carrying essential medical and food supplies, yet suffers repeated disruption from seasonal landslides and waterlogging at Jorabat, Nongpoh, and Umling. The dual-corridor network enables deterministic demonstration of the core logistics value proposition: when NH-06 experiences critical blockage, TiyraSense immediately penalizes the primary route and guides vehicles onto the safest viable bypass.
+- **Evidence/source checked:** 14 verified PostGIS road segments seeded via `scripts/seed_road_network.py`; Open-Meteo weather station coordinates for Guwahati Hub (26.1445, 91.7362) and Shillong Terminal (25.5788, 91.8933); IRC:SP:48 Hill Road Guidelines.
+- **Alternatives considered / ruled out:** Pure single-corridor setup (ruled out: cannot demonstrate rerouting or alternative route comparison); all-NER 8-state coverage on Day 1 (deferred to post-selection due to map tile volume and compute constraints).
+- **Impact / affected files or contracts:** `scripts/seed_road_network.py`, `backend/app/services/routing_service.py`, `backend/app/services/geocoding_service.py`, `docs/gis_and_routing.md`.
+- **Status:** FINALIZED.
+
 ## Open decisions — do not assume an answer
 
-| Decision needed | Current status | Needed by (sprint day) | Required basis before finalization |
+| Decision needed | Current status | Needed by | Required basis before finalization |
 |---|---|---|---|
-| Pilot corridor fine-tuning (e.g. Guwahati-Shillong NH-6 vs Silchar NH-27) | OPEN | Day 2 | Geospatial boundary packaging and seed data selection |
-| Production cloud hosting provider (Post-selection) | OPEN | Post-selection / Day 7+ | Budget, government cloud empanelment (MeitY), SLA requirements |
+| Production cloud hosting provider (Post-selection) | OPEN | Production Rollout | Budget, government cloud empanelment (MeitY), SLA requirements |
+
 
 A "Needed by" date is a scheduling flag, not authorization to auto-select a provider. Providers are still only finalized when a decision record above says **FINALIZED**.
 
@@ -180,5 +189,6 @@ If a "Needed by" day arrives and the decision is still OPEN, the agent must:
 2. Record the stall as a BLOCKER in `SESSION.md` and `LOG.md`.
 3. Continue with any independent, non-blocked task from the current or an earlier day.
 4. Flag it clearly in the session report so the human can decide.
+
 
 

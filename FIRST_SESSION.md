@@ -20,8 +20,6 @@ You may be working after another AI agent. You do not have access to previous co
 
 Read the files listed in `AGENTS.md` → "Mandatory reading order (canonical)" in the specified order.
 
-Also read `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md` when selection-sprint work is active.
-
 Then read only the relevant specification files under `docs/` for the task you are going to perform.
 
 Do not assume documentation is correct merely because it says something is complete.
@@ -92,12 +90,11 @@ NOT STARTED
 
 Never report a feature as complete only because documentation says so.
 
-## 4. Determine the current sprint state
+## 4. Determine the current project state
 
 Read:
 
 ```text
-TiyraSense_7_DAY_SELECTION_SPRINT.md
 BUILD_GUIDE.md
 TODO.md
 SESSION.md

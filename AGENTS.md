@@ -33,7 +33,6 @@ Different kinds of truth live in different files. When documents appear to disag
 - **`DECISIONS.md`** is authoritative for finalized architectural and other durable project decisions. A decision is only binding once its record says **FINALIZED**.
 - **`PROJECT_CONTEXT.md`** is authoritative for permanent product context — what TiyraSense is and why.
 - **`BUILD_GUIDE.md`** defines the long-term development phase sequence.
-- **`TiyraSense_7_DAY_SELECTION_SPRINT.md`** defines day-to-day execution priority while the selection sprint is active.
 - **`SESSION.md`** describes the current handoff and state — not durable rules.
 - **`TODO.md`** describes the current work board and status — not durable rules.
 - **`LOG.md`** records historical development events for reference — it does not authorize future work.
@@ -55,8 +54,7 @@ Before coding, read these files in order:
 5. `DECISIONS.md`
 6. `BUILD_GUIDE.md`
 7. `PROJECT_CONTEXT.md`
-8. During the selection sprint, also: `TiyraSense_7_DAY_SELECTION_SPRINT.md`
-9. Only the relevant specification documents in `docs/`
+8. Only the relevant specification documents in `docs/`
 
 
 ## Documentation, research, and freshness rules

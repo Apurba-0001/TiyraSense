@@ -15,6 +15,126 @@ Historical development record. Current work belongs in `TODO.md`; the latest han
 - Result: current exit-condition status
 - Next: single next concrete task
 
+## 2026-09-14 — Phase 49: Full Repository Audit, Connectivity Verification & Redundant Code Removal
+- Work: Conducted exhaustive architectural and code-level audit across all repository modules, verified full cross-tier connectivity, safely deleted 3 verified redundant files, and resolved all 47 backend Pyright static analysis errors:
+  1. Full Architecture & Connectivity Verification: Inspected every module in `backend/app/`, `web/src/`, `mobile/lib/`, `ml/`, `scripts/`, and `tests/`. Confirmed all models, REST routes, services, schemas, and UI components are properly connected across the intelligence lifecycle.
+  2. Redundant Code Removal: Deleted `web/src/pages/Admin.tsx` (superseded by `UserManagement.tsx` and `SystemSettings.tsx`), `web/src/components/Input.tsx` (unused component), and `mobile/lib/widgets/sync_status_badge.dart` (superseded by `status_pill_badge.dart` and real-time auto-sync banners). Updated documentation references in `docs/architecture.md` and `mobile/README.md`.
+  3. Backend Type Hardening: Upgraded `backend/app/models/user.py` to SQLAlchemy 2.0 `Mapped[...] = mapped_column(...)` annotations, eliminating 20 `Column[str]` type errors. Set `default=None` in `Coordinates.label` in `backend/app/schemas/routes.py`, resolving 12 call site errors. Removed invalid `created_at` from `UserOut(...)` call in `auth.py`. Added safe row extraction check in `evidence.py`, guarded `user_id_raw` in `deps.py`, and guarded raw geometry dictionary extraction in `telemetry_service.py`.
+  4. Achieved 100% clean static analysis with 0 errors, 0 warnings in `npx pyright backend/app`.
+- Files:
+  - Deleted: `web/src/pages/Admin.tsx`, `web/src/components/Input.tsx`, `mobile/lib/widgets/sync_status_badge.dart`
+  - Updated: `backend/app/models/user.py`, `backend/app/schemas/routes.py`, `backend/app/api/v1/endpoints/auth.py`, `backend/app/api/deps.py`, `backend/app/api/v1/endpoints/evidence.py`, `backend/app/services/telemetry_service.py`, `docs/architecture.md`, `mobile/README.md`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `npx pyright backend/app` (0 errors, 0 warnings, 0 informations); `python -m pytest backend/tests tests/test_e2e_demo_scenario.py` (49/49 passed in 97.89s); `npm test -- --run` in `web/` (26/26 passed in 2.11s); `npm run build` in `web/` (clean build in 282ms); `flutter test` in `mobile/` (54/54 passed in 13s); `flutter analyze` in `mobile/` (0 issues found in 3.5s).
+- Decisions: None.
+- Problems: None.
+- External docs: SQLAlchemy 2.0 Mapped documentation, Pydantic v2 Field reference.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Physical device rehearsal and demonstration staging.
+
+## 2026-09-14 — Phase 48: Type Annotation & Static Analysis Hardening in Field Reports Endpoint
+- Work: Resolved all IDE static analysis errors and warnings in `backend/app/api/v1/endpoints/field_reports.py`:
+  1. Replaced dictionary unpacking `FieldReportOut(**item)`, `FieldReportOut(**new_report_dict)`, and `FieldReportOut(**target)` with Pydantic v2 `FieldReportOut.model_validate(...)`, eliminating Pyright type mismatch errors across all fields where dictionary types conflicted with parameter annotations.
+  2. Fixed SQLAlchemy mapped column typing for `reporter_name`: coerced `current_user.full_name` via `str(current_user.full_name) if current_user and current_user.full_name is not None else "Field Scout"`, preventing SQLAlchemy `Column[str]` `__bool__` evaluation exceptions and list insertion type conflicts.
+  3. Added explicit typing `_IN_MEMORY_REPORTS: List[dict[str, Any]]`, `new_report_dict: dict[str, Any]`, and `target: Optional[dict[str, Any]]`.
+  4. Removed redundant `str()` calls on already-narrowed string variables in `_normalize_incident_type`, `_normalize_severity`, and `create_field_report`.
+  5. Fixed optional subscripting error on `photo_urls` extraction in `list_field_reports`.
+- Files:
+  - Updated: `backend/app/api/v1/endpoints/field_reports.py`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `npx pyright backend/app/api/v1/endpoints/field_reports.py` (0 errors, 0 warnings, 0 informations); `pytest backend/tests/test_reports_alerts.py` (6/6 passed in 17.26s).
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & VERIFIED.
+- Next: Physical device verification or continuing planned feature enhancements.
+
+## 2026-09-14 — Phase 47: Autonomous Real-Time Synchronization & Offline-First Background Sync Across Mobile & Web Roles
+- Work: Eliminated the requirement to manually click any sync button to push photos and incident reports to the database:
+  1. Default Cloudinary credentials injected from `.env` into `mobile/lib/services/api_service.dart` so mobile devices with cellular or Wi-Fi internet connection can directly upload evidence photos to Cloudinary CDN via HTTPS.
+  2. Implemented `ensureResolved()` in `ApiService`: decoupled candidate network discovery from heavy multipart image streams. Replaced multi-second multipart streaming across loopbacks with lightweight 1.5s `/health` pings. Set a 30-second timeout for image uploads to prevent premature aborts on mobile networks.
+  3. Real-time background sync loop in `mobile/lib/services/report_service.dart`: added `startLiveSyncLoop()` (every 10s) pulling latest reports across the project.
+  4. Zero photo dropping: updated `_dispatchReportToServer` so if an evidence photo fails upload due to network, the report is NOT sent with `photo_url: null`; instead, it is safely queued into `offlineStorageService` with `PENDING_SYNC` status for background upload when connection stabilizes.
+  5. Implemented `applySyncedQueue()` in `ReportService`: updates corresponding `ReportItem` statuses to `SYNCED` and binds remote photo URLs upon successful queue sync.
+  6. Proactive offline storage auto-sync in `mobile/lib/services/offline_storage_service.dart`: added `_startAutoSyncLoop()` (every 8s) that probes connection via `checkConnectivity()`, and when online with pending items, triggers `autoSync()` and `syncPendingData()` automatically. Transitioning online via `setOnlineStatus(true)` immediately triggers sync.
+  7. App lifecycle resume synchronization in `mobile/lib/main.dart`: added `WidgetsBindingObserver` to `TiyraSenseApp`, triggering `autoSync()` and `syncLiveReports()` on `AppLifecycleState.resumed`.
+  8. Auto-sync progress indicator banner in `mobile/lib/screens/report_history_screen.dart` displaying when auto-sync is active or items are queued offline. Replaced deprecated `withOpacity` with `withValues`.
+  9. Real-time web dashboard synchronization in `web/src/pages/FieldReports.tsx` and `web/src/pages/Dashboard.tsx`: added `window.addEventListener('online')` and `'focus'` handlers and tightened background sync loops to 8 seconds for real-time visibility across all user roles (Driver, Field Worker, Official, Admin).
+- Files:
+  - Updated: `mobile/lib/services/api_service.dart`, `mobile/lib/services/report_service.dart`, `mobile/lib/services/offline_storage_service.dart`, `mobile/lib/main.dart`, `mobile/lib/screens/report_history_screen.dart`, `web/src/pages/FieldReports.tsx`, `web/src/pages/Dashboard.tsx`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `python -m pytest backend/tests tests/test_e2e_demo_scenario.py` (49/49 passed in 111.49s); `npm test -- --run` in `web/` (26/26 passed in 3.23s); `npm run build` in `web/` (clean build in 505ms); `flutter test` in `mobile/` (54/54 passed in 13s); `flutter analyze` in `mobile/` (0 issues found).
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Physical device verification with cellular/Wi-Fi connection.
+
+## 2026-09-13 — Phase 46: Physical Mobile USB/Wi-Fi Database Synchronization, Incident Evidence Persistence & Web Live Data Resolution
+- Work: Diagnosed and resolved end-to-end issues with physical mobile devices connected via USB/Wi-Fi failing to persist data to the database or sync incident evidence images across reinstalls, and resolved website displaying static demo data (`RP-2847`...`RP-2843`) instead of live database records:
+  1. Root cause 1: Physical Android devices resolve `127.0.0.1` to the phone itself rather than the laptop host, failing all HTTP requests without ADB port forwarding; the fallback previously only probed `10.0.2.2` (exclusive to Android Emulator).
+  2. Persistent custom server base URL in `mobile/lib/services/api_service.dart` via `FlutterSecureStorage` (`tiyrasense_custom_api_url`), loaded at app startup.
+  3. Created `ServerConnectionSheet` bottom sheet in `mobile/lib/widgets/server_connection_dialog.dart` accessible from both LoginScreen and ProfileScreen with one-tap presets for USB Cable ADB Reverse (`127.0.0.1:8000`), Laptop Wi-Fi LAN (`10.111.29.120:8000`), and Android Emulator (`10.0.2.2:8000`), live latency ping, custom URL editor, and copyable ADB reverse command.
+  4. Multi-candidate network fallback probe on Android testing USB reverse, Laptop Wi-Fi, and Emulator.
+  5. Profile updates in `mobile/lib/state/auth_provider.dart` and `mobile/lib/screens/profile_screen.dart`: replaced silent fallback with explicit feedback alerting users whether updates synced to the database or cached offline.
+  6. Incident evidence photo persistence: resolved evidence photo dropping on app reinstall by ensuring failed uploads stay queued in `offlineStorageService` with `isOfflineQueued: true` and `syncStatus: 'PENDING_SYNC'`; fixed `offlineStorageService.syncPendingData()` to only mark `isSynced = true` upon server 200 response; normalized all image URLs with `resolveAssetUrl()`; enhanced `web/src/pages/FieldReports.tsx` with error-fallback host retry.
+  7. Expanded `backend/app/main.py` CORS `allow_origin_regex` to permit local private LAN IPs (`10.x` and `192.168.x`).
+  8. Root cause 2 (Website demo data): Invoking `uvicorn app.main:app` from the repo root crashed with `No module named 'app'`, leaving port 8000 offline so Vite proxy defaulted to `INITIAL_REPORTS`; furthermore, `_IN_MEMORY_REPORTS` in `backend/app/api/v1/endpoints/field_reports.py` statically contained demo reports (`RP-2847` through `RP-2843`) and its broken `_recency_score` assigned `"6m ago"` 10 billion points, permanently forcing demo items ahead of valid 2026 epoch database timestamps (`1.78e9`).
+  9. Web live database resolution: Updated `list_field_reports` in `field_reports.py` to prioritize PostgreSQL PostGIS and Supabase records, only falling back to demo data if both stores are completely empty; added PostGIS nearest-neighbor and `ST_LineLocatePoint` to resolve actual corridor names and KM markers; corrected `_recency_score` to use `time.time()` epoch seconds; launched live backend server via `backend.app.main:app`; updated `web/src/pages/FieldReports.tsx` with `formatRelativeTime` and dynamic `{reports.length} in database` badge.
+- Files:
+  - Created: `mobile/lib/widgets/server_connection_dialog.dart`
+  - Updated: `mobile/lib/services/api_service.dart`, `mobile/lib/main.dart`, `mobile/lib/screens/login_screen.dart`, `mobile/lib/screens/profile_screen.dart`, `mobile/lib/state/auth_provider.dart`, `mobile/lib/services/report_service.dart`, `mobile/lib/services/offline_storage_service.dart`, `mobile/lib/screens/report_history_screen.dart`, `backend/app/main.py`, `backend/app/api/v1/endpoints/field_reports.py`, `web/src/pages/FieldReports.tsx`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `python -m pytest backend/tests tests/test_e2e_demo_scenario.py` (49/49 passed in 95.75s); `npm test -- --run` in `web/` (26/26 passed in 2.80s); `npm run build` in `web/` (clean build in 436ms); `flutter test` in `mobile/` (54/54 passed in 14s); `flutter analyze` in `mobile/` (0 issues found); `curl -s http://localhost:5173/api/v1/reports` returns 17 live database reports.
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Physical device validation with `adb reverse tcp:8000 tcp:8000` or laptop Wi-Fi LAN IP `http://10.111.29.120:8000/api/v1`.
+
+## 2026-09-13 — Phase 45: Repository-Wide Markdown Documentation Overhaul & Technical Synchronization
+- Work: Completely overhauled, built, and synchronized markdown documentation across the repository to reflect the 100% completed state of all 11 phases. Authored dedicated technical architecture READMEs for `backend/`, `web/`, and `ml/`, and overhauled `mobile/README.md` and root `README.md` with full-stack technology matrices, ASCII architecture flow diagrams, directory layouts, and execution guides. Synchronized `DECISIONS.md`, `docs/api_specification.md` (marked all endpoints as LIVE), `docs/architecture.md`, and `DOCUMENTATION_REVIEW.md`.
+- Files:
+  - Created: `backend/README.md`, `web/README.md`, `ml/README.md`
+  - Updated: `README.md`, `mobile/README.md`, `DECISIONS.md`, `docs/api_specification.md`, `docs/architecture.md`, `DOCUMENTATION_REVIEW.md`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `python -m pytest backend/tests tests/test_e2e_demo_scenario.py` (49/49 passed in 100.95s); `npm test -- --run` in `web/` (26/26 passed in 2.41s); `npm run build` in `web/` (clean build in 293ms); `flutter test` in `mobile/` (54/54 passed in 14s); `flutter analyze` in `mobile/` (0 issues).
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Live staging rehearsal or system deployment.
+
+## 2026-09-13 — Phase 44: Deletion of Concluded Selection Sprint Documentation & Reference Cleanup
+- Work: Safely removed obsolete sprint documents (`TiyraSense_7_DAY_SELECTION_SPRINT.md` and `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md`) upon user request following verified completion of all 11 development phases. Cleaned up all obsolete references across repository governance, reading order, build roadmap, agent prompt, onboarding protocols, testing strategy, and test files.
+- Files:
+  - Deleted: `TiyraSense_7_DAY_SELECTION_SPRINT.md`, `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md`
+  - Updated: `AGENTS.md`, `BUILD_GUIDE.md`, `README.md`, `TiyraSense_MASTER_AGENT_PROMPT.md`, `FIRST_SESSION.md`, `CONTINUE_SESSION.md`, `docs/testing_strategy.md`, `tests/test_e2e_demo_scenario.py`, `SESSION.md`, `LOG.md`
+- Scratch: None.
+- Tests: `python -m pytest tests/test_e2e_demo_scenario.py -v` (1/1 passed in 16.47s); `git status -s` verified.
+- Decisions: None.
+- Problems: None.
+- External docs: None.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Live staging rehearsal or further feature enhancements.
+
+## 2026-09-13 — Phase 43: Full-Stack Stage Completion, End-to-End Automated Selection Scenario, ML Disruption Pipeline & Mobile Linter Polish
+- Work: Finished all remaining gaps across the codebase and test suites to achieve 100% completion of the selection stage:
+  1. `mobile/lib/services/offline_storage_service.dart` & `mobile/lib/services/report_service.dart`: Replaced legacy map `if` checks with null-aware map element syntax (`'photo_url': ?photoUrl`), achieving 100% clean `flutter analyze` with 0 errors, 0 warnings, and 0 hints.
+  2. `tests/test_e2e_demo_scenario.py`: Created an automated 20-step continuous selection scenario integration test exercising healthcheck, driver/official authentication, security role-escalation rejection, origin/destination hub lookup, OSRM route evaluation, Safest Viable vs Fastest Available comparison, live telemetry radar pings, forward hazard lookahead, active fleet visibility, incident reporting with photo evidence, official report verification, automated alert push, and dynamic virtual hazard segment injection with warning states.
+  3. `ml/` Disruption Prediction Pipeline: Implemented `ml/requirements.txt` (scikit-learn, joblib, numpy, scipy), `ml/dataset.py` (anti-leakage temporal dataset generator covering NH-06, NH-27, NH-10 with 8 canonical features), `ml/train.py` (calibrated HistGradientBoostingClassifier achieving ROC-AUC 0.8557 and PR-AUC 0.7749 on held-out monsoon test set, serializing artifact `disruption_v1.0.joblib` and descriptor `disruption_v1.0.json`), and `ml/predict.py` (sub-5ms inference service with model version provenance and physics fallback).
+  4. `backend/tests/test_ml.py`: Added comprehensive unit and regression tests for dataset generation, anti-leakage temporal split, and inference output.
+  5. `DECISIONS.md`: Finalized Decision D-018 for NH-06 Guwahati-Shillong primary corridor, Damra bypass, and NH-27, clearing the open decision item.
+  6. `TODO.md` & `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md`: Synchronized all documentation statuses to COMPLETE based on live verified code and passing test suites.
+- Files: `mobile/lib/services/offline_storage_service.dart`, `mobile/lib/services/report_service.dart`, `tests/test_e2e_demo_scenario.py`, `ml/requirements.txt`, `ml/dataset.py`, `ml/train.py`, `ml/predict.py`, `ml/models/disruption_v1.0.joblib`, `ml/models/disruption_v1.0.json`, `backend/tests/test_ml.py`, `DECISIONS.md`, `TODO.md`, `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md`, `SESSION.md`, `LOG.md`.
+- Scratch: None.
+- Tests: `python -m pytest backend/tests tests/test_e2e_demo_scenario.py` (all 49/49 passed in 103s); `npm test -- --run` in `web/` (all 26/26 passed in 2.95s); `npm run build` in `web/` (clean build in 497ms with 0 errors); `flutter test` in `mobile/` (all 54/54 passed in 14s); `flutter analyze` in `mobile/` (0 issues found).
+- Decisions: Finalized D-018: Pilot corridor fine-tuning for NH-06 Guwahati-Shillong & Damra Bypass.
+- Problems: None. All compilation, linter, and test suites green.
+- External docs: scikit-learn HistGradientBoostingClassifier and CalibratedClassifierCV API documentation.
+- Result: COMPLETE & FULLY VERIFIED.
+- Next: Live staging rehearsal and presentation packaging.
+
 ## 2026-09-12 — Phase 42: Mobile Photo Evidence Ingestion, Supabase Schema & Dashboard Display
 - Work: Diagnosed and resolved end-to-end issues preventing photos submitted from mobile from appearing on the web dashboard:
   1. `backend/app/api/v1/endpoints/evidence.py`: Upgraded `upload_evidence_photo` MIME detection to inspect filename extensions and magic bytes (`\xff\xd8\xff`, `\x89PNG`, `RIFF...WEBP`) when mobile sends `application/octet-stream`, eliminating 400 Bad Request rejection and allowing mobile photo uploads to succeed.

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import '../models/user_model.dart';
 import 'image_compressor_service.dart';
@@ -19,21 +20,183 @@ class ApiService {
   String _baseUrl;
   bool _resolved = false;
 
+  static const String kCustomApiUrlKey = 'tiyrasense_custom_api_url';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static String? _cachedBaseUrl;
+
   ApiService({http.Client? client, String? baseUrl})
       : _client = client ?? http.Client(),
         _baseUrl = baseUrl ?? _getDefaultBaseUrl();
 
   String get baseUrl => _baseUrl;
 
+  /// Load any saved custom base URL from secure storage on startup
+  static Future<void> initialize() async {
+    try {
+      final saved = await _storage.read(key: kCustomApiUrlKey);
+      if (saved != null && saved.trim().isNotEmpty) {
+        _cachedBaseUrl = normalizeApiUrl(saved.trim());
+      }
+    } catch (_) {}
+  }
+
+  static String normalizeApiUrl(String input) {
+    var url = input.trim();
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'http://$url';
+    }
+    if (url.endsWith('/')) {
+      url = url.substring(0, url.length - 1);
+    }
+    if (!url.endsWith('/api/v1')) {
+      url = '$url/api/v1';
+    }
+    return url;
+  }
+
   static String _getDefaultBaseUrl() {
+    if (_cachedBaseUrl != null && _cachedBaseUrl!.isNotEmpty) {
+      return _cachedBaseUrl!;
+    }
     const customUrl = String.fromEnvironment('API_URL');
     if (customUrl.isNotEmpty) {
-      return customUrl;
+      return normalizeApiUrl(customUrl);
     }
     // Default to 127.0.0.1 (works for physical Android devices with `adb reverse tcp:8000 tcp:8000`,
-    // as well as Web, Desktop, and iOS). For emulators without adb reverse, _sendWithFallback
-    // will seamlessly fall back to 10.0.2.2.
+    // as well as Web, Desktop, and iOS). For physical devices without adb reverse or emulators,
+    // _tryAlternate will probe LAN IP and 10.0.2.2 seamlessly.
     return 'http://127.0.0.1:8000/api/v1';
+  }
+
+  /// Update the active base URL and persist it to secure storage
+  Future<void> setBaseUrl(String newUrl) async {
+    final normalized = normalizeApiUrl(newUrl);
+    _baseUrl = normalized;
+    _cachedBaseUrl = normalized;
+    _resolved = true;
+    try {
+      await _storage.write(key: kCustomApiUrlKey, value: normalized);
+    } catch (_) {}
+  }
+
+  /// Set base URL globally across all ApiService instances and persist
+  static Future<void> setGlobalBaseUrl(String newUrl) async {
+    final normalized = normalizeApiUrl(newUrl);
+    _cachedBaseUrl = normalized;
+    try {
+      await _storage.write(key: kCustomApiUrlKey, value: normalized);
+    } catch (_) {}
+  }
+
+  /// Test connectivity to a backend endpoint and return latency and status
+  Future<Map<String, dynamic>> testConnection([String? testUrl]) async {
+    final target = testUrl != null ? normalizeApiUrl(testUrl) : _baseUrl;
+    final stopwatch = Stopwatch()..start();
+    try {
+      final uri = Uri.parse('$target/health');
+      final response = await _client.get(uri).timeout(const Duration(seconds: 4));
+      stopwatch.stop();
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return {
+          'success': true,
+          'latencyMs': stopwatch.elapsedMilliseconds,
+          'url': target,
+          'message': 'Connected (${stopwatch.elapsedMilliseconds}ms)',
+        };
+      } else {
+        return {
+          'success': false,
+          'latencyMs': stopwatch.elapsedMilliseconds,
+          'url': target,
+          'message': 'Server error: HTTP ${response.statusCode}',
+        };
+      }
+    } catch (e) {
+      stopwatch.stop();
+      final err = e is SocketException ? 'Host unreachable' : e.toString();
+      return {
+        'success': false,
+        'latencyMs': stopwatch.elapsedMilliseconds,
+        'url': target,
+        'message': err,
+      };
+    }
+  }
+
+  /// Resolve asset or photo URL to the active reachable backend host
+  String? resolveAssetUrl(String? pathOrUrl) {
+    if (pathOrUrl == null) return null;
+    final trimmed = pathOrUrl.trim();
+    if (trimmed.isEmpty) return null;
+
+    if (trimmed.contains('cloudinary.com') ||
+        trimmed.contains('unsplash.com') ||
+        trimmed.startsWith('data:') ||
+        trimmed.startsWith('blob:')) {
+      return trimmed;
+    }
+
+    final hostRoot = _baseUrl.replaceAll('/api/v1', '');
+
+    final staticIdx = trimmed.indexOf('/static/uploads/');
+    if (staticIdx != -1) {
+      final subPath = trimmed.substring(staticIdx);
+      return '$hostRoot$subPath';
+    }
+
+    if (trimmed.contains('10.0.2.2:8000') || trimmed.contains('127.0.0.1:8000')) {
+      final subPath = trimmed.replaceAll(RegExp(r'https?://[^/]+'), '');
+      return '$hostRoot$subPath';
+    }
+
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+      return trimmed;
+    }
+
+    if (trimmed.startsWith('/')) {
+      return '$hostRoot$trimmed';
+    }
+
+    return '$hostRoot/$trimmed';
+  }
+
+  /// Ensure the base URL is resolved to a reachable server address using lightweight health probes
+  Future<void> ensureResolved() async {
+    const customUrl = String.fromEnvironment('API_URL');
+    if (customUrl.isNotEmpty || _resolved) return;
+
+    try {
+      final uri = Uri.parse('$_baseUrl/health');
+      final res = await _client.get(uri).timeout(const Duration(milliseconds: 1500));
+      if (res.statusCode >= 200 && res.statusCode < 300) {
+        _resolved = true;
+        return;
+      }
+    } catch (_) {}
+
+    if (Platform.isAndroid) {
+      final uri = Uri.tryParse(_baseUrl);
+      final port = uri?.hasPort == true ? uri!.port : 8000;
+      final candidates = [
+        'http://127.0.0.1:$port/api/v1',
+        'http://10.111.29.120:$port/api/v1',
+        'http://10.0.2.2:$port/api/v1',
+      ];
+      for (final candidate in candidates) {
+        if (candidate == _baseUrl) continue;
+        try {
+          final testUri = Uri.parse('$candidate/health');
+          final testRes = await _client.get(testUri).timeout(const Duration(milliseconds: 1500));
+          if (testRes.statusCode >= 200 && testRes.statusCode < 300) {
+            _baseUrl = candidate;
+            _cachedBaseUrl = candidate;
+            _resolved = true;
+            _storage.write(key: kCustomApiUrlKey, value: candidate).catchError((_) {});
+            return;
+          }
+        } catch (_) {}
+      }
+    }
   }
 
   Future<http.Response> _sendWithFallback(
@@ -44,8 +207,10 @@ class ApiService {
       return await requestFn(_baseUrl);
     }
 
+    await ensureResolved();
+
     try {
-      final res = await requestFn(_baseUrl).timeout(const Duration(seconds: 4));
+      final res = await requestFn(_baseUrl).timeout(const Duration(seconds: 8));
       _resolved = true;
       return res;
     } on SocketException catch (_) {
@@ -60,22 +225,29 @@ class ApiService {
   Future<http.Response> _tryAlternate(
     Future<http.Response> Function(String baseUrl) requestFn,
   ) async {
-    String? alternateUrl;
+    final candidates = <String>[];
     try {
       if (Platform.isAndroid) {
-        if (_baseUrl.contains('127.0.0.1')) {
-          alternateUrl = _baseUrl.replaceAll('127.0.0.1', '10.0.2.2');
-        } else if (_baseUrl.contains('10.0.2.2')) {
-          alternateUrl = _baseUrl.replaceAll('10.0.2.2', '127.0.0.1');
-        }
+        final uri = Uri.tryParse(_baseUrl);
+        final port = uri?.hasPort == true ? uri!.port : 8000;
+
+        // 1. USB cable with adb reverse
+        candidates.add('http://127.0.0.1:$port/api/v1');
+        // 2. Host laptop Wi-Fi LAN IP
+        candidates.add('http://10.111.29.120:$port/api/v1');
+        // 3. Android Emulator gateway
+        candidates.add('http://10.0.2.2:$port/api/v1');
       }
     } catch (_) {}
 
-    if (alternateUrl != null) {
+    for (final candidate in candidates) {
+      if (candidate == _baseUrl) continue;
       try {
-        final res = await requestFn(alternateUrl).timeout(const Duration(seconds: 4));
-        _baseUrl = alternateUrl;
+        final res = await requestFn(candidate).timeout(const Duration(seconds: 4));
+        _baseUrl = candidate;
+        _cachedBaseUrl = candidate;
         _resolved = true;
+        _storage.write(key: kCustomApiUrlKey, value: candidate).catchError((_) {});
         return res;
       } catch (_) {}
     }
@@ -575,7 +747,7 @@ class ApiService {
         fileToUpload = await ImageCompressorService.compressFile(imageFile);
       }
 
-      final cName = cloudName ?? const String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: '');
+      final cName = cloudName ?? const String.fromEnvironment('CLOUDINARY_CLOUD_NAME', defaultValue: 'tsjmggus');
       final preset = uploadPreset ?? const String.fromEnvironment('CLOUDINARY_UPLOAD_PRESET', defaultValue: 'tiyrasense_evidence');
       if (cName.isEmpty) {
         throw ApiException('CLOUDINARY_CLOUD_NAME is not configured.');
@@ -586,7 +758,7 @@ class ApiService {
         ..fields['upload_preset'] = preset
         ..files.add(await http.MultipartFile.fromPath('file', fileToUpload.path));
 
-      final streamedRes = await _client.send(req);
+      final streamedRes = await _client.send(req).timeout(const Duration(seconds: 30));
       final res = await http.Response.fromStream(streamedRes);
 
       if (res.statusCode == 200) {
@@ -604,7 +776,7 @@ class ApiService {
     String? uploadPreset,
     bool autoCompress = true,
   }) async {
-    // 1. Try Cloudinary first if configured
+    // 1. Direct Cloudinary HTTPS upload (instant over public cellular or Wi-Fi)
     try {
       final cloudUrl = await uploadEvidencePhotoToCloudinary(
         imageFile: imageFile,
@@ -632,24 +804,23 @@ class ApiService {
         filename = '$filename.jpg';
       }
 
-      final response = await _sendWithFallback((bUrl) async {
-        final uri = Uri.parse('$bUrl/evidence/upload');
-        final req = http.MultipartRequest('POST', uri)
-          ..files.add(await http.MultipartFile.fromPath(
-            'file',
-            fileToUpload.path,
-            filename: filename,
-          ));
-        final streamed = await _client.send(req);
-        return http.Response.fromStream(streamed);
-      });
+      await ensureResolved();
+
+      final uri = Uri.parse('$_baseUrl/evidence/upload');
+      final req = http.MultipartRequest('POST', uri)
+        ..files.add(await http.MultipartFile.fromPath(
+          'file',
+          fileToUpload.path,
+          filename: filename,
+        ));
+      final streamed = await _client.send(req).timeout(const Duration(seconds: 30));
+      final response = await http.Response.fromStream(streamed);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
         String? url = data['secure_url'] as String? ?? data['url'] as String?;
-        if (url != null && url.startsWith('/')) {
-          final hostRoot = _baseUrl.replaceAll('/api/v1', '');
-          url = '$hostRoot$url';
+        if (url != null) {
+          url = resolveAssetUrl(url) ?? url;
         }
         return url;
       }

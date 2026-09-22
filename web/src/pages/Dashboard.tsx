@@ -497,11 +497,18 @@ export const Dashboard: React.FC = () => {
           if (reps && reps.length > 0) setFieldReports(reps);
         })
         .catch(() => {});
-    }, 12000);
+    }, 8000);
+
+    const onOnline = () => loadDashboardData();
+    const onFocus = () => loadDashboardData();
+    window.addEventListener('online', onOnline);
+    window.addEventListener('focus', onFocus);
 
     return () => {
       clearInterval(interval);
       clearInterval(reportsInterval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('focus', onFocus);
     };
   }, []);
 

@@ -282,26 +282,26 @@ async def register_evidence(
         )
         await db.commit()
         row = result.mappings().first()
-
-        evidence_out = IncidentEvidenceOut(
-            id=row["id"],
-            cloudinary_public_id=row["cloudinary_public_id"],
-            secure_url=row["secure_url"],
-            thumbnail_url=row["thumbnail_url"],
-            camera_lat=row["camera_lat"],
-            camera_lng=row["camera_lng"],
-            captured_at=row["captured_at"],
-            created_at=row["created_at"],
-        )
-        _IN_MEMORY_EVIDENCE.insert(0, {
-            "id": str(row["id"]),
-            "cloudinary_public_id": row["cloudinary_public_id"],
-            "secure_url": row["secure_url"],
-            "bytes": data.bytes or 380000,
-            "format": data.format or "jpeg",
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
-        return evidence_out
+        if row is not None:
+            evidence_out = IncidentEvidenceOut(
+                id=row["id"],
+                cloudinary_public_id=row["cloudinary_public_id"],
+                secure_url=row["secure_url"],
+                thumbnail_url=row["thumbnail_url"],
+                camera_lat=row["camera_lat"],
+                camera_lng=row["camera_lng"],
+                captured_at=row["captured_at"],
+                created_at=row["created_at"],
+            )
+            _IN_MEMORY_EVIDENCE.insert(0, {
+                "id": str(row["id"]),
+                "cloudinary_public_id": row["cloudinary_public_id"],
+                "secure_url": row["secure_url"],
+                "bytes": data.bytes or 380000,
+                "format": data.format or "jpeg",
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            })
+            return evidence_out
     except Exception:
         await db.rollback()
         # Fallback return in development/test environments

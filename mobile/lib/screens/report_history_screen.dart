@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
@@ -163,7 +164,18 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           ),
         ),
         actions: [
-          if (offlineStorageService.pendingCount > 0 || reportService.offlinePendingCount > 0)
+          if (offlineStorageService.isSyncing)
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryBlue),
+                ),
+              ),
+            )
+          else if (offlineStorageService.pendingCount > 0 || reportService.offlinePendingCount > 0)
             IconButton(
               icon: Badge(
                 label: Text('${offlineStorageService.pendingCount > 0 ? offlineStorageService.pendingCount : reportService.offlinePendingCount}'),
@@ -204,6 +216,55 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
       ),
       body: Column(
         children: [
+          if (offlineStorageService.isSyncing)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppTheme.primaryBlue.withValues(alpha: 0.12),
+              child: const Row(
+                children: [
+                  SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.primaryBlue),
+                  ),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Auto-syncing queued photos & reports to database in real time...',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (offlineStorageService.pendingCount > 0 || reportService.offlinePendingCount > 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppTheme.amber.withValues(alpha: 0.12),
+              child: Row(
+                children: [
+                  const Icon(Icons.cloud_queue_rounded, size: 16, color: AppTheme.amber),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      '${offlineStorageService.pendingCount > 0 ? offlineStorageService.pendingCount : reportService.offlinePendingCount} report(s) queued offline. Will auto-sync when connected.',
+                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppTheme.amber),
+                    ),
+                  ),
+                  TextButton(
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                    onPressed: () => offlineStorageService.autoSync(),
+                    child: const Text('Sync Now', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.amber)),
+                  ),
+                ],
+              ),
+            ),
           // Search Control Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -688,9 +749,10 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   Widget _buildRemoteOrFallback(String? remoteUrl) {
-    if (remoteUrl != null && remoteUrl.isNotEmpty) {
+    final resolved = ApiService().resolveAssetUrl(remoteUrl);
+    if (resolved != null && resolved.isNotEmpty) {
       return Image.network(
-        remoteUrl,
+        resolved,
         fit: BoxFit.cover,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;
@@ -729,12 +791,13 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   }
 
   void _showFullImageDialog(String? localPath, String? remoteUrl) {
+    final resolved = ApiService().resolveAssetUrl(remoteUrl);
     Widget imageWidget;
     if (localPath != null && localPath.isNotEmpty && File(localPath).existsSync()) {
       imageWidget = Image.file(File(localPath), fit: BoxFit.contain);
-    } else if (remoteUrl != null && remoteUrl.isNotEmpty) {
+    } else if (resolved != null && resolved.isNotEmpty) {
       imageWidget = Image.network(
-        remoteUrl,
+        resolved,
         fit: BoxFit.contain,
         loadingBuilder: (context, child, progress) {
           if (progress == null) return child;

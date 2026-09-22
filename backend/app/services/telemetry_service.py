@@ -356,11 +356,13 @@ class TelemetryService:
                 }
 
                 for idx, v in enumerate(live_vehicles):
+                    if not isinstance(v, dict):
+                        continue
                     v_id = str(v.get("id"))
                     if any(a.journey_id == v_id for a in live_list):
                         continue
-                    geom = v.get("geom") if isinstance(v.get("geom"), dict) else {}
-                    coords = geom.get("coordinates")
+                    raw_geom = v.get("geom")
+                    coords = raw_geom.get("coordinates") if isinstance(raw_geom, dict) else None
                     coord = None
                     if coords and len(coords) >= 2:
                         coord = Coordinates(latitude=float(coords[1]), longitude=float(coords[0]))

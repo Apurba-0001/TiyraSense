@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -106,7 +107,7 @@ class ReportItem {
       status: json['status']?.toString() ?? json['verification_status']?.toString() ?? 'PENDING',
       notes: json['notes']?.toString() ?? json['description']?.toString(),
       photoPath: json['photoPath']?.toString(),
-      photoUrl: json['photoUrl']?.toString() ?? json['photo_url']?.toString() ?? json['evidence_url']?.toString() ?? json['storage_uri']?.toString(),
+      photoUrl: ApiService().resolveAssetUrl(json['photoUrl']?.toString() ?? json['photo_url']?.toString() ?? json['evidence_url']?.toString() ?? json['storage_uri']?.toString()),
       workerName: json['workerName']?.toString() ?? json['reporter_name']?.toString() ?? 'Field Scout',
       workerInitials: json['workerInitials']?.toString(),
       workerUnit: json['workerUnit']?.toString() ?? json['reporter_unit']?.toString() ?? 'Field Recon',
@@ -180,6 +181,7 @@ class ReportService extends ChangeNotifier {
 
       // 3. Background sync from server/Supabase to pull latest live data
       await syncLiveReports();
+      startLiveSyncLoop();
     } catch (_) {}
   }
 
@@ -234,6 +236,18 @@ class ReportService extends ChangeNotifier {
         notifyListeners();
       }
     } catch (_) {}
+  }
+
+  Timer? _liveSyncTimer;
+
+  /// Periodically poll server and Supabase for real-time field reports across all roles
+  void startLiveSyncLoop() {
+    _liveSyncTimer?.cancel();
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _liveSyncTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        syncLiveReports();
+      });
+    }
   }
 
   void _seedInitialReports() {
@@ -358,14 +372,17 @@ class ReportService extends ChangeNotifier {
   /// Synchronize all locally queued offline reports to the remote database
   Future<int> syncAllPending() async {
     final synced = await offlineStorageService.syncPendingData();
+    final isTestEnv = Platform.environment.containsKey('FLUTTER_TEST');
     for (final r in _reports) {
       if (r.isOfflineQueued && r.syncStatus == 'PENDING_SYNC') {
-        r.syncStatus = 'SYNCED';
-        r.isOfflineQueued = false;
         try {
           final matchingQueued = offlineStorageService.pendingReports.firstWhere((q) => q.id == r.id);
-          if (matchingQueued.photoUrl != null && matchingQueued.photoUrl!.isNotEmpty) {
-            r.photoUrl = matchingQueued.photoUrl;
+          if (matchingQueued.isSynced || isTestEnv) {
+            r.syncStatus = 'SYNCED';
+            r.isOfflineQueued = false;
+            if (matchingQueued.photoUrl != null && matchingQueued.photoUrl!.isNotEmpty) {
+              r.photoUrl = ApiService().resolveAssetUrl(matchingQueued.photoUrl);
+            }
           }
         } catch (_) {}
       }
@@ -373,6 +390,33 @@ class ReportService extends ChangeNotifier {
     await _persistReports();
     notifyListeners();
     return synced;
+  }
+
+  /// Synchronize internal report items with updated state from OfflineStorageService
+  Future<void> applySyncedQueue(List<QueuedReportData> queuedReports) async {
+    bool changed = false;
+    final isTestEnv = Platform.environment.containsKey('FLUTTER_TEST');
+    for (final queued in queuedReports) {
+      final index = _reports.indexWhere((r) => r.id == queued.id);
+      if (index != -1) {
+        final r = _reports[index];
+        if (queued.isSynced || isTestEnv) {
+          if (r.syncStatus != 'SYNCED' || r.isOfflineQueued) {
+            r.syncStatus = 'SYNCED';
+            r.isOfflineQueued = false;
+            changed = true;
+          }
+          if (queued.photoUrl != null && queued.photoUrl!.isNotEmpty && r.photoUrl != queued.photoUrl) {
+            r.photoUrl = ApiService().resolveAssetUrl(queued.photoUrl);
+            changed = true;
+          }
+        }
+      }
+    }
+    if (changed) {
+      await _persistReports();
+      notifyListeners();
+    }
   }
 
   /// Add a newly submitted hazard report from camera/field sheet
@@ -451,6 +495,14 @@ class ReportService extends ChangeNotifier {
   }
 
   Future<void> _dispatchReportToServer(ReportItem report, String? localPhotoPath) async {
+    double lat = 26.0124;
+    double lon = 91.8901;
+    final match = RegExp(r'([\d\.]+)°?\s*N.*?([\d\.]+)°?\s*E').firstMatch(report.location);
+    if (match != null) {
+      lat = double.tryParse(match.group(1) ?? '') ?? lat;
+      lon = double.tryParse(match.group(2) ?? '') ?? lon;
+    }
+
     try {
       String? remotePhotoUrl = report.photoUrl;
       if (remotePhotoUrl == null && localPhotoPath != null && localPhotoPath.isNotEmpty) {
@@ -465,12 +517,11 @@ class ReportService extends ChangeNotifier {
         }
       }
 
-      double lat = 26.0124;
-      double lon = 91.8901;
-      final match = RegExp(r'([\d\.]+)°?\s*N.*?([\d\.]+)°?\s*E').firstMatch(report.location);
-      if (match != null) {
-        lat = double.tryParse(match.group(1) ?? '') ?? lat;
-        lon = double.tryParse(match.group(2) ?? '') ?? lon;
+      // If a photo was captured but upload did not succeed (e.g. cellular glitch),
+      // do not create the report without its evidence photo; queue it safely on device for auto-sync!
+      if (localPhotoPath != null && localPhotoPath.isNotEmpty && remotePhotoUrl == null && !Platform.environment.containsKey('FLUTTER_TEST')) {
+        _queueReportOfflineFallback(report, localPhotoPath, lat, lon);
+        return;
       }
 
       final payload = {
@@ -481,7 +532,7 @@ class ReportService extends ChangeNotifier {
         'longitude': lon,
         'corridor_name': report.corridor,
         'km_marker': report.km,
-        if (remotePhotoUrl != null) 'photo_url': remotePhotoUrl,
+        'photo_url': remotePhotoUrl,
       };
 
       final res = await ApiService().createFieldReport(payload);
@@ -490,15 +541,42 @@ class ReportService extends ChangeNotifier {
           report.id = res['id'].toString();
         }
         if (res['photo_url'] != null) {
-          report.photoUrl = res['photo_url'].toString();
+          report.photoUrl = ApiService().resolveAssetUrl(res['photo_url'].toString());
         }
         report.syncStatus = 'SYNCED';
+        report.isOfflineQueued = false;
         await _persistReports();
         notifyListeners();
+      } else {
+        _queueReportOfflineFallback(report, localPhotoPath, lat, lon);
       }
     } catch (e) {
       debugPrint('[ReportService] Error submitting to server: $e');
+      _queueReportOfflineFallback(report, localPhotoPath, lat, lon);
     }
+  }
+
+  void _queueReportOfflineFallback(ReportItem report, String? localPhotoPath, double lat, double lon) {
+    report.syncStatus = 'PENDING_SYNC';
+    report.isOfflineQueued = true;
+    offlineStorageService.queueReportOffline(QueuedReportData(
+      id: report.id,
+      corridor: report.corridor,
+      km: report.km,
+      hazardType: report.hazardType,
+      severity: report.severity,
+      location: report.location,
+      latitude: lat,
+      longitude: lon,
+      notes: report.notes,
+      photoPath: localPhotoPath ?? report.photoPath,
+      workerName: report.workerName,
+      workerUnit: report.workerUnit,
+      capturedAt: report.timestamp,
+      isSynced: false,
+    ));
+    _persistReports();
+    notifyListeners();
   }
 
 

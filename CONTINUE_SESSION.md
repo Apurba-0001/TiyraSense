@@ -18,8 +18,6 @@ Continue the current **TiyraSense** implementation from the repository's actual 
 
 Read the files listed in `AGENTS.md` → "Mandatory reading order (canonical)" in the specified order.
 
-Also read `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md` when selection-sprint work is active.
-
 Then read only the specification files under `docs/` relevant to the current task.
 
 ## 2. Read the previous handoff
@@ -86,7 +84,6 @@ Use:
 SESSION.md
 TODO.md
 BUILD_GUIDE.md
-TiyraSense_7_DAY_SELECTION_SPRINT.md
 DECISIONS.md
 ```
 

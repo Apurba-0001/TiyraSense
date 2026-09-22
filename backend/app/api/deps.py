@@ -37,9 +37,10 @@ async def get_current_user(
     )
     try:
         payload = decode_access_token(token)
-        user_id_str: str = payload.get("sub")
-        if user_id_str is None:
+        user_id_raw = payload.get("sub")
+        if not user_id_raw:
             raise credentials_exception
+        user_id_str = str(user_id_raw)
         # Strict UUID parse — rejects any non-UUID string including SQL fragments
         user_id = UUID(user_id_str)
     except (JWTError, ValueError):

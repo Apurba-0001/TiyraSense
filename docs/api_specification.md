@@ -16,14 +16,16 @@
 | `GET` | `/api/v1/auth/me` | Phase 3 | **LIVE** | Authenticated user profile and role verification |
 | `GET` | `/api/v1/auth/official-access` | Phase 3 | **LIVE** | RBAC verification gate for `OFFICIAL` and `ADMIN` |
 | `GET` | `/api/v1/auth/admin-access` | Phase 3 | **LIVE** | RBAC verification gate for `ADMIN` |
-| `POST` | `/api/v1/routes/evaluate` | Phase 4 | *PLANNED* | Multi-factor route comparison (Safest vs Fastest) |
-| `POST` | `/api/v1/journeys` | Phase 4 | *PLANNED* | Start tracked logistics journey |
-| `POST` | `/api/v1/journeys/{id}/telemetry` | Phase 4 | *PLANNED* | In-transit driver breadcrumbs |
-| `POST` | `/api/v1/journeys/{id}/reroute` | Phase 9 | *PLANNED* | Accept emergency route diversion |
-| `POST` | `/api/v1/field-reports` | Phase 7 | *PLANNED* | Submit validated field hazard report |
-| `GET` | `/api/v1/alerts/active` | Phase 9 | *PLANNED* | Query active hazard alerts for journey/corridor |
-| `GET` | `/api/v1/official/dashboard/overview` | Phase 10 | *PLANNED* | Aggregate regional GIS overview |
-| `PATCH` | `/api/v1/segments/{id}/state` | Phase 7 | *PLANNED* | Official manual accessibility override |
+| `POST` | `/api/v1/routes/evaluate` | Phase 4 | **LIVE** | Multi-factor route comparison (Safest Viable vs Fastest Available) |
+| `POST` | `/api/v1/journeys` | Phase 4 | **LIVE** | Start tracked logistics journey along selected route |
+| `POST` | `/api/v1/journeys/{id}/telemetry` | Phase 4 | **LIVE** | In-transit driver GPS telemetry breadcrumbs & radar check |
+| `POST` | `/api/v1/journeys/{id}/reroute` | Phase 9 | **LIVE** | Accept dynamic hazard route diversion |
+| `POST` | `/api/v1/reports` | Phase 7 | **LIVE** | Submit validated field hazard report with photo metadata |
+| `PATCH` | `/api/v1/reports/{id}/verify` | Phase 7 | **LIVE** | Official verification and confirmation of field reports |
+| `GET` | `/api/v1/alerts/active` | Phase 9 | **LIVE** | Query active hazard alerts for journey or bounding box |
+| `POST` | `/api/v1/evidence/upload` | Phase 7 | **LIVE** | Incident photographic evidence upload |
+| `GET` | `/api/v1/external/weather` | Phase 5 | **LIVE** | Real-time Open-Meteo weather observations along corridors |
+
 
 
 ---

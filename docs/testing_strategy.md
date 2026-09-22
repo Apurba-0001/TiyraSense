@@ -1,7 +1,7 @@
 # Testing & Quality Assurance Strategy — TiyraSense
 
 **Document Status:** FINALIZED Specification (Phase 1)  
-**Authoritative Standards:** `AGENTS.md` (Definition of Done), `SECURITY.md` (Checklist), `TiyraSense_SELECTION_ACCEPTANCE_CHECKLIST.md`
+**Authoritative Standards:** `AGENTS.md` (Definition of Done), `SECURITY.md` (Checklist), `BUILD_GUIDE.md`
 
 ---
 

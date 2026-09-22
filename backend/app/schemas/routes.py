@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 class Coordinates(BaseModel):
     latitude: float = Field(..., ge=-90.0, le=90.0, description="Latitude in decimal degrees")
     longitude: float = Field(..., ge=-180.0, le=180.0, description="Longitude in decimal degrees")
-    label: Optional[str] = Field(None, description="Human readable landmark or hub name")
+    label: Optional[str] = Field(default=None, description="Human readable landmark or hub name")
 
 
 class RouteEvaluationRequest(BaseModel):

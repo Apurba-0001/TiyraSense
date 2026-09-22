@@ -133,6 +133,22 @@ const INITIAL_REPORTS: FieldReportItem[] = [
   },
 ];
 
+function formatRelativeTime(dateStr?: string | null): string {
+  if (!dateStr) return 'Just now';
+  if (dateStr.includes('ago') || dateStr.includes('now') || dateStr.includes('Recently')) return dateStr;
+  try {
+    const d = new Date(dateStr.replace(' ', 'T') + (dateStr.includes('Z') ? '' : 'Z'));
+    if (isNaN(d.getTime())) return dateStr;
+    const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
+    if (diffSec < 60) return 'Just now';
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+    return `${Math.floor(diffSec / 86400)}d ago`;
+  } catch {
+    return dateStr;
+  }
+}
+
 export const FieldReports: React.FC = () => {
   const [reports, setReports] = useState<FieldReportItem[]>(INITIAL_REPORTS);
   const [selectedReport, setSelectedReport] = useState<FieldReportItem | null>(INITIAL_REPORTS[0]);
@@ -165,23 +181,32 @@ export const FieldReports: React.FC = () => {
     fetchFieldReports()
       .then((data) => {
         if (data && data.length > 0) {
-          const mapped: FieldReportItem[] = data.map((d) => ({
-            id: d.id,
-            submitted: d.submitted_at || 'Just now',
-            corridor: d.corridor_name || 'NH-06',
-            km: d.km_marker || 'KM 0.0',
-            hazardType: (d.hazard_type as FieldReportItem['hazardType']) || 'Landslide',
-            severity: (d.severity as FieldReportItem['severity']) || 'FULL BLOCKAGE',
-            status: (d.status as FieldReportItem['status']) || 'PENDING',
-            workerName: d.reporter_name || 'Field Scout',
-            workerInitials: (d.reporter_name || 'FS').slice(0, 2).toUpperCase(),
-            workerUnit: d.reporter_unit || 'Field Unit 4',
-            coordinates: `${d.latitude.toFixed(4)}° N, ${d.longitude.toFixed(4)}° E`,
-            description: d.description,
-            dispatchUnit: d.dispatch_unit,
-            dispatchNotes: d.dispatch_notes,
-            photoUrl: d.photo_url || (d as any).photoUrl ? getAssetUrl(d.photo_url || (d as any).photoUrl) : undefined,
-          }));
+          const mapped: FieldReportItem[] = data.map((d) => {
+            const rawHz = (d.hazard_type || 'Landslide').replace(/_/g, ' ');
+            let hzType: FieldReportItem['hazardType'] = 'Landslide';
+            if (rawHz.toLowerCase().includes('flood')) hzType = 'Flash Flood';
+            else if (rawHz.toLowerCase().includes('debris')) hzType = 'Debris';
+            else if (rawHz.toLowerCase().includes('subsid')) hzType = 'Road Subsidance';
+            else if (rawHz.toLowerCase().includes('bridge')) hzType = 'Bridge Strain';
+
+            return {
+              id: d.id,
+              submitted: formatRelativeTime(d.submitted_at),
+              corridor: d.corridor_name || 'NH-06',
+              km: d.km_marker || 'KM 0.0',
+              hazardType: hzType,
+              severity: (d.severity as FieldReportItem['severity']) || 'FULL BLOCKAGE',
+              status: (d.status as FieldReportItem['status']) || 'PENDING',
+              workerName: d.reporter_name || 'Field Scout',
+              workerInitials: (d.reporter_name || 'FS').slice(0, 2).toUpperCase(),
+              workerUnit: d.reporter_unit || 'Field Recon',
+              coordinates: `${d.latitude.toFixed(4)}° N, ${d.longitude.toFixed(4)}° E`,
+              description: d.description,
+              dispatchUnit: d.dispatch_unit,
+              dispatchNotes: d.dispatch_notes,
+              photoUrl: d.photo_url || (d as any).photoUrl ? getAssetUrl(d.photo_url || (d as any).photoUrl) : undefined,
+            };
+          });
           setReports(mapped);
           setSelectedReport((prev) => {
             if (!prev) return mapped[0];
@@ -195,13 +220,21 @@ export const FieldReports: React.FC = () => {
 
   useEffect(() => {
     loadReports();
-    const interval = setInterval(loadReports, 15000);
-    return () => clearInterval(interval);
+    const interval = setInterval(loadReports, 8000);
+    const onOnline = () => loadReports();
+    const onFocus = () => loadReports();
+    window.addEventListener('online', onOnline);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   const filteredReports = reports.filter((r) => {
     if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
-    if (corridorFilter !== 'ALL' && r.corridor !== corridorFilter) return false;
+    if (corridorFilter !== 'ALL' && !r.corridor.includes(corridorFilter)) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       return (
@@ -443,7 +476,7 @@ export const FieldReports: React.FC = () => {
               borderRadius: 'var(--radius-pill)',
             }}
           >
-            14 new today
+            {reports.length} in database
           </span>
         </div>
 
@@ -680,8 +713,8 @@ export const FieldReports: React.FC = () => {
                     }}
                   >
                     <td style={{ padding: '0 12px' }}>
-                      <span className="mono" style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                        {r.id}
+                      <span className="mono" style={{ fontWeight: 600, color: 'var(--color-text-secondary)' }} title={r.id}>
+                        {r.id.length > 12 ? `RP-${r.id.slice(0, 6).toUpperCase()}` : r.id}
                       </span>
                     </td>
                     <td style={{ padding: '0 12px' }}>
@@ -930,17 +963,41 @@ export const FieldReports: React.FC = () => {
                   onClick={() => setLightboxPhoto(getAssetUrl(selectedReport.photoUrl!))}
                   title="Click to zoom and inspect evidence photo"
                 >
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#94A3B8',
+                      fontSize: '12px',
+                    }}
+                  >
+                    <div style={{ textAlign: 'center' }}>
+                      <Camera size={26} style={{ margin: '0 auto 6px', color: '#64748B' }} />
+                      <div style={{ fontWeight: 600, color: '#CBD5E1' }}>Forensic Evidence Photo</div>
+                      <div style={{ fontSize: '10px', color: '#64748B', marginTop: '2px' }}>Click to view full image</div>
+                    </div>
+                  </div>
                   <img
                     src={getAssetUrl(selectedReport.photoUrl)}
                     alt={`${selectedReport.hazardType} Evidence`}
                     style={{
+                      position: 'relative',
+                      zIndex: 1,
                       width: '100%',
                       height: '100%',
                       objectFit: 'cover',
                       display: 'block',
                     }}
                     onError={(e) => {
-                      (e.currentTarget as HTMLElement).style.display = 'none';
+                      const img = e.currentTarget as HTMLImageElement;
+                      if (!img.src.includes('localhost:8000') && img.src.includes('/static/uploads/')) {
+                        img.src = `http://localhost:8000${img.src.substring(img.src.indexOf('/static/uploads/'))}`;
+                      } else {
+                        img.style.display = 'none';
+                      }
                     }}
                   />
                   <div

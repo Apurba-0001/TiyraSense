@@ -1,6 +1,7 @@
+import logging
 import uuid
 from datetime import datetime, timezone
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import text
@@ -15,6 +16,51 @@ from backend.app.schemas.reports import (
     FieldReportOut,
     FieldReportVerify,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_incident_type(raw: Optional[str]) -> str:
+    """Map any client or mobile hazard string to a valid PostgreSQL incident_type enum literal."""
+    if not raw:
+        return "OTHER"
+    val = raw.strip().upper().replace(" ", "_").replace("-", "_")
+    if any(k in val for k in ("FLASH_FLOOD", "FLOOD", "WATERLOG", "PUDDLE", "SUBMERGED")):
+        return "WATERLOGGING"
+    if any(k in val for k in ("SUBSIDENCE", "COLLAPSE", "SINKHOLE", "CAVE_IN")):
+        return "ROAD_COLLAPSE"
+    if any(k in val for k in ("FALLEN_TREE", "TREE_FALL", "TREE", "BRANCH", "TIMBER")):
+        return "TREE_FALL"
+    if any(k in val for k in ("DEBRIS", "MUDSLIDE", "MUD", "ROCKFALL", "BOULDER", "RUBBLE", "SLIDE")) and "LANDSLIDE" not in val:
+        return "MUDSLIDE"
+    if "LANDSLIDE" in val:
+        return "LANDSLIDE"
+    if any(k in val for k in ("BRIDGE", "CRACK", "PIER", "CULVERT", "EXPANSION")):
+        return "BRIDGE_DISTRESS"
+    if any(k in val for k in ("CONGESTION", "TRAFFIC", "GRIDLOCK", "JAM", "BOTTLENECK")):
+        return "HEAVY_CONGESTION"
+    if val in ("LANDSLIDE", "MUDSLIDE", "WATERLOGGING", "ROAD_COLLAPSE", "TREE_FALL", "HEAVY_CONGESTION", "BRIDGE_DISTRESS", "OTHER"):
+        return val
+    return "OTHER"
+
+
+def _normalize_severity(raw: Optional[str]) -> str:
+    """Map any severity label to a valid PostgreSQL severity_level enum literal."""
+    if not raw:
+        return "MEDIUM"
+    val = raw.strip().upper().replace(" ", "_")
+    if any(k in val for k in ("FULL", "CRITICAL", "BLOCKED", "TOTAL", "EMERGENCY")):
+        return "CRITICAL"
+    if any(k in val for k in ("HIGH", "SEVERE", "MAJOR")):
+        return "HIGH"
+    if any(k in val for k in ("PARTIAL", "MEDIUM", "MODERATE", "CAUTION")):
+        return "MEDIUM"
+    if any(k in val for k in ("SHOULDER", "LOW", "MINOR", "INFO")):
+        return "LOW"
+    if val in ("LOW", "MEDIUM", "HIGH", "CRITICAL"):
+        return val
+    return "MEDIUM"
+
 
 # Alert severity derived from report severity — keeps risk labeling consistent with D-015
 _SEVERITY_TO_ALERT = {
@@ -61,7 +107,7 @@ router = APIRouter()
 _DELETED_REPORT_IDS: set[str] = set()
 
 # In-memory store fallback for test environments without PostGIS write permissions
-_IN_MEMORY_REPORTS = [
+_IN_MEMORY_REPORTS: List[dict[str, Any]] = [
     {
         "id": "RP-2847",
         "hazard_type": "Landslide",
@@ -167,13 +213,7 @@ async def list_field_reports(
     """
     merged_map: dict[str, FieldReportOut] = {}
 
-    # 1. In-memory session store (newest reports submitted in active session)
-    for item in _IN_MEMORY_REPORTS:
-        rep_id = str(item["id"])
-        if rep_id not in _DELETED_REPORT_IDS:
-            merged_map[rep_id] = FieldReportOut(**item)
-
-    # 2. Local database query (PostgreSQL PostGIS)
+    # 1. Local database query (PostgreSQL PostGIS - primary source of truth)
     try:
         sql = text("""
             SELECT 
@@ -184,14 +224,28 @@ async def list_field_reports(
                 COALESCE(fr.description, ''),
                 ST_Y(fr.location) as lat,
                 ST_X(fr.location) as lon,
-                COALESCE(rs.corridor_name, 'NER Artery') as corridor_name,
+                COALESCE(
+                    rs.corridor_name,
+                    rs_near.corridor_name,
+                    'NH-06 Guwahati-Shillong'
+                ) as corridor_name,
                 TO_CHAR(fr.server_received_at, 'YYYY-MM-DD HH24:MI:SS') as submitted_at,
                 COALESCE(u.full_name, 'Field Scout') as reporter_name,
-                ie.storage_uri
+                ie.storage_uri,
+                COALESCE(
+                    CONCAT('KM ', ROUND((ST_LineLocatePoint(rs_near.geom, fr.location) * (rs_near.length_meters / 1000.0))::numeric, 1)),
+                    'Active Pin'
+                ) as km_marker
             FROM field_reports fr
             LEFT JOIN road_segments rs ON fr.road_segment_id = rs.id
             LEFT JOIN users u ON fr.reporter_id = u.id
             LEFT JOIN incident_evidence ie ON fr.id = ie.field_report_id
+            LEFT JOIN LATERAL (
+                SELECT rs2.geom, rs2.length_meters, rs2.corridor_name
+                FROM road_segments rs2 
+                ORDER BY fr.location <-> rs2.geom 
+                LIMIT 1
+            ) rs_near ON true
             ORDER BY fr.server_received_at DESC
             LIMIT 100;
         """)
@@ -214,7 +268,7 @@ async def list_field_reports(
                     latitude=float(r[5]),
                     longitude=float(r[6]),
                     corridor_name=str(r[7]),
-                    km_marker="Active Pin",
+                    km_marker=str(r[11]) if r[11] else "Active Pin",
                     reporter_name=str(r[9]),
                     reporter_unit="Field Recon",
                     submitted_at=str(r[8]),
@@ -224,7 +278,7 @@ async def list_field_reports(
     except Exception:
         pass
 
-    # 3. Supabase Cloud PostgREST
+    # 2. Supabase Cloud PostgREST
     try:
         from backend.app.services.supabase_service import SupabaseService
         live_reports = await SupabaseService.get_field_reports()
@@ -236,10 +290,11 @@ async def list_field_reports(
                 coords = item.get("geom", {}).get("coordinates") if isinstance(item.get("geom"), dict) else None
                 lon = float(coords[0]) if coords else float(item.get("longitude", 91.8901))
                 lat = float(coords[1]) if coords else float(item.get("latitude", 26.0124))
+                p_urls = item.get("photo_urls")
                 photo = (
                     item.get("photo_url")
                     or item.get("evidence_url")
-                    or (item.get("photo_urls")[0] if isinstance(item.get("photo_urls"), list) and item.get("photo_urls") else None)
+                    or (p_urls[0] if isinstance(p_urls, list) and len(p_urls) > 0 and p_urls[0] else None)
                 )
                 
                 if rep_id in merged_map:
@@ -267,22 +322,45 @@ async def list_field_reports(
     except Exception:
         pass
 
+    # 3. Dynamic in-memory reports created during active session via create_field_report
+    for item in _IN_MEMORY_REPORTS:
+        rep_id = str(item["id"])
+        if rep_id not in _DELETED_REPORT_IDS and rep_id not in merged_map:
+            # Only inject if either no database reports exist or it is a newly submitted session report
+            if not rep_id.startswith("RP-284") or len(merged_map) == 0:
+                merged_map[rep_id] = FieldReportOut.model_validate(item)
+
+    # 4. Fallback: if database and cloud are empty, provide baseline initial reports
+    if not merged_map:
+        for item in _IN_MEMORY_REPORTS:
+            rep_id = str(item["id"])
+            if rep_id not in _DELETED_REPORT_IDS:
+                merged_map[rep_id] = FieldReportOut.model_validate(item)
+
     def _recency_score(item: FieldReportOut) -> float:
+        import time
+        now = time.time()
         sub = item.submitted_at or ""
         if "Just now" in sub:
-            return 1e11
+            return now
         if "m ago" in sub:
             try:
                 mins = float(sub.split("m")[0].strip())
-                return 1e10 - mins * 60
+                return now - mins * 60
             except Exception:
-                return 1e9
+                return now - 300
         if "h ago" in sub:
             try:
                 hrs = float(sub.split("h")[0].strip())
-                return 1e9 - hrs * 3600
+                return now - hrs * 3600
             except Exception:
-                return 1e8
+                return now - 3600
+        if "d ago" in sub:
+            try:
+                days = float(sub.split("d")[0].strip())
+                return now - days * 86400
+            except Exception:
+                return now - 86400
         try:
             from datetime import datetime
             return datetime.fromisoformat(sub.replace("Z", "+00:00")).timestamp()
@@ -314,10 +392,10 @@ async def create_field_report(
     """Submit a verified or observed field hazard report from scout or driver."""
     new_id = f"RP-{str(uuid.uuid4())[:8].upper()}"
 
-    reporter_name = current_user.full_name if current_user else "Field Scout"
+    reporter_name = str(current_user.full_name) if current_user and current_user.full_name is not None else "Field Scout"
     reporter_unit = "Field Recon Unit"
 
-    new_report_dict = {
+    new_report_dict: dict[str, Any] = {
         "id": new_id,
         "hazard_type": report.hazard_type,
         "severity": report.severity,
@@ -393,7 +471,7 @@ async def create_field_report(
                         gen_random_uuid(), :fr_id, :uri, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'image/jpeg', NOW()
                     );
                 """)
-                await db.execute(evidence_sql, {"fr_id": db_id, "uri": str(report.photo_url)})
+                await db.execute(evidence_sql, {"fr_id": db_id, "uri": report.photo_url})
             except Exception:
                 pass
         # Unconditionally commit the transaction so both the report and evidence are persisted
@@ -404,7 +482,7 @@ async def create_field_report(
         await db.rollback()
 
     _IN_MEMORY_REPORTS.insert(0, new_report_dict)
-    return FieldReportOut(**new_report_dict)
+    return FieldReportOut.model_validate(new_report_dict)
 
 
 @router.patch("/{report_id}/verify", response_model=FieldReportOut, status_code=status.HTTP_200_OK)
@@ -418,7 +496,7 @@ async def verify_field_report(
     VERIFIED or DISPATCHED status automatically pushes an alert to the live alert feed
     so affected users on the route receive immediate notification.
     """
-    target = None
+    target: Optional[dict[str, Any]] = None
     for r in _IN_MEMORY_REPORTS:
         if r["id"] == report_id:
             target = r
@@ -496,7 +574,7 @@ async def verify_field_report(
     except Exception:
         pass
 
-    return FieldReportOut(**target)
+    return FieldReportOut.model_validate(target)
 
 
 @router.delete("/{report_id}", status_code=status.HTTP_200_OK)

@@ -14,22 +14,25 @@ These rules apply to every phase:
 - Update `DECISIONS.md` for durable choices and update affected specifications whenever behavior, contracts, architecture, or operational assumptions change.
 - Do not mark a phase complete from compilation alone. The exit condition must be evidenced by the relevant test, workflow, or operational check.
 
-## Relationship to the 7-Day Selection Sprint
+## Development Roadmap & Phase Sequence
 
-During the SIH selection sprint, `TiyraSense_7_DAY_SELECTION_SPRINT.md` is the active execution plan and takes priority day-to-day. It maps to these phases as follows — update both files together if this mapping changes:
+The initial 7-day selection sprint milestones have concluded and all 11 phases are integrated. The comprehensive phase sequence outlined below represents the canonical development and verification roadmap for TiyraSense.
 
-| Sprint day | Phase(s) here | Note |
+| Phase | Description | Status |
 |---|---|---|
-| Day 0 | — | Audit only, no phase work |
-| Day 1 | Phase 3 (+ start of Phase 2 wrap-up) | Thin end-to-end slice |
-| Day 2 | Phase 4 | Core logistics UX / routing integration |
-| Day 3 | Phase 5 + Phase 6 (prototype only) | Real data + rule-based risk v0 |
-| Day 4 | Phase 7 | Field reporting + conflict resolution |
-| Day 5 | Phase 9 | Alerts, affected journeys, emergency mode |
-| Day 6 | Phase 7 (offline hardening) + Phase 10 | Offline sync + dashboard |
-| Day 7 | Phase 11 | Integration, reliability, demo polish |
+| Phase 0 | Repository & Coordination Setup | COMPLETE |
+| Phase 1 | Specification Completion | COMPLETE |
+| Phase 2 | Minimum Viable Backend & Auth | COMPLETE |
+| Phase 3 | Core Logistics UX & Routing Integration | COMPLETE |
+| Phase 4 | GIS Integration & Interactive Map | COMPLETE |
+| Phase 5 | Real Data Ingestion & Disruption Monitoring | COMPLETE |
+| Phase 6 | Risk Engine v0 & Calibration | COMPLETE |
+| Phase 7 | Field Reporting & Crowdsourced Ingestion | COMPLETE |
+| Phase 8 | Validated Machine Learning Pipeline | COMPLETE |
+| Phase 9 | Dynamic Alerting & Notification Engine | COMPLETE |
+| Phase 10 | Emergency Routing Mode & Offline Resilience | COMPLETE |
+| Phase 11 | Full Platform Integration & Operational Hardening | COMPLETE |
 
-Phase 1 (full specification writing) and Phase 8 (validated ML) are **not** required for the selection sprint — see the sprint plan's "Deferred" and "Stretch Goal" sections. Post-selection work resumes the full phase sequence, including any phase steps skipped or done at prototype level during the sprint.
 
 ## Phase 0 — Repository & Coordination Setup
 

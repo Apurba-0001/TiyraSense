@@ -142,7 +142,6 @@ async def update_my_profile(
         role=current_user.role,
         phone_number=new_phone,
         organization=new_org,
-        created_at=getattr(current_user, "created_at", None),
     )
 
 

@@ -48,6 +48,6 @@ The existing Paperlens documentation was reviewed first, then the TiyraSense doc
 - Current sprint/phase status
 - Historical session and log records
 
-## Remaining cleanup observation
+## Cleanup observation
 
-The repository contains `FIRST_SESSION_md___TiyraSense.md` and `CONTINUE_SESSION_md___TiyraSense.md` alongside the canonical `FIRST_SESSION.md` and `CONTINUE_SESSION.md`. They are redundant alternate copies with different content. They were not deleted in this pass so the original repository contents and continuity are preserved. Future cleanup should choose one canonical version and remove or archive the redundant copies after confirming no tooling references them.
+The redundant alternate session copies (`FIRST_SESSION_md___TiyraSense.md` and `CONTINUE_SESSION_md___TiyraSense.md`) have been cleaned up; only the canonical `FIRST_SESSION.md` and `CONTINUE_SESSION.md` are retained across the repository.

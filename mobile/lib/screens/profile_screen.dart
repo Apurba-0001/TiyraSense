@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
+import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
+import '../widgets/server_connection_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserRole role;
@@ -97,8 +99,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ElevatedButton(
               onPressed: () async {
                 final newName = nameController.text.trim();
+                bool synced = false;
                 if (newName.isNotEmpty) {
-                  await authProvider.updateProfile(
+                  synced = await authProvider.updateProfile(
                     fullName: newName,
                     phoneNumber: phoneController.text.trim(),
                     organization: orgController.text.trim(),
@@ -108,10 +111,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 if (ctx.mounted) Navigator.of(ctx).pop();
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Profile details updated and synced to database'),
-                      backgroundColor: AppTheme.green,
+                    SnackBar(
+                      content: Text(
+                        synced
+                            ? 'Profile details updated and synced to database'
+                            : 'Saved on device (offline) — server unreachable. Check server connection in Settings.',
+                      ),
+                      backgroundColor: synced ? AppTheme.green : AppTheme.amber,
                       behavior: SnackBarBehavior.floating,
+                      duration: const Duration(seconds: 4),
                     ),
                   );
                 }
@@ -720,6 +728,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         )
                       : null,
                   onTap: _isSyncing ? null : _handleSyncNow,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+
+            // Settings Section: SERVER & NETWORK CONNECTION
+            _buildSettingsCard(
+              title: 'SERVER & NETWORK CONNECTION',
+              items: [
+                _SettingsItem(
+                  icon: Icons.dns_rounded,
+                  label: 'Backend Server Endpoint',
+                  trailingText: ApiService().baseUrl.replaceAll('/api/v1', '').replaceAll('http://', ''),
+                  onTap: () => ServerConnectionSheet.show(
+                    context,
+                    onUrlUpdated: () => setState(() {}),
+                  ),
                 ),
               ],
             ),

@@ -172,6 +172,9 @@ class AuthProvider extends ChangeNotifier {
       return false;
     }
   }
+  bool _lastProfileUpdateSynced = true;
+  bool get lastProfileUpdateSynced => _lastProfileUpdateSynced;
+
   Future<bool> updateProfile({
     required String fullName,
     String? phoneNumber,
@@ -209,6 +212,7 @@ class AuthProvider extends ChangeNotifier {
           organization: organization,
         );
         _currentUser = serverUpdatedUser;
+        _lastProfileUpdateSynced = true;
         await _secureStorage.write(
           key: _kUserDataKey,
           value: jsonEncode(_currentUser!.toJson()),
@@ -218,11 +222,14 @@ class AuthProvider extends ChangeNotifier {
         notifyListeners();
         return true;
       } catch (e) {
-        // Keeps optimistic update if offline
-        return true;
+        // Retain local optimistic update, but flag that backend DB was not synced
+        _lastProfileUpdateSynced = false;
+        notifyListeners();
+        return false;
       }
     }
-    return true;
+    _lastProfileUpdateSynced = false;
+    return false;
   }
 
   Future<bool> changePassword({

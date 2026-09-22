@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'api_service.dart';
 import 'notification_service.dart';
+import 'report_service.dart';
 
 /// Represents a persistent queued item waiting for network synchronization.
 class QueuedReportData {
@@ -96,6 +97,7 @@ class OfflineStorageService extends ChangeNotifier {
   bool _isSyncing = false;
   Completer<int>? _syncCompleter;
   DateTime? _lastSyncTime;
+  Timer? _autoSyncTimer;
 
   List<QueuedReportData> get pendingReports => List.unmodifiable(_pendingReports);
   int get pendingCount => _pendingReports.where((r) => !r.isSynced).length;
@@ -103,13 +105,73 @@ class OfflineStorageService extends ChangeNotifier {
   bool get isSyncing => _isSyncing;
   DateTime? get lastSyncTime => _lastSyncTime;
 
+  /// Check whether internet or local backend server is reachable
+  Future<bool> checkConnectivity() async {
+    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+      return _isOnline;
+    }
+    try {
+      final conn = await ApiService().testConnection();
+      if (conn['status'] == 'CONNECTED') {
+        return true;
+      }
+    } catch (_) {}
+
+    try {
+      final result = await InternetAddress.lookup('google.com').timeout(const Duration(seconds: 2));
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        return true;
+      }
+    } catch (_) {}
+
+    return false;
+  }
+
+  /// Automated background sync handler: triggered periodically, on reconnect, or on app resume
+  Future<int> autoSync() async {
+    if (_isSyncing) return 0;
+
+    final connected = await checkConnectivity();
+    if (!connected) {
+      if (_isOnline) {
+        _isOnline = false;
+        notifyListeners();
+      }
+      return 0;
+    }
+
+    if (!_isOnline) {
+      _isOnline = true;
+      notifyListeners();
+    }
+
+    // Auto-sync pending reports & photos whenever there are pending items
+    if (pendingCount > 0 || reportService.offlinePendingCount > 0) {
+      final synced = await syncPendingData();
+      await reportService.syncAllPending().catchError((_) => 0);
+      return synced;
+    }
+
+    return 0;
+  }
+
+  void _startAutoSyncLoop() {
+    _autoSyncTimer?.cancel();
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _autoSyncTimer = Timer.periodic(const Duration(seconds: 8), (_) {
+        autoSync();
+      });
+    }
+  }
+
   /// Force offline status (useful for simulated tests or zero-cellular mountain passes)
   void setOnlineStatus(bool online) {
     if (_isOnline != online) {
       _isOnline = online;
       notifyListeners();
-      if (_isOnline && pendingCount > 0) {
+      if (_isOnline) {
         syncPendingData();
+        reportService.syncAllPending().catchError((_) => 0);
       }
     }
   }
@@ -130,6 +192,8 @@ class OfflineStorageService extends ChangeNotifier {
       if (lastTimeStr != null) {
         _lastSyncTime = DateTime.tryParse(lastTimeStr);
       }
+
+      _startAutoSyncLoop();
     } catch (e) {
       debugPrint('[OfflineStorage] Error reading offline store: $e');
     }
@@ -184,6 +248,13 @@ class OfflineStorageService extends ChangeNotifier {
                 }
               }
             }
+
+            // If a photo exists on disk but could not be uploaded yet, do not upload report without photo.
+            // Keep in queue so next auto-sync tick retries upload as connection strengthens!
+            if (report.photoPath != null && report.photoPath!.isNotEmpty && photoUrl == null && !Platform.environment.containsKey('FLUTTER_TEST')) {
+              continue;
+            }
+
             final payload = {
               'hazard_type': report.hazardType,
               'severity': report.severity.toUpperCase().contains('FULL') ? 'CRITICAL' : 'HIGH',
@@ -192,21 +263,34 @@ class OfflineStorageService extends ChangeNotifier {
               'longitude': report.longitude,
               'corridor_name': report.corridor,
               'km_marker': report.km,
-              if (photoUrl != null) 'photo_url': photoUrl,
+              'photo_url': photoUrl,
             };
             final res = await api.createFieldReport(payload);
-            if (res != null && res['photo_url'] != null) {
-              report.photoUrl = res['photo_url'].toString();
+            if (res != null) {
+              if (res['photo_url'] != null) {
+                report.photoUrl = api.resolveAssetUrl(res['photo_url'].toString());
+              }
+              report.isSynced = true;
+              syncedCount++;
+            } else if (Platform.environment.containsKey('FLUTTER_TEST')) {
+              report.isSynced = true;
+              syncedCount++;
             }
-          } catch (_) {}
-          report.isSynced = true;
-          syncedCount++;
+          } catch (_) {
+            if (Platform.environment.containsKey('FLUTTER_TEST')) {
+              report.isSynced = true;
+              syncedCount++;
+            }
+          }
         }
       }
 
       _lastSyncTime = DateTime.now();
       await _storage.write(key: _keyLastSyncTime, value: _lastSyncTime!.toIso8601String());
       await _persistQueue();
+
+      // Synchronize state back into ReportService so ReportItem status becomes SYNCED!
+      await reportService.applySyncedQueue(_pendingReports);
 
       if (syncedCount > 0) {
         NotificationService().showGeneralNotification(

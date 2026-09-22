@@ -20,7 +20,6 @@ This file is an **orchestration entry point**, not a rulebook. It tells you whic
 - Finalized/open architectural and product decisions: `DECISIONS.md`.
 - Permanent product knowledge (users, risk model, data sources, ML approach, safety principles): `PROJECT_CONTEXT.md`.
 - Long-term phase sequence and exit conditions: `BUILD_GUIDE.md`.
-- Active sprint-day priorities: `TiyraSense_7_DAY_SELECTION_SPRINT.md`.
 - New-session state reconstruction: `FIRST_SESSION.md`.
 - Continuation state reconstruction: `CONTINUE_SESSION.md`.
 
@@ -32,9 +31,9 @@ Current official documentation is required before implementing against changing 
 
 ## Task handling
 
-- **If a concrete task has already been assigned** (by the human, or clearly implied by the current sprint day and an explicit instruction), complete the state verification required by `FIRST_SESSION.md` or `CONTINUE_SESSION.md`, then proceed with that task.
+- **If a concrete task has already been assigned** (by the human, or clearly implied by current phase priorities and an explicit instruction), complete the state verification required by `FIRST_SESSION.md` or `CONTINUE_SESSION.md`, then proceed with that task.
 - **If no task has been assigned**, complete only the initialization/state report required by the applicable session protocol, then stop and wait for instructions.
-- Never invent or start a task merely because the next step looks obvious. Never automatically advance to the next sprint day without an explicit instruction (see `TiyraSense_7_DAY_SELECTION_SPRINT.md` → "Linear Agent Handoff Protocol").
+- Never invent or start a task merely because the next step looks obvious. Never begin unassigned work without an explicit instruction.
 
 ## Non-negotiable boundaries (see `AGENTS.md` and `SECURITY.md` for full detail)
 
