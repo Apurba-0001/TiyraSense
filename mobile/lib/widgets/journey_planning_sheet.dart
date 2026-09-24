@@ -5,6 +5,7 @@ import '../services/location_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_utils.dart';
+import '../utils/responsive_utils.dart';
 
 class JourneyPlanningSheet extends StatefulWidget {
   final VoidCallback? onConfirmRoute;
@@ -917,14 +918,17 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
     final originShort = _origin.split(' ').first;
     final destShort = _destination.split(' ').first;
 
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.82,
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
-        boxShadow: AppTheme.navShadow,
-      ),
-      child: Column(
+    return Center(
+      child: ResponsiveWrapper(
+        maxWidth: 640,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.82,
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+            boxShadow: AppTheme.navShadow,
+          ),
+          child: Column(
         children: [
           // Drag Handle
           const SizedBox(height: 12),
@@ -1496,8 +1500,10 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(

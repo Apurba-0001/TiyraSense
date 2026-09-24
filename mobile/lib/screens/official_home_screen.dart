@@ -4,6 +4,7 @@ import '../services/alert_service.dart';
 import '../services/report_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/status_pill_badge.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/side_drawer.dart';
@@ -228,35 +229,37 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Command KPI Banner
-            _buildCommandKpiBanner(),
-            const SizedBox(height: 16),
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Command KPI Banner
+              _buildCommandKpiBanner(),
+              const SizedBox(height: 16),
 
-            // 2. Quick Actions Grid (2x2)
-            const Text(
-              'OFFICIAL ACTIONS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textLow,
-                letterSpacing: 0.8,
+              // 2. Quick Actions Grid (2x2)
+              const Text(
+                'OFFICIAL ACTIONS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textLow,
+                  letterSpacing: 0.8,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _buildOfficialQuickActionGrid(context),
-            const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              _buildOfficialQuickActionGrid(context),
+              const SizedBox(height: 20),
 
-            // 3. Urgent Verification Queue Card
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'INCIDENT VERIFICATION QUEUE',
+              // 3. Urgent Verification Queue Card
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'INCIDENT VERIFICATION QUEUE',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w800,
@@ -312,8 +315,9 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCommandKpiBanner() {
     return Container(
@@ -453,13 +457,15 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
   }
 
   Widget _buildOfficialQuickActionGrid(BuildContext context) {
+    final cols = Responsive.gridColumns(context, defaultCols: 2, tabletCols: 4);
+    final isCompact = Responsive.isCompact(context);
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: cols,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+      childAspectRatio: cols == 4 ? 1.6 : (isCompact ? 1.35 : 1.5),
       children: [
         _buildActionCard(
           icon: Icons.campaign_rounded,
@@ -868,9 +874,11 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: Column(
-        children: [
-          // 1. Vehicle Selector Strip
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            // 1. Vehicle Selector Strip
           Container(
             padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             color: AppTheme.surface,
@@ -1135,8 +1143,9 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTelemetryMetricCard({
     required IconData icon,
@@ -1215,9 +1224,11 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: Column(
-        children: [
-          // Filter Row
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            // Filter Row
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             color: AppTheme.surface,
@@ -1286,8 +1297,9 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildVerificationReportCard(BuildContext context, ReportItem report) {
     final statusColor = report.status == 'VERIFIED'

@@ -3,6 +3,7 @@ import '../services/alert_service.dart';
 import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/status_pill_badge.dart';
 
@@ -288,9 +289,11 @@ class _AlertsScreenState extends State<AlertsScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Search Control Bar
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            // Search Control Bar
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Container(
@@ -412,8 +415,9 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildKpiCard(String title, String count, Color color) {
     return Expanded(

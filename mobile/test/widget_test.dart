@@ -1961,6 +1961,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Corridor overview: Entire patrol sector fitted to view'), findsOneWidget);
   });
+
+  testWidgets('responsive UI renders without overflow across compact phone (320x568), tablet (800x1280), and landscape (844x390)', (tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final fakeApi = FakeApiService();
+    final authProvider = AuthProvider(apiService: fakeApi);
+    final driverUser = UserModel(
+      id: 'usr-001',
+      fullName: 'Ramen Borah',
+      email: 'driver@tiyrasense.gov.in',
+      role: UserRole.driver,
+    );
+
+    // 1. Compact small screen (320x568 - iPhone SE 1st gen / small Android)
+    tester.view.physicalSize = const Size(320, 568);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DriverHomeScreen(user: driverUser, authProvider: authProvider),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Ramen Borah'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // 2. Tablet screen (800x1280)
+    tester.view.physicalSize = const Size(800, 1280);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: DriverHomeScreen(user: driverUser, authProvider: authProvider),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Ramen Borah'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // 3. Landscape phone (844x390)
+    tester.view.physicalSize = const Size(844, 390);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginScreen(authProvider: authProvider),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Sign In'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('responsive typography and accessibility text scaling up to 1.35x maintains layout integrity', (tester) async {
+    FlutterSecureStorage.setMockInitialValues({});
+    final fakeApi = FakeApiService();
+    final authProvider = AuthProvider(apiService: fakeApi);
+    final fieldUser = UserModel(
+      id: 'usr-002',
+      fullName: 'Dipankar Saikia',
+      email: 'field@tiyrasense.gov.in',
+      role: UserRole.fieldWorker,
+    );
+
+    tester.view.physicalSize = const Size(390 * 2, 844 * 2);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(textScaler: TextScaler.linear(1.35)),
+          child: FieldWorkerHomeScreen(user: fieldUser, authProvider: authProvider),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Dipankar Saikia'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
 
 

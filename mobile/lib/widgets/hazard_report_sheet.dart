@@ -9,6 +9,7 @@ import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 
 class HazardReportSheet extends StatefulWidget {
   final VoidCallback? onSubmit;
@@ -171,14 +172,17 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.85,
-      decoration: const BoxDecoration(
-        color: AppTheme.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
-        boxShadow: AppTheme.navShadow,
-      ),
-      child: Column(
+    return Center(
+      child: ResponsiveWrapper(
+        maxWidth: 600,
+        child: Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+            boxShadow: AppTheme.navShadow,
+          ),
+          child: Column(
         children: [
           // Drag handle
           const SizedBox(height: 12),
@@ -585,8 +589,10 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   Widget _buildSeveritySegment(int index, String label) {
     final isSelected = _selectedSeverity == index;

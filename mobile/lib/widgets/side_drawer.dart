@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/localization_service.dart';
@@ -46,8 +47,11 @@ class SideDrawer extends StatelessWidget {
     };
     final initials = userName.split(' ').map((n) => n.isNotEmpty ? n[0] : '').take(2).join();
 
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final drawerWidth = math.min(290.0, screenWidth * 0.82);
+
     return Drawer(
-      width: 290,
+      width: drawerWidth,
       backgroundColor: AppTheme.surface,
       surfaceTintColor: Colors.transparent,
       child: Column(

@@ -3,6 +3,7 @@ import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/side_drawer.dart';
 import 'profile_screen.dart';
@@ -324,106 +325,109 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 1. Admin KPI Banner
-            _buildAdminKpiBanner(),
-            const SizedBox(height: 16),
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // 1. Admin KPI Banner
+              _buildAdminKpiBanner(),
+              const SizedBox(height: 16),
 
-            // 2. Quick Admin Actions (2x2)
-            const Text(
-              'ADMINISTRATIVE CONTROLS',
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textLow,
-                letterSpacing: 0.8,
+              // 2. Quick Admin Actions (2x2)
+              const Text(
+                'ADMINISTRATIVE CONTROLS',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textLow,
+                  letterSpacing: 0.8,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            _buildAdminQuickActionsGrid(context),
-            const SizedBox(height: 20),
+              const SizedBox(height: 8),
+              _buildAdminQuickActionsGrid(context),
+              const SizedBox(height: 20),
 
-            // 3. Live Data Source Health Snapshot
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'DATA SOURCE HEALTH & PROBES',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textLow,
-                    letterSpacing: 0.8,
+              // 3. Live Data Source Health Snapshot
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'DATA SOURCE HEALTH & PROBES',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textLow,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _currentTabIndex = 2),
-                  child: const Text(
-                    'Full Diagnostics →',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                  GestureDetector(
+                    onTap: () => setState(() => _currentTabIndex = 2),
+                    child: const Text(
+                      'Full Diagnostics →',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildDataSourcesSnapshot(),
-            const SizedBox(height: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildDataSourcesSnapshot(),
+              const SizedBox(height: 20),
 
-            // 4. App Working & Operational Health
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'APP WORKING & RUNTIME HEALTH',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textLow,
-                    letterSpacing: 0.8,
+              // 4. App Working & Operational Health
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'APP WORKING & RUNTIME HEALTH',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textLow,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => setState(() => _currentTabIndex = 3),
-                  child: const Text(
-                    'System Logs →',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                  GestureDetector(
+                    onTap: () => setState(() => _currentTabIndex = 3),
+                    child: const Text(
+                      'System Logs →',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildAppWorkingHealthSummary(),
-            const SizedBox(height: 20),
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildAppWorkingHealthSummary(),
+              const SizedBox(height: 20),
 
-            // 5. Cloud Storage & Evidence Management
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'CLOUD STORAGE & EVIDENCE ASSETS',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textLow,
-                    letterSpacing: 0.8,
+              // 5. Cloud Storage & Evidence Management
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'CLOUD STORAGE & EVIDENCE ASSETS',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: AppTheme.textLow,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                GestureDetector(
-                  onTap: () => _showEvidenceManagementSheet(context),
-                  child: const Text(
-                    'Manage Assets →',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                  GestureDetector(
+                    onTap: () => _showEvidenceManagementSheet(context),
+                    child: const Text(
+                      'Manage Assets →',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            _buildCloudStorageSummaryCard(context),
-          ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              _buildCloudStorageSummaryCard(context),
+            ],
+          ),
         ),
       ),
     );
@@ -556,13 +560,15 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   }
 
   Widget _buildAdminQuickActionsGrid(BuildContext context) {
+    final cols = Responsive.gridColumns(context, defaultCols: 2, tabletCols: 4);
+    final isCompact = Responsive.isCompact(context);
     return GridView.count(
-      crossAxisCount: 2,
+      crossAxisCount: cols,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+      childAspectRatio: cols == 4 ? 1.6 : (isCompact ? 1.35 : 1.5),
       children: [
         _buildActionCard(
           icon: Icons.manage_accounts_rounded,
@@ -1126,9 +1132,11 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: Column(
-        children: [
-          // Search Field
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            // Search Field
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
             color: AppTheme.surface,
@@ -1302,8 +1310,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Color _getRoleBadgeColor(String role) {
     switch (role) {
@@ -1352,10 +1361,12 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Banner
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Banner
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
@@ -1460,8 +1471,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           }),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _pingDataSource(String id) async {
     final index = _dataSources.indexWhere((d) => d['id'] == id);
@@ -1536,108 +1548,111 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Runtime Indicators Card
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.borderLight),
-              boxShadow: AppTheme.cardShadow,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'RUNTIME PERFORMANCE INDICATORS',
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLow, letterSpacing: 0.5),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    _buildMetricCol('99.94%', 'Uptime (30d)', AppTheme.green),
-                    _buildMetricCol('0.02%', 'HTTP Error Rate', AppTheme.green),
-                    _buildMetricCol('42 ms', 'P95 Latency', AppTheme.primaryBlue),
-                    _buildMetricCol('94.2%', 'Tile Cache Hit', const Color(0xFF7C3AED)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // Audit Log Header
-          const Text(
-            'SECURITY & RBAC AUDIT TRAIL',
-            style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLow, letterSpacing: 0.8),
-          ),
-          const SizedBox(height: 8),
-
-          // Audit Logs List
-          if (_auditLogs.isEmpty)
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Runtime Indicators Card
             Container(
-              margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.all(16),
-              alignment: Alignment.center,
               decoration: BoxDecoration(
                 color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppTheme.borderLight),
+                boxShadow: AppTheme.cardShadow,
               ),
-              child: const Text(
-                'No security audit logs recorded in session.',
-                style: TextStyle(fontSize: 11, color: AppTheme.textLow),
-              ),
-            )
-          else
-            ..._auditLogs.map((log) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppTheme.borderLight),
-              ),
-              child: Row(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      log['time']!,
-                      style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.primaryBlue),
-                    ),
+                  const Text(
+                    'RUNTIME PERFORMANCE INDICATORS',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLow, letterSpacing: 0.5),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          log['event']!,
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Actor: ${log['actor']}',
-                          style: const TextStyle(fontSize: 10, color: AppTheme.textLow),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _buildMetricCol('99.94%', 'Uptime (30d)', AppTheme.green),
+                      _buildMetricCol('0.02%', 'HTTP Error Rate', AppTheme.green),
+                      _buildMetricCol('42 ms', 'P95 Latency', AppTheme.primaryBlue),
+                      _buildMetricCol('94.2%', 'Tile Cache Hit', const Color(0xFF7C3AED)),
+                    ],
                   ),
                 ],
               ),
-            );
-          }),
-        ],
+            ),
+            const SizedBox(height: 20),
+
+            // Audit Log Header
+            const Text(
+              'SECURITY & RBAC AUDIT TRAIL',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.textLow, letterSpacing: 0.8),
+            ),
+            const SizedBox(height: 8),
+
+            // Audit Logs List
+            if (_auditLogs.isEmpty)
+              Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(16),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: const Text(
+                  'No security audit logs recorded in session.',
+                  style: TextStyle(fontSize: 11, color: AppTheme.textLow),
+                ),
+              )
+            else
+              ..._auditLogs.map((log) {
+              return Container(
+                margin: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppTheme.borderLight),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        log['time']!,
+                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.w800, color: AppTheme.primaryBlue),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            log['event']!,
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Actor: ${log['actor']}',
+                            style: const TextStyle(fontSize: 10, color: AppTheme.textLow),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }

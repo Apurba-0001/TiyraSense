@@ -6,6 +6,7 @@ import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/server_connection_dialog.dart';
 
@@ -42,91 +43,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: EdgeInsets.only(
-          left: 20,
-          right: 20,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        decoration: const BoxDecoration(
-          color: AppTheme.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      builder: (ctx) => ResponsiveWrapper(
+        maxWidth: 520,
+        child: Container(
+          padding: EdgeInsets.only(
+            left: 20,
+            right: 20,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Text(
-                  'Edit Profile',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Edit Profile',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded),
-                  onPressed: () => Navigator.of(ctx).pop(),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: nameController,
+                  decoration: const InputDecoration(
+                    labelText: 'Full Name',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone Number',
+                    prefixIcon: Icon(Icons.phone_outlined),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: orgController,
+                  decoration: const InputDecoration(
+                    labelText: 'Organization / Union',
+                    prefixIcon: Icon(Icons.business_outlined),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () async {
+                    final newName = nameController.text.trim();
+                    bool synced = false;
+                    if (newName.isNotEmpty) {
+                      synced = await authProvider.updateProfile(
+                        fullName: newName,
+                        phoneNumber: phoneController.text.trim(),
+                        organization: orgController.text.trim(),
+                      );
+                      if (mounted) setState(() {});
+                    }
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            synced
+                                ? 'Profile details updated and synced to database'
+                                : 'Saved on device (offline) — server unreachable. Check server connection in Settings.',
+                          ),
+                          backgroundColor: synced ? AppTheme.green : AppTheme.amber,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 4),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Save Changes'),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Full Name',
-                prefixIcon: Icon(Icons.person_outline_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: phoneController,
-              keyboardType: TextInputType.phone,
-              decoration: const InputDecoration(
-                labelText: 'Phone Number',
-                prefixIcon: Icon(Icons.phone_outlined),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: orgController,
-              decoration: const InputDecoration(
-                labelText: 'Organization / Union',
-                prefixIcon: Icon(Icons.business_outlined),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () async {
-                final newName = nameController.text.trim();
-                bool synced = false;
-                if (newName.isNotEmpty) {
-                  synced = await authProvider.updateProfile(
-                    fullName: newName,
-                    phoneNumber: phoneController.text.trim(),
-                    organization: orgController.text.trim(),
-                  );
-                  if (mounted) setState(() {});
-                }
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        synced
-                            ? 'Profile details updated and synced to database'
-                            : 'Saved on device (offline) — server unreachable. Check server connection in Settings.',
-                      ),
-                      backgroundColor: synced ? AppTheme.green : AppTheme.amber,
-                      behavior: SnackBarBehavior.floating,
-                      duration: const Duration(seconds: 4),
-                    ),
-                  );
-                }
-              },
-              child: const Text('Save Changes'),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -143,66 +149,69 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          decoration: const BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        builder: (ctx, setModalState) => ResponsiveWrapper(
+          maxWidth: 520,
+          child: Container(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 20,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            decoration: const BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Change Password',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Change Password',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: () => Navigator.of(ctx).pop(),
+                      ),
+                    ],
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(ctx).pop(),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: currentPassController,
+                    obscureText: obscure,
+                    decoration: const InputDecoration(
+                      labelText: 'Current Password',
+                      prefixIcon: Icon(Icons.lock_outline_rounded),
+                    ),
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: currentPassController,
-                obscureText: obscure,
-                decoration: const InputDecoration(
-                  labelText: 'Current Password',
-                  prefixIcon: Icon(Icons.lock_outline_rounded),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: newPassController,
-                obscureText: obscure,
-                decoration: const InputDecoration(
-                  labelText: 'New Password (min 6 chars)',
-                  prefixIcon: Icon(Icons.vpn_key_outlined),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmPassController,
-                obscureText: obscure,
-                decoration: InputDecoration(
-                  labelText: 'Confirm New Password',
-                  prefixIcon: const Icon(Icons.check_circle_outline_rounded),
-                  suffixIcon: IconButton(
-                    icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
-                    onPressed: () => setModalState(() => obscure = !obscure),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPassController,
+                    obscureText: obscure,
+                    decoration: const InputDecoration(
+                      labelText: 'New Password (min 6 chars)',
+                      prefixIcon: Icon(Icons.vpn_key_outlined),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPassController,
+                    obscureText: obscure,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm New Password',
+                      prefixIcon: const Icon(Icons.check_circle_outline_rounded),
+                      suffixIcon: IconButton(
+                        icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                        onPressed: () => setModalState(() => obscure = !obscure),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () async {
                   final curP = currentPassController.text;
@@ -241,8 +250,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 
   void _showOfflineDataSheet() {
     showModalBottomSheet(
@@ -572,11 +583,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        child: Column(
-          children: [
-            // Profile Header Card
+      body: ResponsiveWrapper(
+        maxWidth: 720,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          child: Column(
+            children: [
+              // Profile Header Card
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
@@ -795,8 +808,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildStatTile(String value, String caption) {
     return Expanded(

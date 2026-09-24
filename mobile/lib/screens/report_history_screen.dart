@@ -5,6 +5,7 @@ import '../services/localization_service.dart';
 import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/hazard_report_sheet.dart';
 
 class ReportHistoryScreen extends StatefulWidget {
@@ -214,9 +215,11 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
         icon: const Icon(Icons.add_photo_alternate_rounded, size: 20),
         label: Text(localizationService.tr('report_hazard_btn'), style: const TextStyle(fontWeight: FontWeight.w700)),
       ),
-      body: Column(
-        children: [
-          if (offlineStorageService.isSyncing)
+      body: ResponsiveWrapper(
+        maxWidth: 840,
+        child: Column(
+          children: [
+            if (offlineStorageService.isSyncing)
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -361,8 +364,9 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildKpiCard(String label, String value, Color color) {
     return Expanded(

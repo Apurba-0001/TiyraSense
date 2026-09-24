@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import 'driver_home_screen.dart';
 import 'field_worker_home_screen.dart';
@@ -175,6 +176,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     final strength = _calculatePasswordStrength(_passwordController.text);
+    final isShort = Responsive.isShortScreen(context);
 
     return Scaffold(
       backgroundColor: AppTheme.canvas,
@@ -187,42 +189,47 @@ class _SignUpScreenState extends State<SignUpScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Header Block
-                const Center(
-                  child: AppLogo.icon(
-                    size: 56,
-                    radius: 14,
-                    glow: true,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Create Account',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w800,
-                    color: AppTheme.textHigh,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Driver and Field Worker registration',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: AppTheme.textLow,
-                  ),
-                ),
-
-                const SizedBox(height: 16),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+              vertical: isShort ? 6 : 12,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 460),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Header Block
+                    Center(
+                      child: AppLogo.icon(
+                        size: isShort ? 44 : 56,
+                        radius: isShort ? 11 : 14,
+                        glow: true,
+                      ),
+                    ),
+                    SizedBox(height: isShort ? 8 : 12),
+                    const Text(
+                      'Create Account',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textHigh,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Driver and Field Worker registration',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppTheme.textLow,
+                      ),
+                    ),
+                    SizedBox(height: isShort ? 10 : 16),
 
                 // Info Banner
                 Container(
@@ -492,6 +499,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  ),
+);
+}
 }

@@ -5,6 +5,7 @@ import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/server_connection_dialog.dart';
+import '../utils/responsive_utils.dart';
 import 'driver_home_screen.dart';
 import 'field_worker_home_screen.dart';
 import 'official_home_screen.dart';
@@ -110,170 +111,182 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isShort = Responsive.isShortScreen(context);
+    final logoSize = isShort ? 52.0 : 72.0;
+
     return Scaffold(
       backgroundColor: AppTheme.canvas,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Server connection settings chip
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: InkWell(
-                      onTap: () => ServerConnectionSheet.show(
-                        context,
-                        onUrlUpdated: () => setState(() {}),
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: AppTheme.borderLight),
+            padding: EdgeInsets.symmetric(
+              horizontal: Responsive.horizontalPadding(context),
+              vertical: isShort ? 12 : 20,
+            ),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 440),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Server connection settings chip
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: InkWell(
+                        onTap: () => ServerConnectionSheet.show(
+                          context,
+                          onUrlUpdated: () => setState(() {}),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.dns_rounded, size: 13, color: AppTheme.primaryBlue),
-                            const SizedBox(width: 5),
-                            Text(
-                              ApiService().baseUrl.replaceAll('/api/v1', '').replaceAll('http://', ''),
-                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textMid),
-                            ),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.tune_rounded, size: 12, color: AppTheme.textLow),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Brand Block (Center-aligned)
-                  const Center(
-                    child: AppLogo.icon(
-                      size: 72,
-                      radius: 18,
-                      glow: true,
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'TiyraSense',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w800,
-                      color: AppTheme.textHigh,
-                      letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'NER Logistics Intelligence',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
-                      color: AppTheme.textLow,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-
-                  // Form Section
-                  TextFormField(
-                    controller: _emailController,
-                    keyboardType: TextInputType.emailAddress,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      hintText: 'you@domain.com',
-                      prefixIcon: Icon(Icons.mail_outline_rounded, color: AppTheme.textLow),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.trim().isEmpty) return 'Enter your email';
-                      if (!val.contains('@')) return 'Enter a valid email';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 14),
-
-                  TextFormField(
-                    controller: _passwordController,
-                    obscureText: _obscurePassword,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.textLow),
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                          color: AppTheme.textLow,
-                        ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                      ),
-                    ),
-                    validator: (val) {
-                      if (val == null || val.isEmpty) return 'Enter your password';
-                      return null;
-                    },
-                  ),
-                  const SizedBox(height: 22),
-
-                  // Sign In Button
-                  SizedBox(
-                    height: 52,
-                    child: ElevatedButton(
-                      onPressed: widget.authProvider.isLoading ? null : _handleLogin,
-                      child: widget.authProvider.isLoading
-                          ? const SizedBox(
-                              width: 22,
-                              height: 22,
-                              child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
-                            )
-                          : const Text('Sign In'),
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // Footer: Register link
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        'New here? ',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: AppTheme.textLow,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => SignUpScreen(authProviderOverride: widget.authProvider),
-                            ),
-                          );
-                        },
-                        child: const Text(
-                          'Register',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.primaryBlue,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppTheme.surface,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: AppTheme.borderLight),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.dns_rounded, size: 13, color: AppTheme.primaryBlue),
+                              const SizedBox(width: 5),
+                              Flexible(
+                                child: Text(
+                                  ApiService().baseUrl.replaceAll('/api/v1', '').replaceAll('http://', ''),
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textMid),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.tune_rounded, size: 12, color: AppTheme.textLow),
+                            ],
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                    SizedBox(height: isShort ? 8 : 12),
+
+                    // Brand Block (Center-aligned)
+                    Center(
+                      child: AppLogo.icon(
+                        size: logoSize,
+                        radius: isShort ? 14 : 18,
+                        glow: true,
+                      ),
+                    ),
+                    SizedBox(height: isShort ? 8 : 12),
+                    const Text(
+                      'TiyraSense',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w800,
+                        color: AppTheme.textHigh,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'NER Logistics Intelligence',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: AppTheme.textLow,
+                      ),
+                    ),
+                    SizedBox(height: isShort ? 16 : 24),
+
+                    // Form Section
+                    TextFormField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        labelText: 'Email',
+                        hintText: 'you@domain.com',
+                        prefixIcon: Icon(Icons.mail_outline_rounded, color: AppTheme.textLow),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.trim().isEmpty) return 'Enter your email';
+                        if (!val.contains('@')) return 'Enter a valid email';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextFormField(
+                      controller: _passwordController,
+                      obscureText: _obscurePassword,
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        prefixIcon: const Icon(Icons.lock_outline_rounded, color: AppTheme.textLow),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                            color: AppTheme.textLow,
+                          ),
+                          onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        ),
+                      ),
+                      validator: (val) {
+                        if (val == null || val.isEmpty) return 'Enter your password';
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 22),
+
+                    // Sign In Button
+                    SizedBox(
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: widget.authProvider.isLoading ? null : _handleLogin,
+                        child: widget.authProvider.isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(strokeWidth: 2.2, color: Colors.white),
+                              )
+                            : const Text('Sign In'),
+                      ),
+                    ),
+
+                    SizedBox(height: isShort ? 16 : 24),
+
+                    // Footer: Register link
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Text(
+                          'New here? ',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.textLow,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => SignUpScreen(authProviderOverride: widget.authProvider),
+                              ),
+                            );
+                          },
+                          child: const Text(
+                            'Register',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: AppTheme.primaryBlue,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

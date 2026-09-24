@@ -9,6 +9,7 @@ import '../services/offline_storage_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_utils.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/journey_planning_sheet.dart';
 import '../widgets/live_notification_card.dart';
@@ -2210,15 +2211,18 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             bottom: 0,
             child: _isNavigating
                 ? _buildGoogleMapsBottomNavigationCard()
-                : Container(
-                    height: 200,
-                    padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
-                    decoration: const BoxDecoration(
-                      color: AppTheme.surface,
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
-                      boxShadow: AppTheme.navShadow,
-                    ),
-                    child: Column(
+                : Center(
+                    child: ResponsiveWrapper(
+                      maxWidth: 640,
+                      child: Container(
+                        constraints: const BoxConstraints(minHeight: 180),
+                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                        decoration: const BoxDecoration(
+                          color: AppTheme.surface,
+                          borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+                          boxShadow: AppTheme.navShadow,
+                        ),
+                        child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Drag Handle
@@ -2427,6 +2431,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                       ],
                     ),
                   ),
+                ),
+              ),
           ),
         ],
       ),
