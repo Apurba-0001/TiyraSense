@@ -198,13 +198,6 @@ class ReportService extends ChangeNotifier {
     try {
       final remoteList = await ApiService().fetchFieldReports();
       if (remoteList.isEmpty) {
-        // If server is reachable and returned 0 reports, clear demo seed reports
-        final prevLen = _reports.length;
-        _reports.removeWhere((r) => r.id.startsWith('RP-284') && !r.isMine);
-        if (_reports.length != prevLen) {
-          await _persistReports();
-          notifyListeners();
-        }
         return;
       }
 

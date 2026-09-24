@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
@@ -185,11 +186,40 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   // ---------------------------------------------------------------------------
   // Audit logs are streamed live from the backend API. Starts empty.
   final List<Map<String, String>> _auditLogs = [];
+  Timer? _adminSyncTimer;
 
   @override
   void initState() {
     super.initState();
     _loadEvidenceStats();
+    _loadUsers();
+    _adminSyncTimer = Timer.periodic(const Duration(seconds: 12), (_) {
+      _loadEvidenceStats();
+      _loadUsers();
+    });
+  }
+
+  Future<void> _loadUsers() async {
+    try {
+      final liveUsers = await _apiService.fetchUsers();
+      if (mounted && liveUsers.isNotEmpty) {
+        setState(() {
+          _users.clear();
+          for (final u in liveUsers) {
+            _users.add({
+              'id': u['id'] ?? 'usr-${_users.length + 1}',
+              'name': u['full_name'] ?? 'User',
+              'email': u['email'] ?? '',
+              'role': (u['role'] ?? 'OFFICIAL').toString().toUpperCase(),
+              'org': u['organization'] ?? 'TiyraSense Operations',
+              'status': (u['status'] ?? 'ACTIVE').toString().toUpperCase(),
+              'phone': u['phone_number'] ?? '+91 94350 11204',
+              'joined': u['created_at'] != null ? u['created_at'].toString().split('T')[0] : 'Active Member',
+            });
+          }
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadEvidenceStats() async {
@@ -205,6 +235,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
   @override
   void dispose() {
+    _adminSyncTimer?.cancel();
     _searchUserController.dispose();
     super.dispose();
   }

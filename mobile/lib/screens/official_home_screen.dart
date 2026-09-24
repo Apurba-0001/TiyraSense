@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/alert_service.dart';
+import '../services/api_service.dart';
 import '../services/report_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
@@ -112,6 +114,65 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
 
   // Report filter for tab 2
   String _reportFilter = 'ALL';
+
+  final ApiService _apiService = ApiService();
+  Timer? _pollTimer;
+  List<Map<String, dynamic>> _liveCorridors = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveTelemetry();
+    _pollTimer = Timer.periodic(const Duration(seconds: 10), (_) => _loadLiveTelemetry());
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadLiveTelemetry() async {
+    reportService.syncLiveReports();
+    try {
+      final corridors = await _apiService.fetchCorridors();
+      if (mounted && corridors.isNotEmpty) {
+        setState(() {
+          _liveCorridors = corridors;
+        });
+      }
+    } catch (_) {}
+
+    try {
+      final journeys = await _apiService.fetchActiveJourneys();
+      if (mounted && journeys.isNotEmpty) {
+        setState(() {
+          _fleetVehicles.clear();
+          for (final j in journeys) {
+            final curLoc = j['current_location'] as Map<String, dynamic>?;
+            _fleetVehicles.add({
+              'id': j['journey_id'] ?? 'TRK-01',
+              'name': j['vehicle_name'] ?? 'Logistics Carrier',
+              'driver': j['driver_name'] ?? 'Assigned Driver',
+              'phone': j['driver_phone'] ?? '+91 94350 11204',
+              'corridor': j['route_name'] ?? 'Monitored Corridor',
+              'location': j['destination_name'] ?? 'In Transit',
+              'lat': (curLoc?['latitude'] as num?)?.toDouble() ?? 26.1445,
+              'lng': (curLoc?['longitude'] as num?)?.toDouble() ?? 91.7362,
+              'speed': (j['speed_kmh'] as num?)?.toDouble() ?? 42.0,
+              'heading': 168.0,
+              'cargo': j['route_name'] ?? 'Essential Freight',
+              'axleLoad': '28.4 MT / 35.0 MT',
+              'status': j['status'] ?? 'In Transit',
+              'eta': '2h 15m',
+              'forwardHazard': j['status'] == 'HAZARD_SLOWED' ? 'Caution alert active in sector' : 'None',
+              'riskScore': 0.18,
+            });
+          }
+        });
+      }
+    } catch (_) {}
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -398,9 +459,9 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           const SizedBox(height: 14),
           Row(
             children: [
-              _buildKpiMiniItem('14', 'Monitored Corridors', const Color(0xFF60A5FA)),
+              _buildKpiMiniItem(_liveCorridors.isNotEmpty ? '${_liveCorridors.length}' : '8', 'Monitored Corridors', const Color(0xFF60A5FA)),
               _buildKpiDivider(),
-              _buildKpiMiniItem('4', 'Fleet Units Active', const Color(0xFF34D399)),
+              _buildKpiMiniItem('${_fleetVehicles.length}', 'Fleet Units Active', const Color(0xFF34D399)),
               _buildKpiDivider(),
               ListenableBuilder(
                 listenable: reportService,
@@ -715,38 +776,59 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
   }
 
   Widget _buildCriticalCorridorsList() {
-    final corridors = [
-      {
-        'code': 'NH-06',
-        'name': 'Guwahati — Shillong — Silchar',
-        'status': 'MODERATE RISK',
-        'statusColor': AppTheme.amber,
-        'riskScore': '0.28',
-        'weather': 'Light Mist · Rain 12mm/h',
-        'trucks': '14 Units',
-        'throughput': '84%',
-      },
-      {
-        'code': 'NH-29',
-        'name': 'Dimapur — Kohima Express Corridor',
-        'status': 'HIGH WATCH',
-        'statusColor': AppTheme.red,
-        'riskScore': '0.64',
-        'weather': 'Heavy Rain 48mm/h · Fog',
-        'trucks': '6 Units',
-        'throughput': '52%',
-      },
-      {
-        'code': 'NH-10',
-        'name': 'Sevoke — Gangtok Teesta Valley',
-        'status': 'NORMAL FLOW',
-        'statusColor': AppTheme.green,
-        'riskScore': '0.14',
-        'weather': 'Partly Cloudy · 24°C',
-        'trucks': '18 Units',
-        'throughput': '96%',
-      },
-    ];
+    final corridors = _liveCorridors.isNotEmpty
+        ? _liveCorridors.take(5).map((c) {
+            final status = (c['status'] ?? 'PASSABLE').toString().toUpperCase();
+            final riskScore = (c['risk_score'] as num?)?.toDouble() ?? 20.0;
+            Color statusColor = AppTheme.green;
+            if (status.contains('BLOCK') || status.contains('HIGH') || riskScore > 60) {
+              statusColor = AppTheme.red;
+            } else if (status.contains('CAUTION') || riskScore > 30) {
+              statusColor = AppTheme.amber;
+            }
+            return {
+              'code': c['route_id'] ?? c['id'] ?? 'NH-06',
+              'name': c['name'] ?? 'Monitored Corridor',
+              'status': status,
+              'statusColor': statusColor,
+              'riskScore': (riskScore / 100.0).toStringAsFixed(2),
+              'weather': c['last_report'] ?? 'Live Telemetry Radar',
+              'trucks': '${_fleetVehicles.length} Units',
+              'throughput': '${(100 - riskScore).clamp(10, 100).toInt()}%',
+            };
+          }).toList()
+        : [
+            {
+              'code': 'NH-06',
+              'name': 'Guwahati — Shillong — Silchar',
+              'status': 'MODERATE RISK',
+              'statusColor': AppTheme.amber,
+              'riskScore': '0.28',
+              'weather': 'Light Mist · Rain 12mm/h',
+              'trucks': '14 Units',
+              'throughput': '84%',
+            },
+            {
+              'code': 'NH-29',
+              'name': 'Dimapur — Kohima Express Corridor',
+              'status': 'HIGH WATCH',
+              'statusColor': AppTheme.red,
+              'riskScore': '0.64',
+              'weather': 'Heavy Rain 48mm/h · Fog',
+              'trucks': '6 Units',
+              'throughput': '52%',
+            },
+            {
+              'code': 'NH-10',
+              'name': 'Sevoke — Gangtok Teesta Valley',
+              'status': 'NORMAL FLOW',
+              'statusColor': AppTheme.green,
+              'riskScore': '0.14',
+              'weather': 'Partly Cloudy · 24°C',
+              'trucks': '18 Units',
+              'throughput': '96%',
+            },
+          ];
 
     return Column(
       children: corridors.map((corridor) {

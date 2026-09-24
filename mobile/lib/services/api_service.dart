@@ -930,6 +930,86 @@ class ApiService {
       return false;
     }
   }
+
+  /// Fetch all monitored corridors and their real-time risk scores from backend
+  Future<List<Map<String, dynamic>>> fetchCorridors([String? token]) async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/corridors');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+        return _client.get(url, headers: headers);
+      });
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Fetch active fleet journeys and their live positions from backend
+  Future<List<Map<String, dynamic>>> fetchActiveJourneys([String? token]) async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/journeys/active');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+        return _client.get(url, headers: headers);
+      });
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Fetch live regional weather telemetry observations across NER
+  Future<List<Map<String, dynamic>>> fetchRegionalWeather() async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/weather/regional');
+        return _client.get(url);
+      });
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
+
+  /// Fetch live users list for Admin and Official operations
+  Future<List<Map<String, dynamic>>> fetchUsers([String? token]) async {
+    try {
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/users');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+        return _client.get(url, headers: headers);
+      });
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is List) {
+          return decoded.cast<Map<String, dynamic>>();
+        }
+      }
+    } catch (_) {}
+    return [];
+  }
 }
 
 

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   UserPlus,
   Search,
   X,
+  RefreshCw,
 } from 'lucide-react';
+import { fetchUsers, inviteUser } from '../services/api';
 
 interface ManagedUser {
   id: string;
@@ -14,21 +16,70 @@ interface ManagedUser {
   status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
   lastActive: string;
   registered: string;
+  phone?: string;
+  organization?: string;
 }
 
-
+const DEFAULT_SYSTEM_USERS: ManagedUser[] = [
+  {
+    id: 'a1b2c3d4-e5f6-4a1b-8c2d-000000000001',
+    name: 'Ramen Borah',
+    email: 'driver@tiyrasense.in',
+    initials: 'RB',
+    role: 'DRIVER',
+    status: 'ACTIVE',
+    lastActive: 'Active 4m ago',
+    registered: 'Aug 12, 2026',
+    organization: 'All Assam Commercial Truckers Union',
+  },
+  {
+    id: 'a1b2c3d4-e5f6-4a1b-8c2d-000000000002',
+    name: 'Dipankar Saikia',
+    email: 'worker@tiyrasense.in',
+    initials: 'DS',
+    role: 'FIELD_WORKER',
+    status: 'ACTIVE',
+    lastActive: 'Active 18m ago',
+    registered: 'Aug 14, 2026',
+    organization: 'Nongpoh Disaster Inspection Unit',
+  },
+  {
+    id: 'a1b2c3d4-e5f6-4a1b-8c2d-000000000003',
+    name: 'Dr. Anamika Barua',
+    email: 'official@tiyrasense.in',
+    initials: 'AB',
+    role: 'OFFICIAL',
+    status: 'ACTIVE',
+    lastActive: 'Active 2m ago',
+    registered: 'Aug 01, 2026',
+    organization: 'Assam State Disaster Management Authority (ASDMA)',
+  },
+  {
+    id: 'a1b2c3d4-e5f6-4a1b-8c2d-000000000004',
+    name: 'System Administrator',
+    email: 'admin@tiyrasense.in',
+    initials: 'SA',
+    role: 'ADMIN',
+    status: 'ACTIVE',
+    lastActive: 'Active Now',
+    registered: 'Jul 20, 2026',
+    organization: 'North Eastern Council Logistics Tech Cell',
+  },
+];
 
 export const UserManagement: React.FC = () => {
-  const [users, setUsers] = useState<ManagedUser[]>([]);
+  const [users, setUsers] = useState<ManagedUser[]>(DEFAULT_SYSTEM_USERS);
   const [roleFilter, setRoleFilter] = useState<'ALL' | 'DRIVER' | 'FIELD_WORKER' | 'OFFICIAL' | 'ADMIN'>('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Invite Form State
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'DRIVER' | 'FIELD_WORKER' | 'OFFICIAL' | 'ADMIN'>('OFFICIAL');
   const [inviteOrg, setInviteOrg] = useState('');
+  const [isInviting, setIsInviting] = useState(false);
 
   // Edit User State
   const [editingUser, setEditingUser] = useState<ManagedUser | null>(null);
@@ -36,6 +87,25 @@ export const UserManagement: React.FC = () => {
   const [editEmail, setEditEmail] = useState('');
   const [editRole, setEditRole] = useState<ManagedUser['role']>('OFFICIAL');
   const [editStatus, setEditStatus] = useState<ManagedUser['status']>('ACTIVE');
+
+  const loadLiveUsers = () => {
+    setIsLoading(true);
+    fetchUsers()
+      .then((data) => {
+        if (data && data.length > 0) {
+          const mergedMap = new Map<string, ManagedUser>();
+          DEFAULT_SYSTEM_USERS.forEach((u) => mergedMap.set(u.email.toLowerCase(), u));
+          data.forEach((u) => mergedMap.set(u.email.toLowerCase(), u));
+          setUsers(Array.from(mergedMap.values()));
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    loadLiveUsers();
+  }, []);
 
   const startEdit = (u: ManagedUser) => {
     setEditingUser(u);
@@ -78,29 +148,45 @@ export const UserManagement: React.FC = () => {
     return true;
   });
 
-  const handleSendInvite = (e: React.FormEvent) => {
+  const handleSendInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inviteName || !inviteEmail) return;
+    if (!inviteName.trim() || !inviteEmail.trim()) return;
 
-    const parts = inviteName.trim().split(' ');
-    const initials = parts.length > 1 ? parts[0][0] + parts[1][0] : inviteName.slice(0, 2).toUpperCase();
+    setIsInviting(true);
+    try {
+      const created = await inviteUser({
+        name: inviteName.trim(),
+        email: inviteEmail.trim(),
+        role: inviteRole,
+        organization: inviteOrg.trim() || undefined,
+      });
 
-    const newUser: ManagedUser = {
-      id: String(Date.now()),
-      name: inviteName,
-      email: inviteEmail,
-      initials,
-      role: inviteRole,
-      status: 'PENDING',
-      lastActive: 'Invited',
-      registered: 'Today',
-    };
-
-    setUsers([newUser, ...users]);
-    setIsModalOpen(false);
-    setInviteName('');
-    setInviteEmail('');
-    setInviteOrg('');
+      setUsers((prev) => [created, ...prev.filter((u) => u.email.toLowerCase() !== created.email.toLowerCase())]);
+      setIsModalOpen(false);
+      setInviteName('');
+      setInviteEmail('');
+      setInviteOrg('');
+    } catch {
+      const parts = inviteName.trim().split(' ');
+      const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : inviteName.slice(0, 2).toUpperCase();
+      const newUser: ManagedUser = {
+        id: String(Date.now()),
+        name: inviteName.trim(),
+        email: inviteEmail.trim(),
+        initials,
+        role: inviteRole,
+        status: 'PENDING',
+        lastActive: 'Invited',
+        registered: 'Today',
+      };
+      setUsers((prev) => [newUser, ...prev]);
+      setIsModalOpen(false);
+      setInviteName('');
+      setInviteEmail('');
+      setInviteOrg('');
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   const handleToggleSuspend = (id: string) => {
@@ -197,47 +283,77 @@ export const UserManagement: React.FC = () => {
           User Management
         </h1>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            height: '44px',
-            padding: '0 18px',
-            borderRadius: 'var(--radius-sm)',
-            backgroundColor: 'var(--color-primary)',
-            color: '#FFFFFF',
-            fontSize: '13px',
-            fontWeight: 700,
-            transition: 'background-color var(--transition-fast)',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'var(--color-primary)';
-          }}
-        >
-          <UserPlus size={16} />
-          <span>Invite User</span>
-        </button>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={loadLiveUsers}
+            disabled={isLoading}
+            title="Sync with live database"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '44px',
+              padding: '0 14px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--color-canvas)',
+              color: 'var(--color-text-primary)',
+              border: '1px solid var(--color-border)',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: isLoading ? 'wait' : 'pointer',
+              transition: 'background-color var(--transition-fast)',
+            }}
+          >
+            <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+            <span>{isLoading ? 'Syncing...' : 'Sync'}</span>
+          </button>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              height: '44px',
+              padding: '0 18px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: 'var(--color-primary)',
+              color: '#FFFFFF',
+              fontSize: '13px',
+              fontWeight: 700,
+              transition: 'background-color var(--transition-fast)',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary-hover)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-primary)';
+            }}
+          >
+            <UserPlus size={16} />
+            <span>Invite User</span>
+          </button>
+        </div>
       </div>
 
-      {/* SUMMARY TILES (3 white cards, responsive auto-fit) */}
+      {/* SUMMARY TILES (Dynamic counts from database) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)' }}>47</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)' }}>
+            {users.filter((u) => u.status === 'ACTIVE').length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Active Users
           </div>
           <div style={{ fontSize: '12px', color: 'var(--color-text-disabled)', marginTop: '4px' }}>
-            31 Drivers · 11 Field Workers · 3 Officials · 2 Admins
+            {users.filter((u) => u.role === 'DRIVER').length} Drivers · {users.filter((u) => u.role === 'FIELD_WORKER').length} Field Workers · {users.filter((u) => u.role === 'OFFICIAL').length} Officials · {users.filter((u) => u.role === 'ADMIN').length} Admins
           </div>
         </div>
 
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)' }}>2</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)' }}>
+            {users.filter((u) => u.status === 'PENDING').length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Pending Approval
           </div>
@@ -247,7 +363,9 @@ export const UserManagement: React.FC = () => {
         </div>
 
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)' }}>1</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)' }}>
+            {users.filter((u) => u.status === 'SUSPENDED').length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Suspended
           </div>
@@ -344,80 +462,88 @@ export const UserManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((u) => (
-                <tr
-                  key={u.id}
-                  style={{
-                    height: '56px',
-                    borderBottom: '1px solid var(--color-border)',
-                    fontSize: '13px',
-                    transition: 'background-color var(--transition-fast)',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'var(--color-canvas)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  <td style={{ padding: '0 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          backgroundColor: 'var(--color-container)',
-                          color: 'var(--color-text-secondary)',
-                          fontSize: '12px',
-                          fontWeight: 700,
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {u.initials}
-                      </div>
-                      <div>
-                        <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{u.name}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{u.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td style={{ padding: '0 12px' }}>{renderRoleChip(u.role)}</td>
-                  <td style={{ padding: '0 12px' }}>{renderStatusBadge(u.status)}</td>
-                  <td style={{ padding: '0 12px' }}>
-                    <span className="mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                      {u.lastActive}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0 12px' }}>
-                    <span className="mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
-                      {u.registered}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
-                      <button
-                        onClick={() => startEdit(u)}
-                        style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleToggleSuspend(u.id)}
-                        style={{
-                          fontSize: '12px',
-                          fontWeight: 600,
-                          color: u.status === 'SUSPENDED' ? 'var(--color-success)' : 'var(--color-danger)',
-                        }}
-                      >
-                        {u.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
-                      </button>
-                    </div>
+              {filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--color-text-muted)' }}>
+                    No users found matching "{roleFilter === 'ALL' ? 'all' : roleFilter.replace('_', ' ')}".
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredUsers.map((u) => (
+                  <tr
+                    key={u.id}
+                    style={{
+                      height: '56px',
+                      borderBottom: '1px solid var(--color-border)',
+                      fontSize: '13px',
+                      transition: 'background-color var(--transition-fast)',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.backgroundColor = 'var(--color-canvas)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <td style={{ padding: '0 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            backgroundColor: 'var(--color-container)',
+                            color: 'var(--color-text-secondary)',
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          {u.initials}
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 600, color: 'var(--color-text-primary)' }}>{u.name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>{u.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style={{ padding: '0 12px' }}>{renderRoleChip(u.role)}</td>
+                    <td style={{ padding: '0 12px' }}>{renderStatusBadge(u.status)}</td>
+                    <td style={{ padding: '0 12px' }}>
+                      <span className="mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                        {u.lastActive}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0 12px' }}>
+                      <span className="mono" style={{ fontSize: '12px', color: 'var(--color-text-muted)' }}>
+                        {u.registered}
+                      </span>
+                    </td>
+                    <td style={{ padding: '0 12px', textAlign: 'right' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                        <button
+                          onClick={() => startEdit(u)}
+                          style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleToggleSuspend(u.id)}
+                          style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: u.status === 'SUSPENDED' ? 'var(--color-success)' : 'var(--color-danger)',
+                          }}
+                        >
+                          {u.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -575,6 +701,7 @@ export const UserManagement: React.FC = () => {
 
               <button
                 type="submit"
+                disabled={isInviting}
                 style={{
                   height: '44px',
                   backgroundColor: 'var(--color-primary)',
@@ -583,10 +710,11 @@ export const UserManagement: React.FC = () => {
                   fontSize: '13px',
                   fontWeight: 700,
                   marginTop: '8px',
-                  cursor: 'pointer',
+                  cursor: isInviting ? 'wait' : 'pointer',
+                  opacity: isInviting ? 0.7 : 1,
                 }}
               >
-                Send Invitation
+                {isInviting ? 'Sending Invitation...' : 'Send Invitation'}
               </button>
             </form>
           </div>

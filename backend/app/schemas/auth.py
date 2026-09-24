@@ -153,6 +153,32 @@ class UserUpdate(BaseModel):
         return _reject_control_chars(v, info.field_name)
 
 
+class ManagedUserOut(BaseModel):
+    """Schema for users rendered in the management dashboard."""
+
+    id: str
+    email: str
+    full_name: str
+    phone_number: Optional[str] = None
+    role: str
+    organization: Optional[str] = None
+    status: str = "ACTIVE"
+    last_active: str = "Recently"
+    registered: str = "Recent"
+
+    model_config = {"from_attributes": True}
+
+
+class UserInvite(BaseModel):
+    """Payload for inviting / creating a user from the management dashboard."""
+
+    name: str = Field(min_length=2, max_length=128)
+    email: EmailStr
+    role: str = "OFFICIAL"
+    organization: Optional[str] = None
+    phone_number: Optional[str] = None
+
+
 __all__ = [
     "UserRole",
     "RegistrationRole",
@@ -161,5 +187,7 @@ __all__ = [
     "TokenResponse",
     "UserCreate",
     "UserUpdate",
+    "ManagedUserOut",
+    "UserInvite",
 ]
 

@@ -19,7 +19,7 @@ import { JourneyPlanningModal } from '../components/JourneyPlanningModal';
 import { VectorGisMap } from '../components/VectorGisMap';
 import { DistanceClausesModal } from '../components/DistanceClausesModal';
 import { computeDetailedBreakdown, DistanceBreakdown } from '../utils/distanceUtils';
-import { fetchActiveJourneys, fetchCorridors, ActiveJourney } from '../services/api';
+import { fetchActiveJourneys, fetchCorridors, fetchFieldReports, ActiveJourney } from '../services/api';
 
 const HUB_COORDINATES: Record<string, { lat: number; lng: number }> = {
   guwahati: { lat: 26.1445, lng: 91.7362 },
@@ -266,12 +266,26 @@ export const CorridorMonitor: React.FC = () => {
   const [corridors, setCorridors] = useState<CorridorDetail[]>(CORRIDORS);
 
   useEffect(() => {
-    fetchCorridors()
-      .then((live) => {
-        if (live && live.length > 0) {
+    const syncCorridorsAndReports = async () => {
+      try {
+        const [liveCorridors, reports] = await Promise.allSettled([
+          fetchCorridors(),
+          fetchFieldReports(),
+        ]);
+
+        const fieldReps = reports.status === 'fulfilled' ? reports.value || [] : [];
+
+        if (liveCorridors.status === 'fulfilled' && liveCorridors.value && liveCorridors.value.length > 0) {
           setCorridors((prev) => {
             const map = new Map(prev.map((c) => [c.id, c]));
-            live.forEach((l) => {
+            liveCorridors.value.forEach((l) => {
+              const matchedReports = fieldReps.filter((r) => {
+                const cName = (r.corridor_name || '').toLowerCase();
+                const lId = l.id.toLowerCase();
+                const lName = l.name.toLowerCase();
+                return cName.includes(lId) || lName.includes(cName) || cName.includes(l.route_id.toLowerCase());
+              });
+
               const existing = map.get(l.id);
               if (existing) {
                 map.set(l.id, {
@@ -279,6 +293,7 @@ export const CorridorMonitor: React.FC = () => {
                   status: (l.status as CorridorDetail['status']) || existing.status,
                   riskScore: l.risk_score,
                   disruptionProb: l.disruption_prob,
+                  verifiedReports: matchedReports.length > 0 ? matchedReports.length : existing.verifiedReports,
                   updatedAt: l.last_report || existing.updatedAt,
                 });
               } else {
@@ -289,7 +304,7 @@ export const CorridorMonitor: React.FC = () => {
                   status: (l.status as CorridorDetail['status']) || 'PASSABLE',
                   riskScore: l.risk_score,
                   disruptionProb: l.disruption_prob,
-                  verifiedReports: 1,
+                  verifiedReports: Math.max(1, matchedReports.length),
                   updatedAt: l.last_report || 'Live Radar',
                   factors: [
                     {
@@ -306,13 +321,17 @@ export const CorridorMonitor: React.FC = () => {
             return Array.from(map.values());
           });
         }
-      })
-      .catch(() => {});
+      } catch (_) {}
+    };
 
+    syncCorridorsAndReports();
     fetchActiveJourneys().then(setActiveFleet).catch(() => {});
+
     const interval = setInterval(() => {
       fetchActiveJourneys().then(setActiveFleet).catch(() => {});
+      syncCorridorsAndReports();
     }, 10000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -469,7 +488,7 @@ export const CorridorMonitor: React.FC = () => {
               minWidth: '180px',
             }}
           >
-            {CORRIDORS.map((c) => (
+            {corridors.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
               </option>

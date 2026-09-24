@@ -555,3 +555,86 @@ export async function fetchRegionalWeather(): Promise<RegionalWeatherObservation
   }
 }
 
+export interface WebManagedUser {
+  id: string;
+  name: string;
+  email: string;
+  initials: string;
+  role: 'DRIVER' | 'FIELD_WORKER' | 'OFFICIAL' | 'ADMIN';
+  status: 'ACTIVE' | 'PENDING' | 'SUSPENDED';
+  lastActive: string;
+  registered: string;
+  phone?: string;
+  organization?: string;
+}
+
+export async function fetchUsers(): Promise<WebManagedUser[]> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/users`, {
+      headers: getHeaders(true),
+    });
+    if (!res.ok) {
+      return [];
+    }
+    const data = await res.json();
+    if (!Array.isArray(data)) return [];
+    return data.map((u: any) => {
+      const name = u.full_name || u.name || 'User';
+      const parts = name.trim().split(' ');
+      const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+      return {
+        id: String(u.id),
+        name,
+        email: u.email,
+        initials,
+        role: (u.role as WebManagedUser['role']) || 'OFFICIAL',
+        status: (u.status as WebManagedUser['status']) || 'ACTIVE',
+        lastActive: u.last_active || 'Active',
+        registered: u.registered || 'Recent',
+        phone: u.phone_number,
+        organization: u.organization,
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function inviteUser(payload: {
+  name: string;
+  email: string;
+  role: string;
+  organization?: string;
+  phone_number?: string;
+}): Promise<WebManagedUser> {
+  const res = await fetch(`${API_BASE}/auth/users/invite`, {
+    method: 'POST',
+    headers: getHeaders(true),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let errorMsg = 'Failed to invite user';
+    try {
+      const err = await res.json();
+      if (err.detail) errorMsg = err.detail;
+    } catch {}
+    throw new ApiErrorResponse(errorMsg, res.status);
+  }
+  const u = await res.json();
+  const name = u.full_name || u.name || payload.name;
+  const parts = name.trim().split(' ');
+  const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+  return {
+    id: String(u.id),
+    name,
+    email: u.email,
+    initials,
+    role: (u.role as WebManagedUser['role']) || (payload.role as any),
+    status: (u.status as WebManagedUser['status']) || 'PENDING',
+    lastActive: u.last_active || 'Invited',
+    registered: u.registered || 'Today',
+    phone: u.phone_number,
+    organization: u.organization,
+  };
+}
+

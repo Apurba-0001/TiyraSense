@@ -362,28 +362,36 @@ export const AlertFeed: React.FC = () => {
       {/* STATS STRIP (4 equal white cards, responsive auto-fit) */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)' }}>1</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)' }}>
+            {alerts.filter((a) => a.severity === 'EMERGENCY' && !a.acknowledged).length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Emergency
           </div>
         </div>
 
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-restricted)' }}>3</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-restricted)' }}>
+            {alerts.filter((a) => a.severity === 'HIGH RISK' && !a.acknowledged).length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             High Risk
           </div>
         </div>
 
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)' }}>5</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)' }}>
+            {alerts.filter((a) => a.severity === 'CAUTION' && !a.acknowledged).length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Caution
           </div>
         </div>
 
         <div className="tiyra-card" style={{ padding: '16px' }}>
-          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-primary)' }}>8</div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-primary)' }}>
+            {alerts.filter((a) => a.severity === 'INFO' && !a.acknowledged).length}
+          </div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Informational
           </div>

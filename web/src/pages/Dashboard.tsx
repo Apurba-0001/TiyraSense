@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Route as RouteIcon,
-  Shield,
   AlertTriangle,
   AlertOctagon,
   RefreshCw,
@@ -464,6 +463,40 @@ export const Dashboard: React.FC = () => {
           if (reps && reps.length > 0) setFieldReports(reps);
         })
         .catch(() => {});
+      fetchAlerts()
+        .then((alts) => {
+          if (alts && alts.length > 0) {
+            setAlerts(
+              alts.map((a) => ({
+                id: a.id,
+                severity: (a.severity as LiveAlert['severity']) || 'INFO',
+                corridor: a.corridor,
+                time: a.time,
+                title: a.title,
+                description: a.description,
+                acknowledged: Boolean(a.acknowledged),
+              }))
+            );
+          }
+        })
+        .catch(() => {});
+      fetchCorridors()
+        .then((live) => {
+          if (live && live.length > 0) {
+            setCorridors(
+              live.map((c) => ({
+                id: c.id,
+                name: c.name,
+                routeId: c.route_id,
+                status: (c.status as CorridorRow['status']) || 'PASSABLE',
+                riskScore: c.risk_score,
+                disruptionProb: c.disruption_prob,
+                lastReport: c.last_report || 'Active Radar',
+              }))
+            );
+          }
+        })
+        .catch(() => {});
     }, 8000);
 
     const onOnline = () => loadDashboardData();
@@ -604,7 +637,7 @@ export const Dashboard: React.FC = () => {
           >
             <span>NER Logistics Intelligence</span>
             <span>·</span>
-            <span>8 Corridors Monitored</span>
+            <span>{corridors.length > 0 ? corridors.length : 8} Corridors Monitored</span>
             <span>·</span>
             <span
               style={{
@@ -816,7 +849,7 @@ export const Dashboard: React.FC = () => {
           gap: '16px',
         }}
       >
-        {/* Card A */}
+        {/* Card A: Active Corridors */}
         <div className="tiyra-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <div
@@ -834,7 +867,9 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
-                8 / 8
+                {corridors.length > 0
+                  ? `${corridors.filter((c) => c.status !== 'BLOCKED').length} / ${corridors.length}`
+                  : '8 / 8'}
               </div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 Corridors Active
@@ -843,11 +878,15 @@ export const Dashboard: React.FC = () => {
           </div>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-success)', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <TrendingUp size={13} />
-            <span>+0 since 06:00</span>
+            <span>
+              {corridors.length > 0
+                ? `${corridors.filter((c) => c.status === 'PASSABLE').length} passable · ${corridors.filter((c) => c.status === 'CAUTION' || c.status === 'HIGH RISK').length} degraded`
+                : '100% operational'}
+            </span>
           </div>
         </div>
 
-        {/* Card B */}
+        {/* Card B: Live Fleet Units */}
         <div className="tiyra-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <div
@@ -861,24 +900,26 @@ export const Dashboard: React.FC = () => {
                 justifyContent: 'center',
               }}
             >
-              <Shield size={20} color="var(--color-primary)" />
+              <Truck size={20} color="var(--color-primary)" />
             </div>
             <div>
               <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
-                14
+                {fleetVehicles.length}
               </div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-                Field Teams Online
+                Active Fleet Units
               </div>
             </div>
           </div>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <TrendingUp size={13} />
-            <span>3 synced in last 1h</span>
+            <span>
+              {fleetVehicles.filter((v) => v.status === 'IN_TRANSIT').length} in transit · {fleetVehicles.filter((v) => v.status === 'HAZARD_SLOWED').length} caution
+            </span>
           </div>
         </div>
 
-        {/* Card C */}
+        {/* Card C: Field Incidents & Reports */}
         <div className="tiyra-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <div
@@ -896,7 +937,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-warning)', lineHeight: 1.1 }}>
-                3
+                {fieldReports.filter((r) => r.status === 'PENDING' || r.status === 'VERIFIED').length}
               </div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 Open Incidents
@@ -905,11 +946,11 @@ export const Dashboard: React.FC = () => {
           </div>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-warning)', display: 'flex', alignItems: 'center', gap: '3px' }}>
             <TrendingDown size={13} />
-            <span>1 resolved today</span>
+            <span>{fieldReports.filter((r) => r.status === 'PENDING').length} pending review</span>
           </div>
         </div>
 
-        {/* Card D */}
+        {/* Card D: Emergency Alerts */}
         <div className="tiyra-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
             <div
@@ -927,7 +968,7 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)', lineHeight: 1.1 }}>
-                1
+                {alerts.filter((a) => a.severity === 'EMERGENCY' && !a.acknowledged).length}
               </div>
               <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                 Emergency Alerts
@@ -935,7 +976,7 @@ export const Dashboard: React.FC = () => {
             </div>
           </div>
           <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-danger)' }}>
-            NH-06 KM 52
+            {alerts.find((a) => a.severity === 'EMERGENCY' && !a.acknowledged)?.corridor || (alerts.length > 0 ? 'All Clear' : 'No Active Emergencies')}
           </div>
         </div>
       </div>

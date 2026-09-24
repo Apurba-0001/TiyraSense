@@ -1,4 +1,5 @@
 import uuid
+from typing import List
 from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
@@ -12,7 +13,16 @@ from backend.app.core.security import (
     verify_password,
 )
 from backend.app.models.user import User, UserRole, SYSTEM_FALLBACK_USERS
-from backend.app.schemas.auth import TokenResponse, UserCreate, UserLogin, UserOut, UserUpdate, RegistrationRole
+from backend.app.schemas.auth import (
+    TokenResponse,
+    UserCreate,
+    UserLogin,
+    UserOut,
+    UserUpdate,
+    RegistrationRole,
+    ManagedUserOut,
+    UserInvite,
+)
 
 router = APIRouter()
 
@@ -237,3 +247,145 @@ async def verify_admin_access(
         "role": current_user.role,
         "message": "Authorized for Admin Governance Dashboard.",
     }
+
+
+@router.get("/users", response_model=List[ManagedUserOut])
+async def list_users(
+    current_user: User = Depends(require_role([UserRole.OFFICIAL, UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Retrieve all users across the system from database, including system accounts."""
+    results_map = {}
+
+    # 1. Fetch from PostgreSQL database
+    try:
+        stmt = select(User).order_by(User.created_at.desc())
+        res = await db.execute(stmt)
+        db_users = res.scalars().all()
+        for u in db_users:
+            results_map[u.email.lower()] = ManagedUserOut(
+                id=str(u.id),
+                email=u.email,
+                full_name=u.full_name,
+                phone_number=u.phone_number,
+                role=u.role.value if hasattr(u.role, "value") else str(u.role),
+                organization=u.organization,
+                status="ACTIVE",
+                last_active="Active",
+                registered=u.created_at.strftime("%b %d, %Y") if hasattr(u, "created_at") and u.created_at else "Recent",
+            )
+    except Exception:
+        pass
+
+    # 2. Merge verified development / system accounts if not present
+    for email, u in SYSTEM_FALLBACK_USERS.items():
+        if email.lower() not in results_map:
+            results_map[email.lower()] = ManagedUserOut(
+                id=str(u.id),
+                email=u.email,
+                full_name=u.full_name,
+                phone_number=u.phone_number,
+                role=u.role.value if hasattr(u.role, "value") else str(u.role),
+                organization=u.organization,
+                status="ACTIVE",
+                last_active="Active",
+                registered="System Verified",
+            )
+
+    return list(results_map.values())
+
+
+@router.post("/users/invite", response_model=ManagedUserOut, status_code=status.HTTP_201_CREATED)
+async def invite_user(
+    invite_in: UserInvite,
+    current_user: User = Depends(require_role([UserRole.OFFICIAL, UserRole.ADMIN])),
+    db: AsyncSession = Depends(get_db_session),
+):
+    """Invite and register a new user from the User Management dashboard."""
+    email_clean = invite_in.email.lower().strip()
+    # Check existing
+    try:
+        stmt = select(User).where(User.email == email_clean)
+        existing = (await db.execute(stmt)).scalar_one_or_none()
+        if existing or email_clean in SYSTEM_FALLBACK_USERS:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"User with email '{email_clean}' already exists.",
+            )
+
+        role_str = invite_in.role.upper().replace(" ", "_")
+        try:
+            db_role = UserRole(role_str)
+        except ValueError:
+            db_role = UserRole.OFFICIAL
+
+        temp_password = "WelcomeTiyra2026!"
+        new_user = User(
+            id=uuid.uuid4(),
+            email=email_clean,
+            password_hash=get_password_hash(temp_password),
+            full_name=invite_in.name.strip(),
+            role=db_role,
+            phone_number=invite_in.phone_number,
+            organization=invite_in.organization,
+        )
+        db.add(new_user)
+        await db.commit()
+        await db.refresh(new_user)
+        SYSTEM_FALLBACK_USERS[email_clean] = new_user
+
+        # Sync to Supabase
+        try:
+            from backend.app.services.supabase_service import SupabaseService
+            await SupabaseService.update_user_profile(
+                user_id=str(new_user.id),
+                email=new_user.email,
+                full_name=new_user.full_name,
+                phone_number=new_user.phone_number,
+                organization=new_user.organization,
+            )
+        except Exception:
+            pass
+
+        return ManagedUserOut(
+            id=str(new_user.id),
+            email=new_user.email,
+            full_name=new_user.full_name,
+            phone_number=new_user.phone_number,
+            role=new_user.role.value,
+            organization=new_user.organization,
+            status="PENDING",
+            last_active="Invited",
+            registered="Today",
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        role_str = invite_in.role.upper().replace(" ", "_")
+        try:
+            db_role = UserRole(role_str)
+        except ValueError:
+            db_role = UserRole.OFFICIAL
+
+        fallback_user = User(
+            id=uuid.uuid4(),
+            email=email_clean,
+            password_hash=get_password_hash("WelcomeTiyra2026!"),
+            full_name=invite_in.name.strip(),
+            role=db_role,
+            phone_number=invite_in.phone_number,
+            organization=invite_in.organization,
+        )
+        SYSTEM_FALLBACK_USERS[email_clean] = fallback_user
+        return ManagedUserOut(
+            id=str(fallback_user.id),
+            email=fallback_user.email,
+            full_name=fallback_user.full_name,
+            phone_number=fallback_user.phone_number,
+            role=fallback_user.role.value,
+            organization=fallback_user.organization,
+            status="PENDING",
+            last_active="Invited",
+            registered="Today",
+        )
+
