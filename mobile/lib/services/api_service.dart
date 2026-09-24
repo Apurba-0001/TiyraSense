@@ -54,18 +54,20 @@ class ApiService {
     return url;
   }
 
+  static const String kDefaultProductionUrl = 'https://tiyrasense-api.onrender.com/api/v1';
+
   static String _getDefaultBaseUrl() {
-    if (_cachedBaseUrl != null && _cachedBaseUrl!.isNotEmpty) {
-      return _cachedBaseUrl!;
-    }
+    // 1. Compile-time constant seeded via --dart-define-from-file or --dart-define
     const customUrl = String.fromEnvironment('API_URL');
     if (customUrl.isNotEmpty) {
       return normalizeApiUrl(customUrl);
     }
-    // Default to 127.0.0.1 (works for physical Android devices with `adb reverse tcp:8000 tcp:8000`,
-    // as well as Web, Desktop, and iOS). For physical devices without adb reverse or emulators,
-    // _tryAlternate will probe LAN IP and 10.0.2.2 seamlessly.
-    return 'http://127.0.0.1:8000/api/v1';
+    // 2. Cached runtime base URL if explicitly updated
+    if (_cachedBaseUrl != null && _cachedBaseUrl!.isNotEmpty) {
+      return _cachedBaseUrl!;
+    }
+    // 3. Built-in production cloud backend seeded directly into the APK
+    return kDefaultProductionUrl;
   }
 
   /// Update the active base URL and persist it to secure storage
@@ -176,24 +178,27 @@ class ApiService {
 
     if (Platform.isAndroid) {
       final uri = Uri.tryParse(_baseUrl);
-      final port = uri?.hasPort == true ? uri!.port : 8000;
-      final candidates = [
-        'http://127.0.0.1:$port/api/v1',
-        'http://10.0.2.2:$port/api/v1',
-      ];
-      for (final candidate in candidates) {
-        if (candidate == _baseUrl) continue;
-        try {
-          final testUri = Uri.parse('$candidate/health');
-          final testRes = await _client.get(testUri).timeout(const Duration(milliseconds: 1500));
-          if (testRes.statusCode >= 200 && testRes.statusCode < 300) {
-            _baseUrl = candidate;
-            _cachedBaseUrl = candidate;
-            _resolved = true;
-            _storage.write(key: kCustomApiUrlKey, value: candidate).catchError((_) {});
-            return;
-          }
-        } catch (_) {}
+      final isLocal = uri != null && (uri.host == '127.0.0.1' || uri.host == 'localhost' || uri.host == '10.0.2.2');
+      if (isLocal) {
+        final port = uri.hasPort ? uri.port : 8000;
+        final candidates = [
+          'http://127.0.0.1:$port/api/v1',
+          'http://10.0.2.2:$port/api/v1',
+        ];
+        for (final candidate in candidates) {
+          if (candidate == _baseUrl) continue;
+          try {
+            final testUri = Uri.parse('$candidate/health');
+            final testRes = await _client.get(testUri).timeout(const Duration(milliseconds: 1500));
+            if (testRes.statusCode >= 200 && testRes.statusCode < 300) {
+              _baseUrl = candidate;
+              _cachedBaseUrl = candidate;
+              _resolved = true;
+              _storage.write(key: kCustomApiUrlKey, value: candidate).catchError((_) {});
+              return;
+            }
+          } catch (_) {}
+        }
       }
     }
   }
@@ -228,12 +233,14 @@ class ApiService {
     try {
       if (Platform.isAndroid) {
         final uri = Uri.tryParse(_baseUrl);
-        final port = uri?.hasPort == true ? uri!.port : 8000;
-
-        // 1. USB cable with adb reverse
-        candidates.add('http://127.0.0.1:$port/api/v1');
-        // 2. Android Emulator gateway
-        candidates.add('http://10.0.2.2:$port/api/v1');
+        final isLocal = uri != null && (uri.host == '127.0.0.1' || uri.host == 'localhost' || uri.host == '10.0.2.2');
+        if (isLocal) {
+          final port = uri.hasPort ? uri.port : 8000;
+          // 1. USB cable with adb reverse
+          candidates.add('http://127.0.0.1:$port/api/v1');
+          // 2. Android Emulator gateway
+          candidates.add('http://10.0.2.2:$port/api/v1');
+        }
       }
     } catch (_) {}
 

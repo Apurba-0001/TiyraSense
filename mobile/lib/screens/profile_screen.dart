@@ -8,7 +8,6 @@ import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
-import '../widgets/server_connection_dialog.dart';
 
 class ProfileScreen extends StatefulWidget {
   final UserRole role;
@@ -747,18 +746,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
             const SizedBox(height: 12),
 
-            // Settings Section: SERVER & NETWORK CONNECTION
+            // Settings Section: SERVER & NETWORK CONNECTION (Seeded & Locked)
             _buildSettingsCard(
               title: 'SERVER & NETWORK CONNECTION',
-              items: [
+              items: const [
                 _SettingsItem(
-                  icon: Icons.dns_rounded,
-                  label: 'Backend Server Endpoint',
-                  trailingText: ApiService().baseUrl.replaceAll('/api/v1', '').replaceAll('http://', ''),
-                  onTap: () => ServerConnectionSheet.show(
-                    context,
-                    onUrlUpdated: () => setState(() {}),
-                  ),
+                  icon: Icons.cloud_done_rounded,
+                  label: 'Backend Server',
+                  trailingText: 'Render Cloud (Active)',
                 ),
               ],
             ),
@@ -888,14 +883,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     trailing: item.trailingWidget ??
                         (item.trailingText != null
-                            ? Text(
-                                item.trailingText!,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: item.trailingText == 'Just now'
-                                      ? AppTheme.green
-                                      : AppTheme.primaryBlue,
+                            ? ConstrainedBox(
+                                constraints: const BoxConstraints(maxWidth: 120),
+                                child: Text(
+                                  item.trailingText!,
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 1,
+                                  textAlign: TextAlign.end,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: item.trailingText == 'Just now'
+                                        ? AppTheme.green
+                                        : AppTheme.primaryBlue,
+                                  ),
                                 ),
                               )
                             : const Icon(Icons.chevron_right_rounded, size: 18, color: AppTheme.textLow)),
@@ -920,7 +921,7 @@ class _SettingsItem {
   final Widget? trailingWidget;
   final VoidCallback? onTap;
 
-  _SettingsItem({
+  const _SettingsItem({
     required this.icon,
     required this.label,
     this.trailingText,

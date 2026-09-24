@@ -4,7 +4,6 @@ import '../services/api_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/app_logo.dart';
-import '../widgets/server_connection_dialog.dart';
 import '../utils/responsive_utils.dart';
 import 'driver_home_screen.dart';
 import 'field_worker_home_screen.dart';
@@ -131,43 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Server connection settings chip
-                    Align(
-                      alignment: Alignment.centerRight,
-                      child: InkWell(
-                        onTap: () => ServerConnectionSheet.show(
-                          context,
-                          onUrlUpdated: () => setState(() {}),
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: AppTheme.surface,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: AppTheme.borderLight),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.dns_rounded, size: 13, color: AppTheme.primaryBlue),
-                              const SizedBox(width: 5),
-                              Flexible(
-                                child: Text(
-                                  ApiService().baseUrl.replaceAll('/api/v1', '').replaceAll('http://', ''),
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.textMid),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 1,
-                                ),
-                              ),
-                              const SizedBox(width: 4),
-                              const Icon(Icons.tune_rounded, size: 12, color: AppTheme.textLow),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    SizedBox(height: isShort ? 8 : 12),
 
                     // Brand Block (Center-aligned)
                     Center(

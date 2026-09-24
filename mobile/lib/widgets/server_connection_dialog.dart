@@ -30,18 +30,8 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
   static const List<Map<String, String>> _presets = [
     {
       'label': 'Render Cloud API (Production)',
-      'url': 'https://tiyrasense.onrender.com/api/v1',
-      'hint': 'Production / Staging cloud backend hosted on Render',
-    },
-    {
-      'label': 'USB Cable (ADB Reverse)',
-      'url': 'http://127.0.0.1:8000/api/v1',
-      'hint': 'Requires: adb reverse tcp:8000 tcp:8000 on laptop',
-    },
-    {
-      'label': 'Android Emulator',
-      'url': 'http://10.0.2.2:8000/api/v1',
-      'hint': 'Standard Android Studio emulator gateway',
+      'url': 'https://tiyrasense-api.onrender.com/api/v1',
+      'hint': 'Production cloud backend hosted on Render',
     },
   ];
 
