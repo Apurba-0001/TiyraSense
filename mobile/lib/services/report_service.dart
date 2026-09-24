@@ -197,9 +197,21 @@ class ReportService extends ChangeNotifier {
   Future<void> syncLiveReports() async {
     try {
       final remoteList = await ApiService().fetchFieldReports();
-      if (remoteList.isEmpty) return;
+      if (remoteList.isEmpty) {
+        // If server is reachable and returned 0 reports, clear demo seed reports
+        final prevLen = _reports.length;
+        _reports.removeWhere((r) => r.id.startsWith('RP-284') && !r.isMine);
+        if (_reports.length != prevLen) {
+          await _persistReports();
+          notifyListeners();
+        }
+        return;
+      }
 
-      bool changed = false;
+      // Purge demo seed reports on sync so only live and user reports appear
+      _reports.removeWhere((r) => r.id.startsWith('RP-284') && !r.isMine);
+
+      bool changed = true;
       for (final raw in remoteList) {
         final item = ReportItem.fromJson(raw);
         if (_deletedReportIds.contains(item.id)) continue;
@@ -251,6 +263,10 @@ class ReportService extends ChangeNotifier {
   }
 
   void _seedInitialReports() {
+    // Only seed static items in FLUTTER_TEST environments so offline/live real app is clean
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
     final now = DateTime.now();
     _reports.addAll([
       ReportItem(

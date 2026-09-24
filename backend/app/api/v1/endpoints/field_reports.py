@@ -236,16 +236,7 @@ async def list_field_reports(
     for item in _IN_MEMORY_REPORTS:
         rep_id = str(item["id"])
         if rep_id not in _DELETED_REPORT_IDS and rep_id not in merged_map:
-            # Only inject if either no database reports exist or it is a newly submitted session report
-            if not rep_id.startswith("RP-284") or len(merged_map) == 0:
-                merged_map[rep_id] = FieldReportOut.model_validate(item)
-
-    # 4. Fallback: if database and cloud are empty, provide baseline initial reports
-    if not merged_map:
-        for item in _IN_MEMORY_REPORTS:
-            rep_id = str(item["id"])
-            if rep_id not in _DELETED_REPORT_IDS:
-                merged_map[rep_id] = FieldReportOut.model_validate(item)
+            merged_map[rep_id] = FieldReportOut.model_validate(item)
 
     def _recency_score(item: FieldReportOut) -> float:
         import time
@@ -324,13 +315,16 @@ async def create_field_report(
         "photo_url": report.photo_url,
     }
 
+    norm_hazard = _normalize_incident_type(report.hazard_type)
+    norm_severity = _normalize_severity(report.severity)
+
     # 1. Forward to live Supabase Cloud PostgREST
     supa_id = None
     try:
         from backend.app.services.supabase_service import SupabaseService
         supa_res = await SupabaseService.create_field_report({
-            "hazard_type": report.hazard_type.upper().replace(" ", "_"),
-            "reported_severity": report.severity.upper().replace(" ", "_"),
+            "hazard_type": norm_hazard,
+            "reported_severity": norm_severity,
             "description": report.description,
             "corridor": report.corridor_name or "NH-06",
             "km": report.km_marker or "KM 0.0",
@@ -347,8 +341,8 @@ async def create_field_report(
             new_report_dict["id"] = supa_id
             if not new_report_dict.get("photo_url") and supa_res.get("photo_url"):
                 new_report_dict["photo_url"] = supa_res["photo_url"]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"Failed to persist report to Supabase: {e}")
 
     # 2. Persist to local PostgreSQL PostGIS & incident_evidence
     try:
@@ -357,15 +351,15 @@ async def create_field_report(
                 id, reporter_id, hazard_type, reported_severity, description,
                 location, client_captured_at, server_received_at, verification_status, data_label
             ) VALUES (
-                gen_random_uuid(), :reporter_id, :hazard_type::incident_type, :severity::severity_level,
-                :description, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), NOW(), NOW(), 'PENDING', :data_label::data_label
+                gen_random_uuid(), :reporter_id, CAST(:hazard_type AS incident_type), CAST(:severity AS severity_level),
+                :description, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), NOW(), NOW(), 'PENDING', CAST(:data_label AS data_label)
             ) RETURNING id::text;
         """)
         reporter_id = current_user.id if current_user else None
         res = await db.execute(sql, {
             "reporter_id": reporter_id,
-            "hazard_type": report.hazard_type.upper().replace(" ", "_"),
-            "severity": report.severity.upper().replace(" ", "_"),
+            "hazard_type": norm_hazard,
+            "severity": norm_severity,
             "description": report.description,
             "lon": report.longitude,
             "lat": report.latitude,
@@ -378,17 +372,18 @@ async def create_field_report(
                     INSERT INTO incident_evidence (
                         id, field_report_id, storage_uri, file_hash_sha256, mime_type, uploaded_at
                     ) VALUES (
-                        gen_random_uuid(), :fr_id, :uri, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'image/jpeg', NOW()
+                        gen_random_uuid(), CAST(:fr_id AS uuid), :uri, 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'image/jpeg', NOW()
                     );
                 """)
                 await db.execute(evidence_sql, {"fr_id": db_id, "uri": report.photo_url})
-            except Exception:
-                pass
+            except Exception as ev_err:
+                logger.warning(f"Failed to persist incident evidence: {ev_err}")
         # Unconditionally commit the transaction so both the report and evidence are persisted
         await db.commit()
         if db_id and not supa_id:
             new_report_dict["id"] = str(db_id)
-    except Exception:
+    except Exception as db_err:
+        logger.warning(f"Failed to persist report to PostgreSQL: {db_err}")
         await db.rollback()
 
     _IN_MEMORY_REPORTS.insert(0, new_report_dict)

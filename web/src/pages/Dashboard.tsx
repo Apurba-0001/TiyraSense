@@ -165,6 +165,23 @@ const INITIAL_FLEET_VEHICLES: FleetVehicle[] = [
   },
 ];
 
+const INITIAL_VERIFICATION_REPORTS: WebFieldReport[] = [
+  {
+    id: 'RP-2847',
+    hazard_type: 'Landslide',
+    severity: 'FULL BLOCKAGE',
+    status: 'PENDING',
+    reporter_name: 'Sanjay Kumar',
+    reporter_unit: 'Field Unit 4',
+    submitted_at: '6m ago',
+    description: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
+    corridor_name: 'NH-06',
+    km_marker: 'KM 52.3',
+    latitude: 26.0124,
+    longitude: 91.8901,
+  },
+];
+
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -184,7 +201,7 @@ export const Dashboard: React.FC = () => {
   const [corridorQuery, setCorridorQuery] = useState('');
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditBreakdown, setAuditBreakdown] = useState<DistanceBreakdown | null>(null);
-  const [fieldReports, setFieldReports] = useState<WebFieldReport[]>([]);
+  const [fieldReports, setFieldReports] = useState<WebFieldReport[]>(INITIAL_VERIFICATION_REPORTS);
   const [dashboardLightbox, setDashboardLightbox] = useState<string | null>(null);
 
   const filteredVehicles = React.useMemo(() => {
@@ -289,8 +306,8 @@ export const Dashboard: React.FC = () => {
         fetchFieldReports(),
       ]);
 
-      if (reportsRes.status === 'fulfilled' && reportsRes.value.length > 0) {
-        setFieldReports(reportsRes.value);
+      if (reportsRes.status === 'fulfilled') {
+        setFieldReports(reportsRes.value || []);
       }
 
       if (corridorRes.status === 'fulfilled' && corridorRes.value.length > 0) {
@@ -2436,177 +2453,166 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
-            {(fieldReports.length > 0
-              ? fieldReports.slice(0, 4).map((r) => ({
-                  id: r.id,
-                  corridor: r.corridor_name || 'NH-06',
-                  km: r.km_marker || 'KM 00.0',
-                  hazard: r.hazard_type,
-                  severity: r.severity,
-                  status: r.status,
-                  worker: `${r.reporter_name} (${r.reporter_unit || 'Field Scout'})`,
-                  time: r.submitted_at || 'Just now',
-                  desc: r.description,
-                  photoUrl: r.photo_url ? getAssetUrl(r.photo_url) : undefined,
-                }))
-              : [
-                  {
-                    id: 'RP-2847',
-                    corridor: 'NH-06',
-                    km: 'KM 52.3',
-                    hazard: 'Landslide',
-                    severity: 'FULL BLOCKAGE',
-                    status: 'PENDING',
-                    worker: 'Sanjay Kumar (Field Unit 4)',
-                    time: '6m ago',
-                    desc: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
-                    photoUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&w=800&q=80',
-                  },
-                  {
-                    id: 'RP-2846',
-                    corridor: 'NH-29',
-                    km: 'KM 81.1',
-                    hazard: 'Flash Flood',
-                    severity: 'PARTIAL',
-                    status: 'VERIFIED',
-                    worker: 'Priya Mao (Field Unit 2)',
-                    time: '18m ago',
-                    desc: 'Mountain stream overflow depositing gravel across 40m. 20cm water depth.',
-                    photoUrl: 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
-                  },
-                ]
-            ).map((rep) => (
+            {fieldReports.length > 0 ? (
+              fieldReports.slice(0, 4).map((r) => ({
+                id: r.id,
+                corridor: r.corridor_name || 'NH-06',
+                km: r.km_marker || 'KM 00.0',
+                hazard: r.hazard_type,
+                severity: r.severity,
+                status: r.status,
+                worker: `${r.reporter_name} (${r.reporter_unit || 'Field Scout'})`,
+                time: r.submitted_at || 'Just now',
+                desc: r.description,
+                photoUrl: r.photo_url ? getAssetUrl(r.photo_url) : undefined,
+              })).map((rep) => (
+                <div
+                  key={rep.id}
+                  style={{
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-canvas)',
+                    border: '1px solid var(--color-border)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                        {rep.id}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          backgroundColor: rep.status === 'VERIFIED' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
+                          color: rep.status === 'VERIFIED' ? 'var(--color-success)' : '#B45309',
+                        }}
+                      >
+                        {rep.status}
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
+                        {rep.corridor} · {rep.km}
+                      </span>
+                    </div>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      {rep.time}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                    {rep.hazard} — {rep.severity}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
+                    {rep.desc}
+                  </div>
+
+                  {rep.photoUrl && (
+                    <div
+                      style={{
+                        position: 'relative',
+                        height: '110px',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        border: '1px solid #CBD5E1',
+                        cursor: 'pointer',
+                        backgroundColor: '#0F172A',
+                        marginTop: '4px',
+                      }}
+                      onClick={() => setDashboardLightbox(getAssetUrl(rep.photoUrl!))}
+                      title="Click to zoom evidence photo"
+                    >
+                      <img
+                        src={getAssetUrl(rep.photoUrl)}
+                        alt="Incident Evidence"
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={(e) => {
+                          (e.currentTarget as HTMLElement).style.display = 'none';
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '6px',
+                          left: '6px',
+                          backgroundColor: 'rgba(15, 23, 42, 0.82)',
+                          color: '#34D399',
+                          fontSize: '9px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <Camera size={10} />
+                        <span>ON-SITE PHOTO EVIDENCE</span>
+                      </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: '6px',
+                          right: '6px',
+                          backgroundColor: 'rgba(0,0,0,0.65)',
+                          color: '#FFFFFF',
+                          fontSize: '10px',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                        }}
+                      >
+                        <ZoomIn size={11} />
+                        <span>Inspect</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
+                    <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
+                      Observer: {rep.worker}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate('/reports')}
+                      style={{
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: 'var(--color-primary)',
+                        backgroundColor: 'var(--color-primary-bg)',
+                        border: '1px solid var(--color-primary-light)',
+                        padding: '3px 8px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Verify & Dispatch →
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
               <div
-                key={rep.id}
                 style={{
-                  padding: '12px 14px',
-                  borderRadius: 'var(--radius-sm)',
+                  gridColumn: '1 / -1',
+                  padding: '28px 16px',
+                  textAlign: 'center',
                   backgroundColor: 'var(--color-canvas)',
-                  border: '1px solid var(--color-border)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
+                  border: '1px dashed var(--color-border)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: 'var(--color-text-muted)',
+                  fontSize: '13px',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="mono" style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
-                      {rep.id}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 700,
-                        padding: '1px 6px',
-                        borderRadius: '4px',
-                        backgroundColor: rep.status === 'VERIFIED' ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-                        color: rep.status === 'VERIFIED' ? 'var(--color-success)' : '#B45309',
-                      }}
-                    >
-                      {rep.status}
-                    </span>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-secondary)' }}>
-                      {rep.corridor} · {rep.km}
-                    </span>
-                  </div>
-                  <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    {rep.time}
-                  </span>
-                </div>
-
-                <div style={{ fontSize: '12px', color: 'var(--color-text-primary)', fontWeight: 600 }}>
-                  {rep.hazard} — {rep.severity}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', lineHeight: 1.35 }}>
-                  {rep.desc}
-                </div>
-
-                {rep.photoUrl && (
-                  <div
-                    style={{
-                      position: 'relative',
-                      height: '110px',
-                      borderRadius: '6px',
-                      overflow: 'hidden',
-                      border: '1px solid #CBD5E1',
-                      cursor: 'pointer',
-                      backgroundColor: '#0F172A',
-                      marginTop: '4px',
-                    }}
-                    onClick={() => setDashboardLightbox(getAssetUrl(rep.photoUrl!))}
-                    title="Click to zoom evidence photo"
-                  >
-                    <img
-                      src={getAssetUrl(rep.photoUrl)}
-                      alt="Incident Evidence"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = 'none';
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        top: '6px',
-                        left: '6px',
-                        backgroundColor: 'rgba(15, 23, 42, 0.82)',
-                        color: '#34D399',
-                        fontSize: '9px',
-                        fontWeight: 700,
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}
-                    >
-                      <Camera size={10} />
-                      <span>ON-SITE PHOTO EVIDENCE</span>
-                    </div>
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '6px',
-                        right: '6px',
-                        backgroundColor: 'rgba(0,0,0,0.65)',
-                        color: '#FFFFFF',
-                        fontSize: '10px',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '3px',
-                      }}
-                    >
-                      <ZoomIn size={11} />
-                      <span>Inspect</span>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
-                  <span style={{ fontSize: '10px', color: 'var(--color-text-muted)' }}>
-                    Observer: {rep.worker}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => navigate('/reports')}
-                    style={{
-                      fontSize: '11px',
-                      fontWeight: 700,
-                      color: 'var(--color-primary)',
-                      backgroundColor: 'var(--color-primary-bg)',
-                      border: '1px solid var(--color-primary-light)',
-                      padding: '3px 8px',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Verify & Dispatch →
-                  </button>
-                </div>
+                No active hazard reports filed. All monitored corridor sectors clear.
               </div>
-            ))}
+            )}
           </div>
         </div>
       )}

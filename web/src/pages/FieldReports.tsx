@@ -132,13 +132,18 @@ export const FieldReports: React.FC = () => {
   const loadReports = () => {
     fetchFieldReports()
       .then((data) => {
-        if (data && data.length > 0) {
+        if (Array.isArray(data)) {
+          if (data.length === 0) {
+            setReports([]);
+            setSelectedReport(null);
+            return;
+          }
           const mapped: FieldReportItem[] = data.map((d) => {
             const rawHz = (d.hazard_type || 'Landslide').replace(/_/g, ' ');
             let hzType: FieldReportItem['hazardType'] = 'Landslide';
-            if (rawHz.toLowerCase().includes('flood')) hzType = 'Flash Flood';
-            else if (rawHz.toLowerCase().includes('debris')) hzType = 'Debris';
-            else if (rawHz.toLowerCase().includes('subsid')) hzType = 'Road Subsidance';
+            if (rawHz.toLowerCase().includes('flood') || rawHz.toLowerCase().includes('waterlog')) hzType = 'Flash Flood';
+            else if (rawHz.toLowerCase().includes('debris') || rawHz.toLowerCase().includes('mud')) hzType = 'Debris';
+            else if (rawHz.toLowerCase().includes('subsid') || rawHz.toLowerCase().includes('collapse')) hzType = 'Road Subsidance';
             else if (rawHz.toLowerCase().includes('bridge')) hzType = 'Bridge Strain';
 
             return {
@@ -156,14 +161,14 @@ export const FieldReports: React.FC = () => {
               description: d.description,
               dispatchUnit: d.dispatch_unit,
               dispatchNotes: d.dispatch_notes,
-              photoUrl: d.photo_url || (d as any).photoUrl ? getAssetUrl(d.photo_url || (d as any).photoUrl) : undefined,
+              photoUrl: d.photo_url ? getAssetUrl(d.photo_url) : undefined,
             };
           });
           setReports(mapped);
           setSelectedReport((prev) => {
-            if (!prev) return mapped[0];
+            if (!prev) return mapped[0] || null;
             const match = mapped.find((m) => m.id === prev.id);
-            return match || mapped[0];
+            return match || mapped[0] || null;
           });
         }
       })

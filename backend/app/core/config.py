@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     # Database (loaded strictly from .env)
     DATABASE_URL: str = ""
 
-    # JWT Authentication (loaded from .env; strong random key required in production)
-    AUTH_SECRET_KEY: str = "tiyrasense_jwt_dev_secret_key_2026_ner_logistics"
+    # JWT Authentication (loaded strictly from environment variable or .env)
+    AUTH_SECRET_KEY: str = ""
     AUTH_ALGORITHM: str = "HS256"
     AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days default
     AUTH_ISSUER: str = "tiyrasense"
@@ -35,6 +35,7 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
         "https://tiyrasense.onrender.com",
+        "https://tiyrasense-web.pages.dev",
     ]
 
     # Cloudinary Image & Evidence Storage (loaded strictly from .env)
@@ -73,23 +74,23 @@ class Settings(BaseSettings):
     @field_validator("AUTH_SECRET_KEY")
     @classmethod
     def secret_key_must_be_strong(cls, v: str, info) -> str:
-        """Refuse to start in production if the JWT secret key is the hard-coded default.
+        """Validate that a strong JWT secret key is provided.
 
-        The default key is committed in source control and must never be used in a
-        non-development environment. An attacker with the key can forge tokens for any
-        user with any role, bypassing all authentication and RBAC controls.
+        Zero private keys or secret values are committed to source control.
+        In production, a strong random key (at least 32 characters) must be
+        supplied via the AUTH_SECRET_KEY environment variable.
 
-        To set a strong key: generate with `openssl rand -hex 64` and put the value in
-        your .env file as AUTH_SECRET_KEY=<value>.
+        In development/test environments without an explicit key in .env, an
+        ephemeral in-memory key is generated automatically.
         """
-        _WEAK_DEFAULT = "tiyrasense_jwt_dev_secret_key_2026_ner_logistics"
-        # APP_ENV may not have been validated yet; fall back to safe assumption
         env = info.data.get("APP_ENV", "production")
-        if v == _WEAK_DEFAULT and env not in ("development", "test"):
+        if not v:
+            if env in ("development", "test"):
+                import secrets
+                return secrets.token_hex(32)
             raise ValueError(
-                "AUTH_SECRET_KEY is the insecure default value. "
-                "Set a strong random key via the AUTH_SECRET_KEY environment variable "
-                "or .env file before running in a non-development environment."
+                "AUTH_SECRET_KEY is required and cannot be empty in production. "
+                "Set a strong random key via the AUTH_SECRET_KEY environment variable."
             )
         if len(v) < 32:
             raise ValueError(

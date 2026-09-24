@@ -11,10 +11,11 @@ from backend.app.core.config import settings
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=(settings.APP_ENV == "development" and settings.BACKEND_LOG_LEVEL == "debug"),
-    pool_pre_ping=False,
+    pool_pre_ping=True,
+    pool_recycle=300,
     pool_size=10,
     max_overflow=20,
-    connect_args={"timeout": 2.0, "command_timeout": 2.0},
+    connect_args={"timeout": 10.0, "command_timeout": 15.0},
 )
 
 # Async Session Factory
