@@ -134,15 +134,22 @@ app.mount("/static/uploads", StaticFiles(directory=str(_UPLOADS_DIR)), name="sta
 app.include_router(api_router, prefix="/api/v1")
 
 
+@app.get("/ping", tags=["Monitoring"])
+async def ping():
+    """Ultra-lightweight keep-alive ping endpoint for external cron/monitors (e.g. UptimeRobot)."""
+    return {
+        "status": "OK",
+        "message": "tiyrasense-api",
+    }
+
+
 @app.get("/", tags=["Root"])
 async def root_status():
-    """Root entrypoint reporting system metadata and status."""
+    """Root entrypoint reporting system metadata and operational status."""
     return {
+        "status": "operational",
+        "message": "tiyrasense-api",
         "project": settings.APP_NAME,
         "identity": "SIH 2026 Problem Statement 26002",
-        "description": "Smart Logistics & Accessibility Intelligence for NER",
-        "status": "operational",
         "data_label": settings.DATA_LABEL,
-        "api_v1": "/api/v1",
-        "health": "/api/v1/health",
     }
