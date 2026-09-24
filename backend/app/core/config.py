@@ -19,9 +19,14 @@ class Settings(BaseSettings):
     # JWT Authentication (loaded from .env; strong random key required in production)
     AUTH_SECRET_KEY: str = "tiyrasense_jwt_dev_secret_key_2026_ner_logistics"
     AUTH_ALGORITHM: str = "HS256"
-    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 525600  # 1 year for persistent client sessions
+    AUTH_ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days default
     AUTH_ISSUER: str = "tiyrasense"
     AUTH_AUDIENCE: str = "tiyrasense_clients"
+
+    # Rate Limiting Controls
+    RATE_LIMIT_LOGIN_PER_MINUTE: int = 20
+    RATE_LIMIT_REGISTER_PER_MINUTE: int = 10
+    RATE_LIMIT_API_PER_MINUTE: int = 120
 
     # CORS: enumerate exact allowed origins. Never use ["*"] in production.
     CORS_ORIGINS: List[str] = [
@@ -29,6 +34,7 @@ class Settings(BaseSettings):
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:3000",
+        "https://tiyrasense.onrender.com",
     ]
 
     # Cloudinary Image & Evidence Storage (loaded strictly from .env)

@@ -270,10 +270,55 @@ async def acknowledge_all_alerts(
     except Exception:
         pass
 
-    try:
-        from backend.app.services.supabase_service import SupabaseService
-        await SupabaseService.acknowledge_all_alerts()
-    except Exception:
-        pass
-
     return [AlertOut(**a) for a in _IN_MEMORY_ALERTS]
+
+
+import asyncio
+import json
+from fastapi.responses import StreamingResponse
+
+@router.get("/stream")
+async def stream_alerts():
+    """Real-time Server-Sent Events (SSE) stream for live highway alerts.
+    
+    Connected clients (Web Operations Console and Mobile App) receive live
+    alert updates over a single persistent HTTP connection.
+    """
+    async def event_generator():
+        # Send initial connection ping and current alerts
+        initial_payload = {
+            "type": "INIT_ALERTS",
+            "count": len(_IN_MEMORY_ALERTS),
+            "alerts": _IN_MEMORY_ALERTS[:10],
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        yield f"event: message\ndata: {json.dumps(initial_payload)}\n\n"
+
+        # Stream periodic heartbeat or updates
+        last_count = len(_IN_MEMORY_ALERTS)
+        while True:
+            await asyncio.sleep(5)
+            current_count = len(_IN_MEMORY_ALERTS)
+            if current_count != last_count:
+                last_count = current_count
+                update_payload = {
+                    "type": "ALERTS_UPDATED",
+                    "count": current_count,
+                    "latest": _IN_MEMORY_ALERTS[0] if _IN_MEMORY_ALERTS else None,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                }
+                yield f"event: alert\ndata: {json.dumps(update_payload)}\n\n"
+            else:
+                heartbeat = {"type": "HEARTBEAT", "timestamp": datetime.now(timezone.utc).isoformat()}
+                yield f"event: ping\ndata: {json.dumps(heartbeat)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+

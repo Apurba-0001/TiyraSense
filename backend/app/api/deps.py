@@ -5,9 +5,11 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from backend.app.core.config import settings
 from backend.app.core.database import get_db_session
 from backend.app.core.security import decode_access_token
 from backend.app.models.user import User, UserRole, SYSTEM_FALLBACK_USERS
+
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 oauth2_scheme_optional = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login", auto_error=False)
@@ -52,14 +54,17 @@ async def get_current_user(
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
     except Exception:
-        # Fallback when database daemon is not running
-        user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
+        # Fallback when database daemon is not running (development and test only)
+        if settings.APP_ENV in ("development", "test"):
+            user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
 
-    if user is None:
+    if user is None and settings.APP_ENV in ("development", "test"):
         user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
 
     if user is None:
         raise credentials_exception
+
+
 
     # Defensive: validate that the role stored in the DB is a known enum member.
     # This guards against a scenario where a DB administrator accidentally writes

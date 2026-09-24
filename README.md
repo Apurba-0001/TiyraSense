@@ -43,34 +43,6 @@
 
 ---
 
-## Visual Showcase
-
-<div align="center">
-  <table>
-    <tr>
-      <td width="50%" align="center">
-        <strong>Web Command & Dispatch Console (GIS Map)</strong><br><br>
-        <img src="Images/mapview.webp" alt="Web GIS Map Operations Console" width="100%" />
-      </td>
-      <td width="50%" align="center">
-        <strong>Mobile Driver Navigation & Telemetry Radar</strong><br><br>
-        <img src="Images/app.webp" alt="Mobile App Navigation Interface" width="100%" />
-      </td>
-    </tr>
-    <tr>
-      <td width="50%" align="center">
-        <strong>Mobile Secure Authentication</strong><br><br>
-        <img src="Images/login.webp" alt="Mobile Authentication Screen" width="100%" />
-      </td>
-      <td width="50%" align="center">
-        <strong>Role-Restricted Self-Registration</strong><br><br>
-        <img src="Images/signup.webp" alt="Mobile Signup Screen" width="100%" />
-      </td>
-    </tr>
-  </table>
-</div>
-
----
 
 ## 1. High-Level Architecture & Information Flow
 

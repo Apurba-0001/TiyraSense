@@ -12,6 +12,9 @@ from fastapi.responses import JSONResponse
 from backend.app.api.v1.router import api_router
 from backend.app.core.config import settings
 
+import time
+from collections import defaultdict
+
 app = FastAPI(
     title=settings.APP_NAME,
     description="AI-Powered Smart Logistics & Accessibility Intelligence Platform for the North Eastern Region (NER)",
@@ -21,16 +24,61 @@ app = FastAPI(
     redoc_url="/redoc" if settings.APP_ENV == "development" else None,
 )
 
+# In-memory sliding window rate limiter for abuse defense
+_RATE_LIMIT_STORE = defaultdict(list)
+
 # CORS Middleware: allowed origins are explicitly enumerated in settings.
-# In production, CORS_ORIGINS must not include wildcard "*".
+# In development, private IP ranges are permitted for local emulator / device testing.
+_cors_regex = (
+    r"http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?"
+    if settings.APP_ENV == "development"
+    else r"^https://.*\.onrender\.com$"
+)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?",
+    allow_origin_regex=_cors_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "X-Requested-With"],
 )
+
+
+@app.middleware("http")
+async def rate_limiting_middleware(request: Request, call_next):
+    """In-memory rate limiting to defend auth endpoints against brute-force attacks."""
+    if settings.APP_ENV in ("development", "test", "testing") or not request.client or request.client.host in ("testclient", "unknown", "127.0.0.1", "localhost"):
+        return await call_next(request)
+
+    client_ip = request.client.host
+    path = request.url.path
+    now = time.time()
+
+
+
+    # Determine rate limit per endpoint type
+    limit = settings.RATE_LIMIT_API_PER_MINUTE
+    if path == "/api/v1/auth/login":
+        limit = settings.RATE_LIMIT_LOGIN_PER_MINUTE
+    elif path == "/api/v1/auth/register":
+        limit = settings.RATE_LIMIT_REGISTER_PER_MINUTE
+
+    key = f"{client_ip}:{path}"
+    # Prune timestamps older than 60 seconds
+    timestamps = [t for t in _RATE_LIMIT_STORE[key] if now - t < 60]
+    if len(timestamps) >= limit:
+        return JSONResponse(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            content={"detail": "Rate limit exceeded. Please wait a moment before trying again."},
+            headers={"Retry-After": "60"},
+        )
+
+    timestamps.append(now)
+    _RATE_LIMIT_STORE[key] = timestamps
+
+    return await call_next(request)
+
 
 
 @app.middleware("http")

@@ -179,7 +179,6 @@ class ApiService {
       final port = uri?.hasPort == true ? uri!.port : 8000;
       final candidates = [
         'http://127.0.0.1:$port/api/v1',
-        'http://10.111.29.120:$port/api/v1',
         'http://10.0.2.2:$port/api/v1',
       ];
       for (final candidate in candidates) {
@@ -233,9 +232,7 @@ class ApiService {
 
         // 1. USB cable with adb reverse
         candidates.add('http://127.0.0.1:$port/api/v1');
-        // 2. Host laptop Wi-Fi LAN IP
-        candidates.add('http://10.111.29.120:$port/api/v1');
-        // 3. Android Emulator gateway
+        // 2. Android Emulator gateway
         candidates.add('http://10.0.2.2:$port/api/v1');
       }
     } catch (_) {}
@@ -248,6 +245,7 @@ class ApiService {
         _cachedBaseUrl = candidate;
         _resolved = true;
         _storage.write(key: kCustomApiUrlKey, value: candidate).catchError((_) {});
+
         return res;
       } catch (_) {}
     }
@@ -717,21 +715,8 @@ class ApiService {
     return [];
   }
 
-  /// Simple Request: Submit incident report directly to Supabase Cloud DB
-  Future<bool> submitReportDirect(Map<String, dynamic> reportPayload) async {
-    try {
-      final response = await _client.post(
-        Uri.parse('$supabaseUrl/rest/v1/field_reports'),
-        headers: _supabaseHeaders,
-        body: jsonEncode(reportPayload),
-      );
-      return response.statusCode == 201 || response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
   /// Upload photo evidence directly to Cloudinary CDN with automatic detail-preserving compression.
+
   /// Compresses high-resolution photos (10MB-20MB) to ~250KB-450KB before transmission,
   /// preserving critical forensic details (cracks, warning signs, water levels).
   Future<String?> uploadEvidencePhotoToCloudinary({

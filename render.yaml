@@ -1,0 +1,44 @@
+services:
+  - type: web
+    name: tiyrasense-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: starter
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_NAME
+        value: TiyraSense
+      - key: APP_ENV
+        value: production
+      - key: DATA_LABEL
+        value: LIVE
+      - key: AUTH_SECRET_KEY
+        generateValue: true
+      - key: AUTH_ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "10080"
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        value: tsjmggus
+      - key: CLOUDINARY_UPLOAD_PRESET
+        value: tiyrasense_evidence
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: LLM_PROVIDER
+        value: gemini
+      - key: LLM_API_KEY
+        sync: false
+      - key: LLM_MODEL
+        value: gemini-2.0-flash
+      - key: TRAFFIC_PROVIDER
+        value: osrm_baseline

@@ -30,11 +30,13 @@ async def login(
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
     except Exception:
-        # Graceful fallback to verified dev accounts if database daemon is not running
+        # Graceful fallback to verified dev accounts if database daemon is not running (development and test only)
+        if settings.APP_ENV in ("development", "test"):
+            user = SYSTEM_FALLBACK_USERS.get(email_clean)
+
+    if not user and settings.APP_ENV in ("development", "test"):
         user = SYSTEM_FALLBACK_USERS.get(email_clean)
 
-    if not user:
-        user = SYSTEM_FALLBACK_USERS.get(email_clean)
 
     if not user or not verify_password(login_data.password, user.password_hash):
         raise HTTPException(
@@ -42,6 +44,7 @@ async def login(
             detail="Invalid email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
 
     access_token_expires = timedelta(minutes=settings.AUTH_ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(
@@ -185,7 +188,13 @@ async def register(
     except HTTPException:
         raise
     except Exception:
-        # Fallback when database daemon is not running
+        # Fallback when database daemon is not running (development and test only)
+        if settings.APP_ENV not in ("development", "test"):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Database service unavailable. Registration requires an active database connection.",
+            )
+
         if email_clean in SYSTEM_FALLBACK_USERS:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -203,6 +212,7 @@ async def register(
         )
         SYSTEM_FALLBACK_USERS[email_clean] = fallback_user
         return UserOut.model_validate(fallback_user)
+
 
 
 @router.get("/official-access")

@@ -29,14 +29,14 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
 
   static const List<Map<String, String>> _presets = [
     {
+      'label': 'Render Cloud API (Production)',
+      'url': 'https://tiyrasense.onrender.com/api/v1',
+      'hint': 'Production / Staging cloud backend hosted on Render',
+    },
+    {
       'label': 'USB Cable (ADB Reverse)',
       'url': 'http://127.0.0.1:8000/api/v1',
       'hint': 'Requires: adb reverse tcp:8000 tcp:8000 on laptop',
-    },
-    {
-      'label': 'Laptop Wi-Fi LAN',
-      'url': 'http://10.111.29.120:8000/api/v1',
-      'hint': 'Direct LAN access over same Wi-Fi network',
     },
     {
       'label': 'Android Emulator',
@@ -44,6 +44,7 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
       'hint': 'Standard Android Studio emulator gateway',
     },
   ];
+
 
   @override
   void initState() {
@@ -167,8 +168,9 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
               keyboardType: TextInputType.url,
               decoration: InputDecoration(
                 labelText: 'Active API Base URL',
-                hintText: 'http://10.111.29.120:8000/api/v1',
+                hintText: 'https://tiyrasense.onrender.com/api/v1',
                 prefixIcon: const Icon(Icons.link_rounded),
+
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.refresh_rounded, size: 20),
                   tooltip: 'Reset to default',
