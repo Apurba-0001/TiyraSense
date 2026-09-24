@@ -1,6 +1,9 @@
 import { TokenResponse, User } from '../types/auth';
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || 'http://localhost:8000/api/v1';
+const API_BASE = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') ||
+  (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+    ? 'https://tiyrasense-api.onrender.com/api/v1'
+    : 'http://localhost:8000/api/v1');
 
 export class ApiErrorResponse extends Error {
   status: number;

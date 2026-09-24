@@ -32,7 +32,7 @@ _RATE_LIMIT_STORE = defaultdict(list)
 _cors_regex = (
     r"http://(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?"
     if settings.APP_ENV == "development"
-    else r"^https://.*\.onrender\.com$"
+    else r"^https://.*\.(onrender\.com|pages\.dev|vercel\.app)$"
 )
 
 app.add_middleware(
