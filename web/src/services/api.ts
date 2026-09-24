@@ -16,13 +16,14 @@ function getHeaders(includeAuth = true): HeadersInit {
     'Content-Type': 'application/json',
   };
   if (includeAuth) {
-    const token = localStorage.getItem('tiyrasense_token');
+    const token = sessionStorage.getItem('tiyrasense_token') || localStorage.getItem('tiyrasense_token');
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
   }
   return headers;
 }
+
 
 export async function loginUser(email: string, password: string): Promise<TokenResponse> {
   const res = await fetch(`${API_BASE}/auth/login`, {

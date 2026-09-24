@@ -102,9 +102,10 @@ describe('Web Login & Authentication Suite', () => {
 
     await waitFor(() => {
       expect(api.loginUser).toHaveBeenCalledWith('official@tiyrasense.in', 'OfficialPass2026!');
-      expect(localStorage.getItem('tiyrasense_token')).toBe('fake-jwt-token-official');
+      expect(sessionStorage.getItem('tiyrasense_token')).toBe('fake-jwt-token-official');
     });
   });
+
 
   it('displays error banner when backend returns authentication error', async () => {
     vi.spyOn(api, 'loginUser').mockRejectedValue(
