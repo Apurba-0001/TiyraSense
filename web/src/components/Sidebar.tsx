@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
     <aside
       data-testid="side-panel"
       style={{
-        width: '260px',
+        width: 'min(280px, 85vw)',
         backgroundColor: 'var(--color-surface)',
         borderRight: '1px solid var(--color-border)',
         display: 'flex',
@@ -50,6 +50,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         top: '60px',
         left: 0,
         zIndex: 40,
+        overflowY: 'auto',
+        WebkitOverflowScrolling: 'touch',
         boxShadow: isOpen ? 'var(--modal-shadow)' : 'none',
         transform: isOpen ? 'translateX(0)' : 'translateX(-100%)',
         visibility: isOpen ? 'visible' : 'hidden',

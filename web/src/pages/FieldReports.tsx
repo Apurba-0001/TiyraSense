@@ -411,7 +411,7 @@ export const FieldReports: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px', position: 'relative' }}>
       {/* PAGE HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -512,7 +512,7 @@ export const FieldReports: React.FC = () => {
         }}
       >
         {/* Status Chips */}
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {(['ALL', 'PENDING', 'VERIFIED', 'DISPATCHED', 'REJECTED'] as const).map((chip) => {
             const isActive = statusFilter === chip;
             return (
@@ -576,6 +576,7 @@ export const FieldReports: React.FC = () => {
             backgroundColor: '#FFFFFF',
             padding: '0 8px',
             gap: '6px',
+            flex: '1 1 200px',
           }}
         >
           <Search size={14} color="var(--color-text-muted)" />
@@ -604,9 +605,10 @@ export const FieldReports: React.FC = () => {
       </div>
 
       {/* MAIN CONTENT: Table + Sliding Detail Panel */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'start' }}>
+      <div className="reports-split-responsive" style={{ alignItems: 'start' }}>
         {/* REPORTS TABLE (white card, 12px radius, 20px padding) */}
-        <div className="tiyra-card" style={{ flex: 1, padding: '20px', overflowX: 'auto' }}>
+        <div className="tiyra-card" style={{ flex: 1, padding: '20px' }}>
+          <div className="table-responsive-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr
@@ -807,15 +809,14 @@ export const FieldReports: React.FC = () => {
               })}
             </tbody>
           </table>
+          </div>
         </div>
 
-        {/* REPORT DETAIL SIDE PANEL (480px, slides from right, white, left border, shadow) */}
+        {/* REPORT DETAIL SIDE PANEL (Responsive sliding panel) */}
         {selectedReport && (
           <div
-            className="tiyra-card"
+            className="tiyra-card reports-detail-panel"
             style={{
-              width: '480px',
-              flexShrink: 0,
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',

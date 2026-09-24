@@ -408,7 +408,7 @@ export const CorridorMonitor: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* PAGE HEADER */}
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
@@ -668,15 +668,8 @@ export const CorridorMonitor: React.FC = () => {
       </div>
 
 
-      {/* SPLIT LAYOUT: 340px Left + Flex Right, 16px gap */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: '340px 1fr',
-          gap: '16px',
-          alignItems: 'start',
-        }}
-      >
+      {/* SPLIT LAYOUT: Responsive Left Corridor List + Flex Right */}
+      <div className="grid-corridor-split-responsive" style={{ alignItems: 'start' }}>
         {/* LEFT PANEL — Corridor List */}
         <div className="tiyra-card" style={{ padding: '0', overflow: 'hidden' }}>
           <div
@@ -772,8 +765,8 @@ export const CorridorMonitor: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {/* CARD 1 — Header & Stat Tiles */}
           <div className="tiyra-card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                 <h2 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--color-text-primary)' }}>
                   {selectedCorridor.name}
                 </h2>
@@ -785,7 +778,7 @@ export const CorridorMonitor: React.FC = () => {
             </div>
 
             {/* 3 Stat Tiles */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px' }}>
               <div
                 style={{
                   backgroundColor: 'var(--color-canvas)',
@@ -1142,7 +1135,7 @@ export const CorridorMonitor: React.FC = () => {
                 </div>
 
                 {/* Vehicle & Cargo Row */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
                   <div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>
                       <Truck size={13} color="var(--color-primary)" />
@@ -1230,7 +1223,7 @@ export const CorridorMonitor: React.FC = () => {
                   });
 
                   return (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
                       {/* Route A */}
                       <div
                         onClick={() => setSelectedRoute('safest')}

@@ -228,7 +228,7 @@ export const SystemSettings: React.FC = () => {
   });
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* PAGE HEADER */}
       <div>
         <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)' }}>
@@ -240,9 +240,9 @@ export const SystemSettings: React.FC = () => {
       </div>
 
       {/* INNER TWO-COLUMN LAYOUT */}
-      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', gap: '16px', alignItems: 'start' }}>
+      <div className="grid-settings-split-responsive" style={{ alignItems: 'start' }}>
         {/* LEFT SETTINGS NAV */}
-        <div className="tiyra-card" style={{ padding: '8px' }}>
+        <div className="tiyra-card settings-tab-nav" style={{ padding: '8px' }}>
           {[
             { id: 'general', label: 'General', icon: <LayoutGrid size={18} /> },
             { id: 'datasources', label: 'Data Sources', icon: <Database size={18} /> },
@@ -548,7 +548,7 @@ export const SystemSettings: React.FC = () => {
                   Regional Operations Profile
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
                       Primary Disruption Season
@@ -1373,7 +1373,7 @@ export const SystemSettings: React.FC = () => {
                 </div>
               </div>
 
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-responsive-wrapper">
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '12px' }}>
                   <thead>
                     <tr style={{ height: '36px', borderBottom: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>

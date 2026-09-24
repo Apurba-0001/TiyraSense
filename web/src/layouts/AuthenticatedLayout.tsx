@@ -40,10 +40,10 @@ export const AuthenticatedLayout: React.FC = () => {
       <div style={{ display: 'flex', flex: 1, position: 'relative' }}>
         <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
         <main
+          className="responsive-main"
           style={{
             flex: 1,
             backgroundColor: 'var(--color-canvas)',
-            padding: '24px',
             overflowY: 'auto',
             width: '100%',
           }}

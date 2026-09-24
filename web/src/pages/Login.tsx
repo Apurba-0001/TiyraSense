@@ -207,9 +207,10 @@ export const Login: React.FC = () => {
 
   return (
     <div
+      className="login-split-container"
       style={{
         minHeight: '100vh',
-        width: '100vw',
+        width: '100%',
         display: 'flex',
         flexDirection: 'row',
         backgroundColor: 'var(--color-canvas)',
@@ -217,6 +218,7 @@ export const Login: React.FC = () => {
     >
       {/* LEFT COLUMN: Clean canvas with randomly moving elements and larger Logo + Name */}
       <div
+        className="login-brand-column"
         style={{
           flex: '0 0 45%',
           backgroundColor: '#F1F5F9',
@@ -226,6 +228,8 @@ export const Login: React.FC = () => {
           alignItems: 'center',
           justifyContent: 'center',
           borderRight: '1px solid var(--color-border)',
+          padding: '24px',
+          boxSizing: 'border-box',
         }}
       >
         {/* Dynamic moving elements animation */}
@@ -239,11 +243,12 @@ export const Login: React.FC = () => {
             display: 'flex',
             flexDirection: 'row',
             alignItems: 'center',
-            gap: '20px',
+            gap: '16px',
             userSelect: 'none',
           }}
         >
           <div
+            className="login-logo-box"
             style={{
               width: '84px',
               height: '84px',
@@ -259,6 +264,7 @@ export const Login: React.FC = () => {
             }}
           >
             <img
+              className="login-logo-img"
               src={appIcon}
               alt="TiyraSense Emblem"
               style={{
@@ -270,6 +276,7 @@ export const Login: React.FC = () => {
           </div>
 
           <h1
+            className="login-brand-title"
             style={{
               fontSize: '44px',
               fontWeight: 800,
@@ -286,13 +293,14 @@ export const Login: React.FC = () => {
 
       {/* RIGHT COLUMN: Dedicated Console Sign In (No Autofill) */}
       <div
+        className="login-form-column"
         style={{
           flex: '0 0 55%',
           backgroundColor: '#FFFFFF',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          padding: '64px',
+          padding: 'clamp(24px, 5vw, 64px)',
           boxSizing: 'border-box',
         }}
       >

@@ -168,3 +168,249 @@ a {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+/* ==========================================================================
+   RESPONSIVE DESIGN BREAKPOINT SYSTEM & UTILITIES
+   Breakpoints:
+     - Mobile:        < 640px   (sm)
+     - Tablet:        640px - 1023px (md)
+     - Laptop/Desktop: 1024px - 1439px (lg)
+     - Wide Desktop:  >= 1440px (xl)
+   ========================================================================== */
+
+/* Responsive Page Containers */
+.responsive-container {
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Responsive Main Layout Padding */
+.responsive-main {
+  flex: 1;
+  background-color: var(--color-canvas);
+  padding: clamp(12px, 2.5vw, 24px);
+  overflow-y: auto;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Responsive Table Wrapper with Smooth Scroll and Visual Cue */
+.table-responsive-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0;
+  padding: 0;
+}
+
+/* Responsive Grids & Two-Column Stacks */
+.grid-2col-responsive {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.grid-equal-2col-responsive {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.grid-corridor-split-responsive {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.grid-settings-split-responsive {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.reports-split-responsive {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  flex-direction: row;
+}
+
+.reports-detail-panel {
+  width: 480px;
+  flex-shrink: 0;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 1199px) {
+  .reports-split-responsive {
+    flex-direction: column;
+  }
+
+  .reports-detail-panel {
+    width: 100%;
+  }
+}
+
+@media (max-width: 1023px) {
+  .grid-2col-responsive {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-corridor-split-responsive {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 879px) {
+  .grid-equal-2col-responsive {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-settings-split-responsive {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-tab-nav {
+    display: flex !important;
+    flex-direction: row !important;
+    overflow-x: auto !important;
+    padding-bottom: 6px !important;
+    white-space: nowrap !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .settings-tab-btn {
+    flex-shrink: 0 !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .header-center-zone {
+    display: none !important;
+  }
+
+  .header-user-text {
+    display: none !important;
+  }
+
+  .login-split-container {
+    flex-direction: column !important;
+  }
+
+  .login-brand-column {
+    flex: 0 0 auto !important;
+    min-height: 180px !important;
+    max-height: 220px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--color-border) !important;
+  }
+
+  .login-form-column {
+    flex: 1 1 auto !important;
+    padding: clamp(20px, 5vw, 36px) !important;
+  }
+
+  .login-logo-box {
+    width: 54px !important;
+    height: 54px !important;
+    border-radius: 14px !important;
+  }
+
+  .login-logo-img {
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  .login-brand-title {
+    font-size: 28px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-logo-subtext {
+    display: none !important;
+  }
+
+  .header-root {
+    padding: 0 12px !important;
+  }
+}
+
+/* Visibility Utilities */
+.hide-on-mobile {
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .hide-on-mobile {
+    display: none !important;
+  }
+}
+
+.show-on-mobile {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .show-on-mobile {
+    display: block !important;
+  }
+}
+
+/* Modal Responsive Dialog Base */
+.responsive-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: clamp(8px, 3vw, 16px);
+  box-sizing: border-box;
+}
+
+.responsive-modal-card {
+  width: 100%;
+  max-width: 640px;
+  background-color: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--modal-shadow);
+  border: 1px solid var(--color-border);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  max-height: min(92vh, 760px);
+  box-sizing: border-box;
+}
+
+/* Touch & Interaction Target Minimums */
+@media (pointer: coarse) {
+  button, select, input, [role="button"] {
+    min-height: 40px;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

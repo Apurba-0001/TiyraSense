@@ -190,7 +190,7 @@ export const UserManagement: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* PAGE HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)' }}>
@@ -224,8 +224,8 @@ export const UserManagement: React.FC = () => {
         </button>
       </div>
 
-      {/* SUMMARY TILES (3 white cards, 12px radius, 16px padding, 16px gap) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+      {/* SUMMARY TILES (3 white cards, responsive auto-fit) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
         <div className="tiyra-card" style={{ padding: '16px' }}>
           <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-text-primary)' }}>47</div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -320,7 +320,7 @@ export const UserManagement: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
+        <div className="table-responsive-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
             <thead>
               <tr

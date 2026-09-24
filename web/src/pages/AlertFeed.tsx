@@ -178,7 +178,7 @@ export const AlertFeed: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
       {/* PAGE HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -331,7 +331,7 @@ export const AlertFeed: React.FC = () => {
         </select>
 
         {/* Severity Filter Chips */}
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {(['ALL', 'EMERGENCY', 'HIGH RISK', 'CAUTION', 'INFO'] as const).map((sev) => {
             const isActive = severityFilter === sev;
             return (
@@ -359,8 +359,8 @@ export const AlertFeed: React.FC = () => {
         </div>
       </div>
 
-      {/* STATS STRIP (4 equal white cards, 12px radius, 12px padding, 16px gap) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px' }}>
+      {/* STATS STRIP (4 equal white cards, responsive auto-fit) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '16px' }}>
         <div className="tiyra-card" style={{ padding: '16px' }}>
           <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--color-danger)' }}>1</div>
           <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -390,8 +390,8 @@ export const AlertFeed: React.FC = () => {
         </div>
       </div>
 
-      {/* TWO EQUAL COLUMNS (16px gap) */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+      {/* TWO EQUAL COLUMNS (Responsive 2-col to 1-col on mobile) */}
+      <div className="grid-equal-2col-responsive" style={{ alignItems: 'start' }}>
         {/* LEFT — Active Alerts */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--color-text-disabled)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

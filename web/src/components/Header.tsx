@@ -26,6 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
   return (
     <>
       <header
+        className="header-root"
         style={{
           height: '60px',
           backgroundColor: 'var(--color-surface)',
@@ -39,6 +40,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
           top: 0,
           zIndex: 30,
           width: '100%',
+          boxSizing: 'border-box',
         }}
       >
         {/* Left zone: 3-lines hamburger button + App icon + TiyraSense branding */}
@@ -47,6 +49,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
             display: 'flex',
             alignItems: 'center',
             gap: '12px',
+            flexShrink: 0,
           }}
         >
           {/* 3 lines button to toggle side panel */}
@@ -145,6 +148,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
                 TiyraSense
               </span>
               <span
+                className="header-logo-subtext"
                 style={{
                   fontSize: '10px',
                   fontWeight: 700,
@@ -160,6 +164,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
 
         {/* Center zone: Horizontal inline status strip */}
         <div
+          className="header-center-zone"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -220,7 +225,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
         </div>
 
         {/* Right zone */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexShrink: 0 }}>
           {/* User profile (clickable to open account details modal) */}
           {user && (
             <div
@@ -268,7 +273,7 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar, isSidebarOpen =
                 {getInitials(user.full_name)}
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+              <div className="header-user-text" style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
                 <span
                   style={{
                     fontSize: '13px',

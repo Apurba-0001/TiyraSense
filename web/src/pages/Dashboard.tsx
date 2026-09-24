@@ -553,7 +553,7 @@ export const Dashboard: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '1440px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+    <div className="responsive-container" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* PAGE HEADER */}
       <div
         style={{
@@ -604,7 +604,7 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
           <button
             onClick={() => setIsJourneyModalOpen(true)}
             style={{
@@ -758,7 +758,7 @@ export const Dashboard: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', overflowX: 'auto', maxWidth: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', maxWidth: '100%' }}>
             {weatherObs.slice(0, 4).map((w, i) => (
               <div
                 key={i}
@@ -795,7 +795,7 @@ export const Dashboard: React.FC = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
           gap: '16px',
         }}
       >
@@ -2057,14 +2057,8 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* ROW 2 — TWO COLUMNS (60% + 40%, 16px gap) */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-          gap: '16px',
-        }}
-      >
+      {/* ROW 2 — TWO COLUMNS (60% + 40%, 16px gap on desktop, stacked on mobile/tablet) */}
+      <div className="grid-2col-responsive">
         {/* LEFT — Corridor Status Table */}
         <div className="tiyra-card" style={{ padding: '20px' }}>
           <div
@@ -2077,7 +2071,7 @@ export const Dashboard: React.FC = () => {
               gap: '10px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
                 Corridor Status
               </h2>
@@ -2128,7 +2122,7 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div style={{ overflowX: 'auto' }}>
+          <div className="table-responsive-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr
@@ -2441,7 +2435,7 @@ export const Dashboard: React.FC = () => {
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
             {(fieldReports.length > 0
               ? fieldReports.slice(0, 4).map((r) => ({
                   id: r.id,
