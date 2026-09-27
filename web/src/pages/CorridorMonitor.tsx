@@ -264,6 +264,7 @@ export const CorridorMonitor: React.FC = () => {
 
   const [activeFleet, setActiveFleet] = useState<ActiveJourney[]>([]);
   const [corridors, setCorridors] = useState<CorridorDetail[]>(CORRIDORS);
+  const [fieldReports, setFieldReports] = useState<any[]>([]);
 
   useEffect(() => {
     const syncCorridorsAndReports = async () => {
@@ -274,6 +275,7 @@ export const CorridorMonitor: React.FC = () => {
         ]);
 
         const fieldReps = reports.status === 'fulfilled' ? reports.value || [] : [];
+        setFieldReports(fieldReps);
 
         if (liveCorridors.status === 'fulfilled' && liveCorridors.value && liveCorridors.value.length > 0) {
           setCorridors((prev) => {
@@ -1436,6 +1438,13 @@ export const CorridorMonitor: React.FC = () => {
                 cargoName={cargo}
                 roleMode="official"
                 height={350}
+                incidents={fieldReports.map((r) => ({
+                  id: r.id,
+                  lat: r.latitude || 25.8617,
+                  lng: r.longitude || 91.8148,
+                  title: `${r.hazard_type || 'Hazard'}: ${r.km_marker || 'Sector'}`,
+                  severity: r.severity,
+                }))}
                 onOpenClauses={() => {
                   const o = lookupCoords(origin, { lat: 26.1445, lng: 91.7362 });
                   const d = lookupCoords(destination, { lat: 25.5788, lng: 91.8933 });

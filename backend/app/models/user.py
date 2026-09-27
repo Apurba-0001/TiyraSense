@@ -81,3 +81,7 @@ SYSTEM_FALLBACK_USERS = {
         organization="North Eastern Council Logistics Tech Cell",
     ),
 }
+
+DELETED_USER_IDS = set()
+DELETED_USER_EMAILS = set()
+

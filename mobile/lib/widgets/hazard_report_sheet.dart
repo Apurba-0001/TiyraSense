@@ -172,16 +172,23 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: ResponsiveWrapper(
-        maxWidth: 600,
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.85,
-          decoration: const BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
-            boxShadow: AppTheme.navShadow,
-          ),
+    final mediaQuery = MediaQuery.of(context);
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
+    final sheetHeight = mediaQuery.size.height * (isLandscape ? 0.94 : 0.88);
+
+    return ResponsiveBottomSheetWrapper(
+      maxWidth: 600,
+      maxHeightRatio: isLandscape ? 0.94 : 0.88,
+      child: Container(
+        height: sheetHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+          boxShadow: AppTheme.navShadow,
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: true,
           child: Column(
         children: [
           // Drag handle
@@ -524,7 +531,10 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
 
                       final severities = ['Partial Blockage', 'Full Blockage', 'Shoulder Affected'];
                       final severityStr = _selectedSeverity < severities.length ? severities[_selectedSeverity] : 'Partial Blockage';
-                      final userName = authProvider.currentUser?.fullName ?? 'Field Reconnaissance';
+                      final user = authProvider.currentUser;
+                      final userName = user?.fullName ?? 'Field Reconnaissance';
+                      final userId = user?.id;
+                      final userRole = user?.role.toApiRole() ?? 'FIELD_WORKER';
 
                       final isOffline = !offlineStorageService.isOnline;
 
@@ -536,6 +546,8 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
                         notes: _notesController.text.trim(),
                         photoPath: _capturedImage?.path,
                         workerName: userName,
+                        reporterId: userId,
+                        reporterRole: userRole,
                         isOffline: isOffline,
                       );
 
@@ -587,12 +599,12 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
               ],
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
-}
+    );
+  }
 
   Widget _buildSeveritySegment(int index, String label) {
     final isSelected = _selectedSeverity == index;
@@ -608,6 +620,8 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
           child: Text(
             label,
             textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 11,
               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,

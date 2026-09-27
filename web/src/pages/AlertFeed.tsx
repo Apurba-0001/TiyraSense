@@ -11,6 +11,7 @@ import {
   acknowledgeAlert,
   acknowledgeAllAlerts,
   createAlert,
+  deleteAlert,
 } from '../services/api';
 
 interface FeedAlert {
@@ -37,8 +38,13 @@ export const AlertFeed: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedDetailAlert, setSelectedDetailAlert] = useState<FeedAlert | null>(null);
 
-  const handleDismiss = (id: string) => {
+  const handleDismiss = async (id: string) => {
     setAlerts((prev) => prev.filter((a) => a.id !== id));
+    try {
+      await deleteAlert(id);
+    } catch {
+      // Retain optimistic dismiss
+    }
   };
 
   // New alert form state
@@ -54,7 +60,7 @@ export const AlertFeed: React.FC = () => {
     const loadAlerts = () => {
       fetchAlerts()
         .then((data) => {
-          if (data && data.length > 0) {
+          if (Array.isArray(data)) {
             const mapped: FeedAlert[] = data.map((d: any) => ({
               id: d.id,
               severity: (d.severity as FeedAlert['severity']) || 'INFO',
@@ -75,9 +81,16 @@ export const AlertFeed: React.FC = () => {
     };
 
     loadAlerts();
-    // Poll every 30s so auto-generated alerts from verified reports surface promptly
-    const pollInterval = setInterval(loadAlerts, 30000);
-    return () => clearInterval(pollInterval);
+    const pollInterval = setInterval(loadAlerts, 5000);
+    const onOnline = () => loadAlerts();
+    const onFocus = () => loadAlerts();
+    window.addEventListener('online', onOnline);
+    window.addEventListener('focus', onFocus);
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('online', onOnline);
+      window.removeEventListener('focus', onFocus);
+    };
   }, []);
 
   const filterItem = (a: FeedAlert) => {

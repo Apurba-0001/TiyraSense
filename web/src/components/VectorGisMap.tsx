@@ -39,6 +39,22 @@ export interface FleetVehicle {
   routeGeometry?: [number, number][];
 }
 
+export interface MapAlertItem {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  severity?: 'EMERGENCY' | 'CAUTION' | 'INFO' | string;
+}
+
+export interface MapIncidentItem {
+  id: string;
+  lat: number;
+  lng: number;
+  title: string;
+  severity?: string;
+}
+
 export interface VectorGisMapProps {
   originName?: string;
   destName?: string;
@@ -56,6 +72,8 @@ export interface VectorGisMapProps {
   onSelectVehicle?: (vehicle: FleetVehicle) => void;
   fleetViewMode?: 'selected' | 'all';
   onFleetViewModeChange?: (mode: 'selected' | 'all') => void;
+  alerts?: MapAlertItem[];
+  incidents?: MapIncidentItem[];
 }
 
 // Web Mercator conversions
@@ -101,6 +119,8 @@ export const VectorGisMap: React.FC<VectorGisMapProps> = ({
   onSelectVehicle,
   fleetViewMode,
   onFleetViewModeChange,
+  alerts = [],
+  incidents = [],
 }) => {
   const [internalViewMode, setInternalViewMode] = useState<'selected' | 'all'>(
     vehicles && vehicles.length > 0 ? 'all' : 'selected'
@@ -339,11 +359,6 @@ export const VectorGisMap: React.FC<VectorGisMapProps> = ({
     vehicleX = (1 - t) * (1 - t) * originScreen.x + 2 * (1 - t) * t * safeCtrlX + t * t * destScreen.x;
     vehicleY = (1 - t) * (1 - t) * originScreen.y + 2 * (1 - t) * t * safeCtrlY + t * t * destScreen.y;
   }
-
-  // Hazard and Alert Markers (Nongpoh & KM 52)
-  const hazardLat = (originCoords.lat + destCoords.lat) / 2 + 0.04;
-  const hazardLng = (originCoords.lng + destCoords.lng) / 2 - 0.02;
-  const hazardScreen = toScreen(hazardLat, hazardLng);
 
   // Geographic Scale Bar
   const metersPerPixel = (156543.03392 * Math.cos((centerLat * Math.PI) / 180)) / (Math.pow(2, mapZoom) * zoomLevel);
@@ -626,60 +641,60 @@ export const VectorGisMap: React.FC<VectorGisMapProps> = ({
         )}
 
         {/* Alerts Layer (Active Hazard Warning & Watch) */}
-        {showAlerts && (
+        {showAlerts && alerts && alerts.length > 0 && (
           <g>
-            <g transform={`translate(${hazardScreen.x}, ${hazardScreen.y})`}>
-              <circle r="18" fill="#EF4444" fillOpacity="0.3" />
-              <circle r="9" fill="#DC2626" stroke="#FFFFFF" strokeWidth="1.5" />
-              <text x="0" y="3" fill="#FFFFFF" fontSize="9" fontWeight="900" textAnchor="middle">!</text>
-              <rect x="-46" y="14" width="92" height="16" rx="4" fill="#7F1D1D" stroke="#EF4444" strokeWidth="0.8" />
-              <text x="0" y="25" fill="#FECACA" fontSize="8" fontWeight="700" textAnchor="middle">
-                KM 52 Landslide
-              </text>
-            </g>
-            {(() => {
-              const alert2 = toScreen(25.982, 91.885);
+            {alerts.map((alt) => {
+              const pos = toScreen(alt.lat, alt.lng);
+              const isEmerg = alt.severity === 'EMERGENCY' || alt.severity === 'CRITICAL';
               return (
-                <g transform={`translate(${alert2.x}, ${alert2.y})`}>
-                  <circle r="14" fill="#F59E0B" fillOpacity="0.3" />
-                  <circle r="7" fill="#F59E0B" stroke="#FFFFFF" strokeWidth="1.5" />
-                  <rect x="-46" y="-22" width="92" height="15" rx="4" fill="#78350F" stroke="#F59E0B" strokeWidth="0.8" />
-                  <text x="0" y="-12" fill="#FEF3C7" fontSize="7.5" fontWeight="700" textAnchor="middle">
-                    Nongpoh Flood Watch
+                <g key={alt.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                  <circle r={isEmerg ? 18 : 14} fill={isEmerg ? '#EF4444' : '#F59E0B'} fillOpacity="0.3" />
+                  <circle r={isEmerg ? 9 : 7} fill={isEmerg ? '#DC2626' : '#F59E0B'} stroke="#FFFFFF" strokeWidth="1.5" />
+                  {isEmerg && <text x="0" y="3" fill="#FFFFFF" fontSize="9" fontWeight="900" textAnchor="middle">!</text>}
+                  <rect
+                    x="-46"
+                    y={isEmerg ? 14 : -22}
+                    width="92"
+                    height={isEmerg ? 16 : 15}
+                    rx="4"
+                    fill={isEmerg ? '#7F1D1D' : '#78350F'}
+                    stroke={isEmerg ? '#EF4444' : '#F59E0B'}
+                    strokeWidth="0.8"
+                  />
+                  <text
+                    x="0"
+                    y={isEmerg ? 25 : -12}
+                    fill={isEmerg ? '#FECACA' : '#FEF3C7'}
+                    fontSize={isEmerg ? '8' : '7.5'}
+                    fontWeight="700"
+                    textAnchor="middle"
+                  >
+                    {alt.title.length > 18 ? alt.title.slice(0, 18) + '...' : alt.title}
                   </text>
                 </g>
               );
-            })()}
+            })}
           </g>
         )}
 
         {/* Incidents Layer (Field Reports) */}
-        {showIncidents && (
+        {showIncidents && incidents && incidents.length > 0 && (
           <g>
-            {(() => {
-              const inc1 = toScreen(26.0124, 91.8901);
-              const inc2 = toScreen(25.75, 91.901);
+            {incidents.map((inc) => {
+              const pos = toScreen(inc.lat, inc.lng);
+              const isCritical = inc.severity === 'FULL BLOCKAGE' || inc.severity === 'CRITICAL';
+              const col = isCritical ? '#DC2626' : '#EA580C';
               return (
-                <>
-                  <g transform={`translate(${inc1.x}, ${inc1.y})`}>
-                    <polygon points="0,-8 7,0 0,8 -7,0" fill="#DC2626" />
-                    <circle r="2.5" fill="#FFFFFF" />
-                    <rect x="-48" y="10" width="96" height="15" rx="4" fill="#FFFFFF" stroke="#DC2626" strokeWidth="1" />
-                    <text x="0" y="21" fill="#DC2626" fontSize="7.5" fontWeight="800" textAnchor="middle">
-                      INC: Boulder Roll
-                    </text>
-                  </g>
-                  <g transform={`translate(${inc2.x}, ${inc2.y})`}>
-                    <polygon points="0,-8 7,0 0,8 -7,0" fill="#EA580C" />
-                    <circle r="2.5" fill="#FFFFFF" />
-                    <rect x="-52" y="10" width="104" height="15" rx="4" fill="#FFFFFF" stroke="#EA580C" strokeWidth="1" />
-                    <text x="0" y="21" fill="#EA580C" fontSize="7.5" fontWeight="800" textAnchor="middle">
-                      INC: Heavy Fog Sector
-                    </text>
-                  </g>
-                </>
+                <g key={inc.id} transform={`translate(${pos.x}, ${pos.y})`}>
+                  <polygon points="0,-8 7,0 0,8 -7,0" fill={col} />
+                  <circle r="2.5" fill="#FFFFFF" />
+                  <rect x="-48" y="10" width="96" height="15" rx="4" fill="#FFFFFF" stroke={col} strokeWidth="1" />
+                  <text x="0" y="21" fill={col} fontSize="7.5" fontWeight="800" textAnchor="middle">
+                    {inc.title.length > 16 ? inc.title.slice(0, 16) + '...' : inc.title}
+                  </text>
+                </g>
               );
-            })()}
+            })}
           </g>
         )}
 

@@ -169,6 +169,16 @@ class ManagedUserOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ManagedUserUpdate(BaseModel):
+    """Payload for updating a managed user from the admin dashboard."""
+
+    full_name: Optional[str] = Field(default=None, min_length=2, max_length=128)
+    role: Optional[str] = None
+    status: Optional[str] = None
+    organization: Optional[str] = Field(default=None, max_length=128)
+    phone_number: Optional[str] = Field(default=None, max_length=20)
+
+
 class UserInvite(BaseModel):
     """Payload for inviting / creating a user from the management dashboard."""
 
@@ -188,6 +198,9 @@ __all__ = [
     "UserCreate",
     "UserUpdate",
     "ManagedUserOut",
+    "ManagedUserUpdate",
     "UserInvite",
 ]
+
+
 

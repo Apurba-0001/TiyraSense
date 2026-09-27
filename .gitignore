@@ -559,3 +559,4 @@ Images/*.png
 backend/app/static/uploads/*
 backend/app/static/uploads/.*
 !backend/app/static/uploads/.gitkeep
+backend/app/static/*.json

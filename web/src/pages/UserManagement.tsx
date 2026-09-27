@@ -4,8 +4,9 @@ import {
   Search,
   X,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
-import { fetchUsers, inviteUser } from '../services/api';
+import { fetchUsers, inviteUser, updateUser, deleteUser } from '../services/api';
 
 interface ManagedUser {
   id: string;
@@ -93,10 +94,7 @@ export const UserManagement: React.FC = () => {
     fetchUsers()
       .then((data) => {
         if (data && data.length > 0) {
-          const mergedMap = new Map<string, ManagedUser>();
-          DEFAULT_SYSTEM_USERS.forEach((u) => mergedMap.set(u.email.toLowerCase(), u));
-          data.forEach((u) => mergedMap.set(u.email.toLowerCase(), u));
-          setUsers(Array.from(mergedMap.values()));
+          setUsers(data);
         }
       })
       .catch(() => {})
@@ -115,29 +113,55 @@ export const UserManagement: React.FC = () => {
     setEditStatus(u.status);
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser || !editName.trim() || !editEmail.trim()) return;
 
     const parts = editName.trim().split(' ');
     const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : editName.slice(0, 2).toUpperCase();
 
+    const updatedUser: ManagedUser = {
+      ...editingUser,
+      name: editName.trim(),
+      email: editEmail.trim(),
+      role: editRole,
+      status: editStatus,
+      initials,
+    };
+
     setUsers((prev) =>
-      prev.map((u) =>
-        u.id === editingUser.id
-          ? {
-              ...u,
-              name: editName.trim(),
-              email: editEmail.trim(),
-              role: editRole,
-              status: editStatus,
-              initials,
-            }
-          : u
-      )
+      prev.map((u) => (u.id === editingUser.id ? updatedUser : u))
     );
     setEditingUser(null);
+
+    try {
+      await updateUser(editingUser.id, {
+        full_name: editName.trim(),
+        role: editRole,
+        status: editStatus,
+      });
+    } catch (err) {
+      console.error('Failed to update user profile on server:', err);
+    }
   };
+
+  const handleDeleteUser = async (u: ManagedUser) => {
+    const confirmMsg = `Are you sure you want to permanently delete user "${u.name}" (${u.email})? This action cannot be undone.`;
+    if (!window.confirm(confirmMsg)) return;
+
+    // Optimistically remove
+    setUsers((prev) => prev.filter((x) => x.id !== u.id && x.email.toLowerCase() !== u.email.toLowerCase()));
+
+    try {
+      await deleteUser(u.id);
+    } catch (err: any) {
+      alert(err?.message || 'Failed to delete user from system.');
+      loadLiveUsers();
+    }
+  };
+
+
+  const hasExistingAdmin = users.some((u) => u.role === 'ADMIN');
 
   const filteredUsers = users.filter((u) => {
     if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
@@ -189,17 +213,27 @@ export const UserManagement: React.FC = () => {
     }
   };
 
-  const handleToggleSuspend = (id: string) => {
+  const handleToggleSuspend = async (id: string) => {
+    const target = users.find((u) => u.id === id);
+    if (!target) return;
+    const newStatus = target.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
+
     setUsers((prev) =>
       prev.map((u) => {
         if (u.id === id) {
-          const newStatus = u.status === 'SUSPENDED' ? 'ACTIVE' : 'SUSPENDED';
           return { ...u, status: newStatus };
         }
         return u;
       })
     );
+
+    try {
+      await updateUser(id, { status: newStatus });
+    } catch (err) {
+      console.error('Failed to sync status to server:', err);
+    }
   };
+
 
   const renderRoleChip = (role: ManagedUser['role']) => {
     let bg = 'var(--color-container)';
@@ -522,7 +556,7 @@ export const UserManagement: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ padding: '0 12px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '10px' }}>
                         <button
                           onClick={() => startEdit(u)}
                           style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
@@ -534,13 +568,35 @@ export const UserManagement: React.FC = () => {
                           style={{
                             fontSize: '12px',
                             fontWeight: 600,
-                            color: u.status === 'SUSPENDED' ? 'var(--color-success)' : 'var(--color-danger)',
+                            color: u.status === 'SUSPENDED' ? 'var(--color-success)' : 'var(--color-warning, #D97706)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
                           }}
                         >
                           {u.status === 'SUSPENDED' ? 'Reactivate' : 'Suspend'}
                         </button>
+                        <button
+                          onClick={() => handleDeleteUser(u)}
+                          title="Permanently Delete User"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: 'var(--color-danger, #EF4444)',
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={13} />
+                          <span>Delete</span>
+                        </button>
                       </div>
                     </td>
+
                   </tr>
                 ))
               )}
@@ -652,6 +708,7 @@ export const UserManagement: React.FC = () => {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
                   {(['DRIVER', 'FIELD_WORKER', 'OFFICIAL', 'ADMIN'] as const).map((r) => {
                     const isSelected = inviteRole === r;
+                    const isDisabled = r === 'ADMIN' && hasExistingAdmin;
                     let shortName: string = r;
                     if (r === 'FIELD_WORKER') shortName = 'Field';
 
@@ -659,7 +716,9 @@ export const UserManagement: React.FC = () => {
                       <button
                         type="button"
                         key={r}
+                        disabled={isDisabled}
                         onClick={() => setInviteRole(r)}
+                        title={isDisabled ? 'System policy strictly enforces exactly 1 Administrator account.' : undefined}
                         style={{
                           height: '36px',
                           borderRadius: 'var(--radius-sm)',
@@ -669,13 +728,20 @@ export const UserManagement: React.FC = () => {
                           borderColor: isSelected ? 'var(--color-primary)' : 'var(--color-border)',
                           backgroundColor: isSelected ? 'var(--color-primary-bg)' : '#FFFFFF',
                           color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                          opacity: isDisabled ? 0.45 : 1,
+                          cursor: isDisabled ? 'not-allowed' : 'pointer',
                         }}
                       >
-                        {shortName}
+                        {shortName} {isDisabled ? '🔒' : ''}
                       </button>
                     );
                   })}
                 </div>
+                {hasExistingAdmin && (
+                  <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '5px', fontStyle: 'italic' }}>
+                    Single-Admin Rule: 1 primary Administrator exists. Multiple Government Officials can be invited.
+                  </div>
+                )}
               </div>
 
               <div>
@@ -844,7 +910,9 @@ export const UserManagement: React.FC = () => {
                     <option value="DRIVER">DRIVER</option>
                     <option value="FIELD_WORKER">FIELD_WORKER</option>
                     <option value="OFFICIAL">OFFICIAL</option>
-                    <option value="ADMIN">ADMIN</option>
+                    <option value="ADMIN" disabled={hasExistingAdmin && editingUser?.role !== 'ADMIN'}>
+                      ADMIN {hasExistingAdmin && editingUser?.role !== 'ADMIN' ? '(Limit: 1 Admin)' : ''}
+                    </option>
                   </select>
                 </div>
 

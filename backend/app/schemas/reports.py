@@ -12,6 +12,10 @@ class FieldReportCreate(BaseModel):
     corridor_name: Optional[str] = Field(None, max_length=128)
     km_marker: Optional[str] = Field(None, max_length=32)
     photo_url: Optional[str] = Field(None, max_length=512)
+    reporter_id: Optional[str] = Field(None, max_length=64)
+    reporter_name: Optional[str] = Field(None, max_length=128)
+    reporter_role: Optional[str] = Field(None, max_length=32)
+    reporter_unit: Optional[str] = Field(None, max_length=128)
 
 
 class FieldReportVerify(BaseModel):
@@ -30,7 +34,9 @@ class FieldReportOut(BaseModel):
     longitude: float
     corridor_name: Optional[str] = None
     km_marker: Optional[str] = None
+    reporter_id: Optional[str] = None
     reporter_name: Optional[str] = None
+    reporter_role: Optional[str] = None
     reporter_unit: Optional[str] = None
     submitted_at: str
     data_label: str = "LIVE"

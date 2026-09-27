@@ -20,9 +20,11 @@ class ReportItem {
   final String notes;
   final String? photoPath;
   String? photoUrl;
-  final String workerName;
-  final String workerInitials;
-  final String workerUnit;
+  String workerName;
+  String workerInitials;
+  String workerUnit;
+  String? reporterId;
+  String? reporterRole;
   final String coordinates;
   String? dispatchUnit;
   String? dispatchNotes;
@@ -46,6 +48,8 @@ class ReportItem {
     required this.workerName,
     String? workerInitials,
     this.workerUnit = 'Field Unit 4',
+    this.reporterId,
+    this.reporterRole,
     this.coordinates = '26.0124° N, 91.8901° E',
     this.dispatchUnit,
     this.dispatchNotes,
@@ -83,6 +87,8 @@ class ReportItem {
     'workerName': workerName,
     'workerInitials': workerInitials,
     'workerUnit': workerUnit,
+    'reporterId': reporterId,
+    'reporterRole': reporterRole,
     'coordinates': coordinates,
     'dispatchUnit': dispatchUnit,
     'dispatchNotes': dispatchNotes,
@@ -111,6 +117,8 @@ class ReportItem {
       workerName: json['workerName']?.toString() ?? json['reporter_name']?.toString() ?? 'Field Scout',
       workerInitials: json['workerInitials']?.toString(),
       workerUnit: json['workerUnit']?.toString() ?? json['reporter_unit']?.toString() ?? 'Field Recon',
+      reporterId: json['reporterId']?.toString() ?? json['reporter_id']?.toString(),
+      reporterRole: json['reporterRole']?.toString() ?? json['reporter_role']?.toString() ?? json['worker_role']?.toString(),
       coordinates: json['coordinates']?.toString() ?? '${json['latitude'] ?? 26.0124}° N, ${json['longitude'] ?? 91.8901}° E',
       dispatchUnit: json['dispatchUnit']?.toString() ?? json['dispatch_unit']?.toString(),
       dispatchNotes: json['dispatchNotes']?.toString() ?? json['dispatch_notes']?.toString(),
@@ -197,14 +205,20 @@ class ReportService extends ChangeNotifier {
   Future<void> syncLiveReports() async {
     try {
       final remoteList = await ApiService().fetchFieldReports();
-      if (remoteList.isEmpty) {
-        return;
-      }
+      
+      final remoteIds = remoteList.map((r) => r['id']?.toString()).whereType<String>().toSet();
 
-      // Purge demo seed reports on sync so only live and user reports appear
-      _reports.removeWhere((r) => r.id.startsWith('RP-284') && !r.isMine);
+      final isTest = Platform.environment.containsKey('FLUTTER_TEST');
+      // Purge demo seed reports on sync in production so only live and user reports appear
+      final toRemove = _reports.where((r) {
+        if (r.isOfflineQueued || r.syncStatus != 'SYNCED' || r.isMine) return false;
+        if (r.id.startsWith('RP-284')) return !isTest;
+        return remoteIds.isNotEmpty && !remoteIds.contains(r.id);
+      }).map((r) => r.id).toList();
 
-      bool changed = true;
+      bool changed = toRemove.isNotEmpty;
+      _reports.removeWhere((r) => toRemove.contains(r.id));
+
       for (final raw in remoteList) {
         final item = ReportItem.fromJson(raw);
         if (_deletedReportIds.contains(item.id)) continue;
@@ -227,6 +241,19 @@ class ReportService extends ChangeNotifier {
           }
           if (item.photoUrl != null && item.photoUrl!.isNotEmpty && ex.photoUrl != item.photoUrl) {
             ex.photoUrl = item.photoUrl;
+            itemChanged = true;
+          }
+          if (item.workerName != 'Field Scout' && item.workerName.isNotEmpty && ex.workerName != item.workerName) {
+            ex.workerName = item.workerName;
+            ex.workerInitials = item.workerInitials;
+            itemChanged = true;
+          }
+          if (item.reporterRole != null && item.reporterRole!.isNotEmpty && ex.reporterRole != item.reporterRole) {
+            ex.reporterRole = item.reporterRole;
+            itemChanged = true;
+          }
+          if (item.reporterId != null && item.reporterId!.isNotEmpty && ex.reporterId != item.reporterId) {
+            ex.reporterId = item.reporterId;
             itemChanged = true;
           }
           if (itemChanged) changed = true;
@@ -339,6 +366,7 @@ class ReportService extends ChangeNotifier {
       _reports[index].status = 'VERIFIED';
       _persistReports();
       notifyListeners();
+      ApiService().updateFieldReportStatus(reportId: id, status: 'VERIFIED').catchError((_) => null);
     }
   }
 
@@ -350,6 +378,12 @@ class ReportService extends ChangeNotifier {
       _reports[index].dispatchNotes = notes;
       _persistReports();
       notifyListeners();
+      ApiService().updateFieldReportStatus(
+        reportId: id,
+        status: 'DISPATCHED',
+        dispatchUnit: unit,
+        dispatchNotes: notes,
+      ).catchError((_) => null);
     }
   }
 
@@ -360,6 +394,11 @@ class ReportService extends ChangeNotifier {
       _reports[index].dispatchNotes = reason;
       _persistReports();
       notifyListeners();
+      ApiService().updateFieldReportStatus(
+        reportId: id,
+        status: 'REJECTED',
+        dispatchNotes: reason,
+      ).catchError((_) => null);
     }
   }
 
@@ -439,6 +478,8 @@ class ReportService extends ChangeNotifier {
     String? photoPath,
     String workerName = 'Current User',
     String workerUnit = 'Field Unit 4',
+    String? reporterId,
+    String? reporterRole,
     bool isOffline = false,
   }) {
     final offlineActive = isOffline || !offlineStorageService.isOnline;
@@ -455,6 +496,8 @@ class ReportService extends ChangeNotifier {
       photoPath: photoPath,
       workerName: workerName,
       workerUnit: workerUnit,
+      reporterId: reporterId,
+      reporterRole: reporterRole,
       isMine: true,
       isOfflineQueued: offlineActive,
       syncStatus: offlineActive ? 'PENDING_SYNC' : 'SYNCED',
@@ -477,6 +520,8 @@ class ReportService extends ChangeNotifier {
         photoPath: photoPath,
         workerName: workerName,
         workerUnit: workerUnit,
+        workerId: reporterId,
+        workerRole: reporterRole,
         capturedAt: newReport.timestamp,
         isSynced: false,
       ));
@@ -542,6 +587,10 @@ class ReportService extends ChangeNotifier {
         'corridor_name': report.corridor,
         'km_marker': report.km,
         'photo_url': remotePhotoUrl,
+        'reporter_id': report.reporterId,
+        'reporter_name': report.workerName,
+        'reporter_role': report.reporterRole ?? 'FIELD_WORKER',
+        'reporter_unit': report.workerUnit,
       };
 
       final res = await ApiService().createFieldReport(payload);
@@ -581,6 +630,8 @@ class ReportService extends ChangeNotifier {
       photoPath: localPhotoPath ?? report.photoPath,
       workerName: report.workerName,
       workerUnit: report.workerUnit,
+      workerId: report.reporterId,
+      workerRole: report.reporterRole,
       capturedAt: report.timestamp,
       isSynced: false,
     ));

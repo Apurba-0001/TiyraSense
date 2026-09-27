@@ -22,6 +22,8 @@ class QueuedReportData {
   String? photoUrl;
   final String workerName;
   final String workerUnit;
+  final String? workerId;
+  final String? workerRole;
   final DateTime capturedAt;
   bool isSynced;
 
@@ -39,6 +41,8 @@ class QueuedReportData {
     this.photoUrl,
     required this.workerName,
     required this.workerUnit,
+    this.workerId,
+    this.workerRole,
     required this.capturedAt,
     this.isSynced = false,
   });
@@ -57,6 +61,8 @@ class QueuedReportData {
         'photo_url': photoUrl,
         'worker_name': workerName,
         'worker_unit': workerUnit,
+        'worker_id': workerId,
+        'worker_role': workerRole,
         'captured_at': capturedAt.toIso8601String(),
         'is_synced': isSynced,
       };
@@ -75,6 +81,8 @@ class QueuedReportData {
         photoUrl: json['photo_url'] as String?,
         workerName: json['worker_name'] as String? ?? 'Field Officer',
         workerUnit: json['worker_unit'] as String? ?? 'Field Unit 4',
+        workerId: json['worker_id'] as String?,
+        workerRole: json['worker_role'] as String?,
         capturedAt: DateTime.tryParse(json['captured_at'] as String? ?? '') ?? DateTime.now(),
         isSynced: json['is_synced'] as bool? ?? false,
       );
@@ -264,6 +272,10 @@ class OfflineStorageService extends ChangeNotifier {
               'corridor_name': report.corridor,
               'km_marker': report.km,
               'photo_url': photoUrl,
+              'reporter_id': report.workerId,
+              'reporter_name': report.workerName,
+              'reporter_role': report.workerRole ?? 'FIELD_WORKER',
+              'reporter_unit': report.workerUnit,
             };
             final res = await api.createFieldReport(payload);
             if (res != null) {

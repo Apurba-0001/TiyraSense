@@ -54,15 +54,47 @@ async def get_current_user(
         result = await db.execute(stmt)
         user = result.scalar_one_or_none()
     except Exception:
-        # Fallback when database daemon is not running (development and test only)
-        if settings.APP_ENV in ("development", "test"):
-            user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
+        pass
 
+    # Direct database check against live Supabase cloud table if not found in local PostgreSQL session
+    if user is None:
+        try:
+            from backend.app.services.supabase_service import SupabaseService
+            sb_user = await SupabaseService.get_user_by_id(str(user_id))
+            if sb_user:
+                role_val = sb_user.get("role", "DRIVER").upper().replace(" ", "_")
+                try:
+                    user_role = UserRole(role_val)
+                except ValueError:
+                    user_role = UserRole.DRIVER
+                user = User(
+                    id=UUID(sb_user["id"]) if "id" in sb_user else user_id,
+                    email=sb_user.get("email", ""),
+                    password_hash=sb_user.get("password_hash", ""),
+                    full_name=sb_user.get("full_name", "User"),
+                    role=user_role,
+                    phone_number=sb_user.get("phone_number"),
+                    organization=sb_user.get("organization"),
+                )
+        except Exception:
+            pass
+
+    # Fallback when database daemon is not running (development and test only), respecting deletions
     if user is None and settings.APP_ENV in ("development", "test"):
-        user = next((u for u in SYSTEM_FALLBACK_USERS.values() if u.id == user_id), None)
+        from backend.app.models.user import DELETED_USER_IDS, DELETED_USER_EMAILS
+        user = next(
+            (
+                u for u in SYSTEM_FALLBACK_USERS.values()
+                if u.id == user_id
+                and u.id not in DELETED_USER_IDS
+                and u.email.lower() not in DELETED_USER_EMAILS
+            ),
+            None,
+        )
 
     if user is None:
         raise credentials_exception
+
 
 
 

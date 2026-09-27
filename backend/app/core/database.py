@@ -15,7 +15,7 @@ engine = create_async_engine(
     pool_recycle=300,
     pool_size=10,
     max_overflow=20,
-    connect_args={"timeout": 10.0, "command_timeout": 15.0},
+    connect_args={"timeout": 2.0, "command_timeout": 3.0},
 )
 
 # Async Session Factory

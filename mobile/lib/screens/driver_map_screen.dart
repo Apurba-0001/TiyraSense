@@ -9,7 +9,6 @@ import '../services/offline_storage_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_utils.dart';
-import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/journey_planning_sheet.dart';
 import '../widgets/live_notification_card.dart';
@@ -2211,12 +2210,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             bottom: 0,
             child: _isNavigating
                 ? _buildGoogleMapsBottomNavigationCard()
-                : Center(
-                    child: ResponsiveWrapper(
-                      maxWidth: 640,
+                : Align(
+                    alignment: Alignment.bottomCenter,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 640),
                       child: Container(
                         constraints: const BoxConstraints(minHeight: 180),
-                        padding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+                        padding: EdgeInsets.fromLTRB(20, 10, 20, 16 + MediaQuery.paddingOf(context).bottom),
                         decoration: const BoxDecoration(
                           color: AppTheme.surface,
                           borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
@@ -2274,6 +2274,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                           children: [
                             Expanded(
                               child: RichText(
+                                overflow: TextOverflow.ellipsis,
+                                maxLines: 1,
                                 text: TextSpan(
                                   children: [
                                     TextSpan(
@@ -2329,7 +2331,9 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                         const SizedBox(height: 10),
 
                         // Route choice chips
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 6,
                           children: [
                             GestureDetector(
                               onTap: () {
@@ -2345,6 +2349,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                                   ),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
                                       width: 6,
@@ -2364,7 +2369,6 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 8),
                             GestureDetector(
                               onTap: () {
                                 setState(() => _selectedRoute = 1);
@@ -2379,6 +2383,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                                   ),
                                 ),
                                 child: Row(
+                                  mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Container(
                                       width: 6,

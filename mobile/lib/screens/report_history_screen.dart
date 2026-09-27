@@ -1,9 +1,11 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
+import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../utils/responsive_utils.dart';
 import '../widgets/hazard_report_sheet.dart';
@@ -114,6 +116,8 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
   Widget build(BuildContext context) {
     final allReports = reportService.reports;
     final myCount = reportService.myReports.length;
+    final role = authProvider.currentUser?.role;
+    final isOfficialOrAdmin = role == UserRole.official || role == UserRole.admin;
 
     List<ReportItem> filtered = allReports;
     if (_activeFilter == 'MY REPORTS') {
@@ -353,13 +357,17 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
           Expanded(
             child: filtered.isEmpty
                 ? _buildEmptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 6, 16, 80),
-                    itemCount: filtered.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      return _buildReportCard(filtered[index]);
-                    },
+                : RefreshIndicator(
+                    onRefresh: () async => await reportService.syncLiveReports(),
+                    color: AppTheme.primaryBlue,
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 80),
+                      itemCount: filtered.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        return _buildReportCard(filtered[index], isOfficialOrAdmin);
+                      },
+                    ),
                   ),
           ),
         ],
@@ -432,7 +440,7 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
     );
   }
 
-  Widget _buildReportCard(ReportItem item) {
+  Widget _buildReportCard(ReportItem item, bool isOfficialOrAdmin) {
     Color statusColor = AppTheme.amber;
     if (item.status == 'VERIFIED') statusColor = AppTheme.green;
     if (item.status == 'DISPATCHED') statusColor = const Color(0xFFC2410C);
@@ -678,53 +686,169 @@ class _ReportHistoryScreenState extends State<ReportHistoryScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 10),
-
-            // Action Buttons: Verify, Dispatch Unit
+            // Reporter Identity & Role Badge
             Row(
               children: [
-                if (item.status == 'PENDING') ...[
-                  GestureDetector(
-                    onTap: () {
-                      reportService.verifyReport(item.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Verified ${item.id} — synced to command room')),
-                      );
-                    },
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppTheme.green.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.check_circle_outline_rounded, size: 14, color: AppTheme.green),
-                          SizedBox(width: 4),
-                          Text('Verify', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.green)),
-                        ],
-                      ),
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: BoxDecoration(
+                    color: item.reporterRole == 'DRIVER' ? const Color(0xFFEFF6FF) : AppTheme.container,
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    item.workerInitials,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w800,
+                      color: item.reporterRole == 'DRIVER' ? AppTheme.primaryBlue : AppTheme.textMid,
                     ),
                   ),
-                  const SizedBox(width: 8),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  item.workerName,
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                  decoration: BoxDecoration(
+                    color: item.reporterRole == 'DRIVER' ? const Color(0xFFEFF6FF) : const Color(0xFFECFDF5),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: item.reporterRole == 'DRIVER' ? const Color(0xFFBFDBFE) : const Color(0xFFA7F3D0),
+                    ),
+                  ),
+                  child: Text(
+                    item.reporterRole == 'DRIVER' ? 'DRIVER' : (item.reporterRole == 'OFFICIAL' ? 'OFFICIAL' : 'FIELD SCOUT'),
+                    style: TextStyle(
+                      fontSize: 8.5,
+                      fontWeight: FontWeight.w800,
+                      color: item.reporterRole == 'DRIVER' ? AppTheme.primaryBlue : const Color(0xFF047857),
+                    ),
+                  ),
+                ),
+                if (item.reporterId != null && item.reporterId!.isNotEmpty) ...[
+                  const SizedBox(width: 6),
+                  Text(
+                    'ID: ${item.reporterId!.length > 6 ? item.reporterId!.substring(0, 6) : item.reporterId}',
+                    style: const TextStyle(fontFamily: 'monospace', fontSize: 10, color: AppTheme.textLow),
+                  ),
                 ],
-                if (item.status != 'DISPATCHED' && item.status != 'REJECTED') ...[
-                  GestureDetector(
-                    onTap: () => _showDispatchDialog(item),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: AppTheme.blueLight,
-                        borderRadius: BorderRadius.circular(6),
+                const Spacer(),
+                Text(
+                  item.workerUnit,
+                  style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+
+            // Action / Status Indicator Area
+            Row(
+              children: [
+                if (isOfficialOrAdmin) ...[
+                  if (item.status == 'PENDING') ...[
+                    GestureDetector(
+                      onTap: () {
+                        reportService.verifyReport(item.id);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Verified ${item.id} — synced to command room')),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.green.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppTheme.green.withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.check_circle_outline_rounded, size: 14, color: AppTheme.green),
+                            SizedBox(width: 4),
+                            Text('Verify', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800, color: AppTheme.green)),
+                          ],
+                        ),
                       ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.send_rounded, size: 13, color: AppTheme.primaryBlue),
-                          SizedBox(width: 4),
-                          Text('Dispatch Unit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue)),
-                        ],
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  if (item.status != 'DISPATCHED' && item.status != 'REJECTED') ...[
+                    GestureDetector(
+                      onTap: () => _showDispatchDialog(item),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AppTheme.blueLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Row(
+                          children: [
+                            Icon(Icons.send_rounded, size: 13, color: AppTheme.primaryBlue),
+                            SizedBox(width: 4),
+                            Text('Dispatch Unit', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppTheme.primaryBlue)),
+                          ],
+                        ),
                       ),
+                    ),
+                  ],
+                ] else ...[
+                  // Read-only status view for Drivers & Field Workers
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: item.status == 'VERIFIED' || item.status == 'DISPATCHED'
+                          ? AppTheme.green.withValues(alpha: 0.1)
+                          : item.status == 'PENDING'
+                              ? AppTheme.amber.withValues(alpha: 0.1)
+                              : AppTheme.container,
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: item.status == 'VERIFIED' || item.status == 'DISPATCHED'
+                            ? AppTheme.green.withValues(alpha: 0.3)
+                            : item.status == 'PENDING'
+                                ? AppTheme.amber.withValues(alpha: 0.3)
+                                : AppTheme.borderMed,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          item.status == 'VERIFIED' || item.status == 'DISPATCHED'
+                              ? Icons.verified_user_rounded
+                              : item.status == 'PENDING'
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.info_outline_rounded,
+                          size: 13,
+                          color: item.status == 'VERIFIED' || item.status == 'DISPATCHED'
+                              ? AppTheme.green
+                              : item.status == 'PENDING'
+                                  ? AppTheme.amber
+                                  : AppTheme.textMid,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          item.status == 'PENDING'
+                              ? 'Under Official Review'
+                              : item.status == 'VERIFIED'
+                                  ? 'Verified by Authority'
+                                  : item.status == 'DISPATCHED'
+                                      ? 'Clearance Dispatched'
+                                      : 'Dismissed',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: item.status == 'VERIFIED' || item.status == 'DISPATCHED'
+                                ? AppTheme.green
+                                : item.status == 'PENDING'
+                                    ? AppTheme.amber
+                                    : AppTheme.textMid,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],

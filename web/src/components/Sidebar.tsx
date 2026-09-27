@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../state/AuthContext';
+import { fetchAlerts } from '../services/api';
 import {
   LayoutGrid,
   Route as RouteIcon,
@@ -20,12 +21,41 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const { user, logout } = useAuth();
   const isAdmin = user?.role === 'ADMIN';
+  const [activeAlertCount, setActiveAlertCount] = useState<number>(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadAlertCount = async () => {
+      try {
+        const alerts = await fetchAlerts();
+        if (isMounted && Array.isArray(alerts)) {
+          const unack = alerts.filter((a) => !a.acknowledged).length;
+          setActiveAlertCount(unack);
+        }
+      } catch (_) {}
+    };
+
+    loadAlertCount();
+    const interval = setInterval(loadAlertCount, 5000);
+    const onFocus = () => loadAlertCount();
+    window.addEventListener('focus', onFocus);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+      window.removeEventListener('focus', onFocus);
+    };
+  }, []);
 
   const operationsLinks = [
     { to: '/dashboard', label: 'Dashboard', icon: <LayoutGrid size={18} /> },
     { to: '/corridors', label: 'Corridors', icon: <RouteIcon size={18} /> },
     { to: '/reports', label: 'Field Reports', icon: <FileText size={18} /> },
-    { to: '/alerts', label: 'Alerts', icon: <Bell size={18} />, badge: '3' },
+    {
+      to: '/alerts',
+      label: 'Alerts',
+      icon: <Bell size={18} />,
+      badge: activeAlertCount > 0 ? String(activeAlertCount) : undefined,
+    },
   ];
 
   const adminLinks = [

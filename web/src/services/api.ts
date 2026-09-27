@@ -317,7 +317,9 @@ export interface WebFieldReport {
   longitude: number;
   corridor_name?: string;
   km_marker?: string;
+  reporter_id?: string;
   reporter_name?: string;
+  reporter_role?: string;
   reporter_unit?: string;
   submitted_at: string;
   data_label?: string;
@@ -472,6 +474,17 @@ export async function acknowledgeAllAlerts(): Promise<WebAlert[]> {
   });
   if (!res.ok) {
     throw new ApiErrorResponse('Failed to acknowledge all alerts', res.status);
+  }
+  return res.json();
+}
+
+export async function deleteAlert(alertId: string): Promise<{ success: boolean; alert_id: string }> {
+  const res = await fetch(`${API_BASE}/alerts/${alertId}`, {
+    method: 'DELETE',
+    headers: getHeaders(true),
+  });
+  if (!res.ok) {
+    throw new ApiErrorResponse('Failed to delete alert', res.status);
   }
   return res.json();
 }
@@ -637,4 +650,63 @@ export async function inviteUser(payload: {
     organization: u.organization,
   };
 }
+
+export async function updateUser(
+
+  userId: string,
+  payload: {
+    full_name?: string;
+    role?: string;
+    status?: string;
+    organization?: string;
+    phone_number?: string;
+  }
+): Promise<WebManagedUser> {
+  const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+    method: 'PATCH',
+    headers: getHeaders(true),
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    let errorMsg = 'Failed to update user';
+    try {
+      const err = await res.json();
+      if (err.detail) errorMsg = err.detail;
+    } catch {}
+    throw new ApiErrorResponse(errorMsg, res.status);
+  }
+  const u = await res.json();
+  const name = u.full_name || u.name || 'User';
+  const parts = name.trim().split(' ');
+  const initials = parts.length > 1 ? (parts[0][0] + parts[1][0]).toUpperCase() : name.slice(0, 2).toUpperCase();
+  return {
+    id: String(u.id),
+    name,
+    email: u.email,
+    initials,
+    role: (u.role as WebManagedUser['role']) || 'OFFICIAL',
+    status: (u.status as WebManagedUser['status']) || 'ACTIVE',
+    lastActive: u.last_active || 'Active',
+    registered: u.registered || 'Recent',
+    phone: u.phone_number,
+    organization: u.organization,
+  };
+}
+
+export async function deleteUser(userId: string): Promise<boolean> {
+  const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+    method: 'DELETE',
+    headers: getHeaders(true),
+  });
+  if (!res.ok) {
+    let errorMsg = 'Failed to delete user';
+    try {
+      const err = await res.json();
+      if (err.detail) errorMsg = err.detail;
+    } catch {}
+    throw new ApiErrorResponse(errorMsg, res.status);
+  }
+  return true;
+}
+
 

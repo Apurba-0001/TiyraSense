@@ -8,6 +8,7 @@ import { AlertFeed } from '../pages/AlertFeed';
 import { FieldReports } from '../pages/FieldReports';
 import { SystemSettings } from '../pages/SystemSettings';
 import { Dashboard } from '../pages/Dashboard';
+import * as api from '../services/api';
 
 describe('Web Platform Interactive Inputs & Consoles', () => {
   describe('JourneyPlanningModal', () => {
@@ -116,10 +117,46 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
 
     it('allows deleting reports from table row and review panel with confirmation', async () => {
       const confirmSpy = vi.spyOn(window, 'confirm').mockImplementation(() => true);
+      const deleteSpy = vi.spyOn(api, 'deleteFieldReport').mockResolvedValue({ success: true, report_id: 'RP-2847' });
+      const fetchSpy = vi.spyOn(api, 'fetchFieldReports').mockResolvedValue([
+        {
+          id: 'RP-2847',
+          hazard_type: 'Landslide',
+          severity: 'FULL BLOCKAGE',
+          status: 'PENDING',
+          reporter_name: 'Sanjay Kumar',
+          reporter_role: 'FIELD_WORKER',
+          reporter_unit: 'Field Unit 4',
+          submitted_at: 'Just now',
+          description: 'Boulder roll-down.',
+          corridor_name: 'NH-06',
+          km_marker: 'KM 52.3',
+          latitude: 26.0124,
+          longitude: 91.8901,
+        },
+        {
+          id: 'RP-2846',
+          hazard_type: 'Flash Flood',
+          severity: 'PARTIAL',
+          status: 'VERIFIED',
+          reporter_name: 'Priya Mao',
+          reporter_role: 'DRIVER',
+          reporter_unit: 'Fleet Logistics #12',
+          submitted_at: '18m ago',
+          description: 'Mountain stream overflow.',
+          corridor_name: 'NH-29',
+          km_marker: 'KM 81.1',
+          latitude: 25.6812,
+          longitude: 93.7145,
+        },
+      ]);
+
       render(<FieldReports />);
 
-      // Verify report RP-2847 exists initially (in table and default selected panel)
-      expect(screen.getAllByText('RP-2847').length).toBeGreaterThan(0);
+      // Wait for reports to load from API
+      await waitFor(() => {
+        expect(screen.getAllByText('RP-2847').length).toBeGreaterThan(0);
+      });
 
       // Click delete button on report row
       const deleteRowBtn = screen.getByTestId('delete-report-btn-RP-2847');
@@ -134,7 +171,7 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
       expect(screen.getByText(/Report RP-2847 permanently purged/i)).toBeInTheDocument();
       expect(screen.queryByText('RP-2847')).not.toBeInTheDocument();
 
-      // Test panel deletion: select another report to view in panel
+      // Test panel deletion: select remaining report to view in panel
       const reviewButtons = screen.getAllByRole('button', { name: 'Review' });
       fireEvent.click(reviewButtons[0]);
 
@@ -144,6 +181,8 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
 
       expect(confirmSpy).toHaveBeenCalled();
       confirmSpy.mockRestore();
+      deleteSpy.mockRestore();
+      fetchSpy.mockRestore();
     });
   });
 

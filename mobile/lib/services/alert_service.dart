@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../widgets/status_pill_badge.dart';
@@ -133,6 +135,8 @@ class AlertService extends ChangeNotifier {
 
   int get infoCount => _alerts.where((a) => a.severity == 'INFO').length;
 
+  Timer? _liveSyncTimer;
+
   Future<void> _initLocalStorage() async {
     try {
       final deletedRaw = await _storage.read(key: _keyDeletedIds);
@@ -158,8 +162,22 @@ class AlertService extends ChangeNotifier {
       } else {
         await _persistAlerts();
       }
+
+      // Automatically sync live alerts from the backend / Supabase on launch
+      await syncLiveAlerts();
+      startLiveSyncLoop();
     } catch (_) {}
     notifyListeners();
+  }
+
+  /// Periodically poll backend and Supabase for live alerts across corridors
+  void startLiveSyncLoop() {
+    _liveSyncTimer?.cancel();
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      _liveSyncTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        syncLiveAlerts();
+      });
+    }
   }
 
   Future<void> _persistAlerts() async {

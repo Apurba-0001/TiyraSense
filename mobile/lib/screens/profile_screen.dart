@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
-import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../services/offline_storage_service.dart';
 import '../services/report_service.dart';
@@ -568,6 +567,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.surface,
         elevation: 0,
+        title: Text(
+          localizationService.tr('profile'),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w800,
+            color: AppTheme.textHigh,
+          ),
+        ),
+        centerTitle: false,
         leading: widget.onOpenDrawer != null
             ? IconButton(
                 icon: const Icon(Icons.menu_rounded, color: AppTheme.textHigh),
@@ -582,22 +590,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Container(color: AppTheme.borderLight, height: 1),
         ),
       ),
-      body: ResponsiveWrapper(
-        maxWidth: 720,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            children: [
-              // Profile Header Card
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-              decoration: BoxDecoration(
-                color: AppTheme.surface,
-                borderRadius: BorderRadius.circular(AppTheme.radiusCard),
-                border: Border.all(color: AppTheme.borderLight),
-                boxShadow: AppTheme.cardShadow,
-              ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 720),
+          child: SingleChildScrollView(
+            padding: EdgeInsets.fromLTRB(
+              Responsive.horizontalPadding(context),
+              12,
+              Responsive.horizontalPadding(context),
+              80 + MediaQuery.paddingOf(context).bottom,
+            ),
+            child: Column(
+              children: [
+                // Profile Header Card
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                decoration: BoxDecoration(
+                  color: AppTheme.surface,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusCard),
+                  border: Border.all(color: AppTheme.borderLight),
+                  boxShadow: AppTheme.cardShadow,
+                ),
               child: Column(
                 children: [
                   CircleAvatar(
@@ -804,35 +818,42 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       ),
     ),
-  );
+  ),
+);
 }
 
   Widget _buildStatTile(String value, String caption) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: BoxDecoration(
           color: AppTheme.container,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Column(
           children: [
-            Text(
-              value,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                color: AppTheme.textHigh,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppTheme.textHigh,
+                ),
               ),
             ),
             const SizedBox(height: 2),
-            Text(
-              caption.toUpperCase(),
-              style: const TextStyle(
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                color: AppTheme.textLow,
-                letterSpacing: 0.4,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                caption.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textLow,
+                  letterSpacing: 0.4,
+                ),
               ),
             ),
           ],

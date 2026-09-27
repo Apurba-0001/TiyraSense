@@ -918,16 +918,23 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
     final originShort = _origin.split(' ').first;
     final destShort = _destination.split(' ').first;
 
-    return Center(
-      child: ResponsiveWrapper(
-        maxWidth: 640,
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.82,
-          decoration: const BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
-            boxShadow: AppTheme.navShadow,
-          ),
+    final mediaQuery = MediaQuery.of(context);
+    final isLandscape = mediaQuery.orientation == Orientation.landscape;
+    final sheetHeight = mediaQuery.size.height * (isLandscape ? 0.94 : 0.88);
+
+    return ResponsiveBottomSheetWrapper(
+      maxWidth: 640,
+      maxHeightRatio: isLandscape ? 0.94 : 0.88,
+      child: Container(
+        height: sheetHeight,
+        decoration: const BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+          boxShadow: AppTheme.navShadow,
+        ),
+        child: SafeArea(
+          top: false,
+          bottom: true,
           child: Column(
         children: [
           // Drag Handle
@@ -1244,28 +1251,33 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      RichText(
-                                        text: TextSpan(
-                                          children: [
-                                            TextSpan(
-                                              text: '$etaText  ',
-                                              style: const TextStyle(
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w800,
-                                                color: AppTheme.textHigh,
+                                      Expanded(
+                                        child: RichText(
+                                          overflow: TextOverflow.ellipsis,
+                                          maxLines: 1,
+                                          text: TextSpan(
+                                            children: [
+                                              TextSpan(
+                                                text: '$etaText  ',
+                                                style: const TextStyle(
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w800,
+                                                  color: AppTheme.textHigh,
+                                                ),
                                               ),
-                                            ),
-                                            TextSpan(
-                                              text: '· $distanceKm km',
-                                              style: const TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppTheme.textMid,
+                                              TextSpan(
+                                                text: '· $distanceKm km',
+                                                style: const TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppTheme.textMid,
+                                                ),
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
                                       ),
+                                      const SizedBox(width: 8),
                                       InkWell(
                                         onTap: () => _showDistanceClausesSheet(context, route),
                                         borderRadius: BorderRadius.circular(6),
@@ -1365,13 +1377,13 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
                 const SizedBox(height: 14),
 
                 // Risk Legend Row
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 16,
+                  runSpacing: 6,
                   children: [
                     _buildLegendItem(AppTheme.green, localizationService.tr('low_risk')),
-                    const SizedBox(width: 18),
                     _buildLegendItem(AppTheme.amber, localizationService.tr('moderate')),
-                    const SizedBox(width: 18),
                     _buildLegendItem(AppTheme.red, localizationService.tr('high_risk')),
                   ],
                 ),
@@ -1498,12 +1510,12 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
               ],
             ),
           ),
-        ],
+            ],
+          ),
+        ),
       ),
-    ),
-  ),
-);
-}
+    );
+  }
 
   Widget _buildLegendItem(Color color, String label) {
     return Row(

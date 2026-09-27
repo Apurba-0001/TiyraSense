@@ -864,11 +864,12 @@ class ApiService {
   /// Create and submit a new field hazard report to the backend API
   Future<Map<String, dynamic>?> createFieldReport(Map<String, dynamic> reportData, [String? token]) async {
     try {
+      final authToken = (token != null && token.isNotEmpty) ? token : await _storage.read(key: 'tiyrasense_auth_token');
       final response = await _sendWithFallback((bUrl) {
         final url = Uri.parse('$bUrl/reports');
         final headers = <String, String>{'Content-Type': 'application/json'};
-        if (token != null && token.isNotEmpty) {
-          headers['Authorization'] = 'Bearer $token';
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
         }
         return _client.post(url, headers: headers, body: jsonEncode(reportData));
       });
@@ -879,14 +880,45 @@ class ApiService {
     return null;
   }
 
+  /// Update the status of a field incident report (VERIFIED, DISPATCHED, RESOLVED, REJECTED)
+  Future<Map<String, dynamic>?> updateFieldReportStatus({
+    required String reportId,
+    required String status,
+    String? dispatchUnit,
+    String? dispatchNotes,
+    String? token,
+  }) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty) ? token : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/reports/$reportId/verify');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        final payload = <String, dynamic>{
+          'status': status.toUpperCase(),
+          if (dispatchUnit != null && dispatchUnit.isNotEmpty) 'dispatch_unit': dispatchUnit,
+          if (dispatchNotes != null && dispatchNotes.isNotEmpty) 'dispatch_notes': dispatchNotes,
+        };
+        return _client.patch(url, headers: headers, body: jsonEncode(payload));
+      });
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
   /// Delete a wrong, old, or unwanted field incident report (Official / Admin action)
   Future<bool> deleteFieldReport(String reportId, [String? token]) async {
     try {
+      final authToken = (token != null && token.isNotEmpty) ? token : await _storage.read(key: 'tiyrasense_auth_token');
       final response = await _sendWithFallback((baseUrl) {
         final url = Uri.parse('$baseUrl/reports/$reportId');
         final headers = <String, String>{'Content-Type': 'application/json'};
-        if (token != null && token.isNotEmpty) {
-          headers['Authorization'] = 'Bearer $token';
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
         }
         return _client.delete(url, headers: headers);
       });

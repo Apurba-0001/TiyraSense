@@ -23,33 +23,8 @@ from backend.app.schemas.evidence import (
 
 router = APIRouter()
 
-# In-memory store fallback for test/mock environments
-_IN_MEMORY_EVIDENCE = [
-    {
-        "id": "evi-001",
-        "cloudinary_public_id": "tiyrasense/evidence/landslide_nh06_km52",
-        "secure_url": "https://res.cloudinary.com/tsjmggus/image/upload/v1725712345/evidence_nh06.jpg",
-        "bytes": 412000,
-        "format": "jpeg",
-        "created_at": "2026-09-07T10:30:00Z",
-    },
-    {
-        "id": "evi-002",
-        "cloudinary_public_id": "tiyrasense/evidence/flashflood_nh29_km81",
-        "secure_url": "https://res.cloudinary.com/tsjmggus/image/upload/v1725713400/evidence_nh29.jpg",
-        "bytes": 298000,
-        "format": "jpeg",
-        "created_at": "2026-09-07T11:15:00Z",
-    },
-    {
-        "id": "evi-003",
-        "cloudinary_public_id": "tiyrasense/evidence/subsidence_nh37_km114",
-        "secure_url": "https://res.cloudinary.com/tsjmggus/image/upload/v1725714500/evidence_nh37.jpg",
-        "bytes": 345000,
-        "format": "jpeg",
-        "created_at": "2026-09-07T12:00:00Z",
-    },
-]
+# In-memory store fallback for active session
+_IN_MEMORY_EVIDENCE: List[dict] = []
 
 
 
@@ -325,12 +300,42 @@ async def register_evidence(
         return evidence_out
 
 
-async def _destroy_cloudinary_asset(public_id: str) -> bool:
+def extract_cloudinary_public_id(url_or_id: Optional[str]) -> Optional[str]:
+    """Extract Cloudinary public_id from a full URL or relative public_id string."""
+    if not url_or_id or not isinstance(url_or_id, str):
+        return None
+    trimmed = url_or_id.strip()
+    if not trimmed:
+        return None
+    if "cloudinary.com" in trimmed:
+        parts = trimmed.split("/image/upload/")
+        if len(parts) > 1:
+            path = parts[1]
+            import re
+            # Strip version e.g. v1725712345/
+            path = re.sub(r"^v\d+/", "", path)
+            # Strip transformation prefixes if any e.g. w_500,c_fill/
+            segments = path.split("/")
+            if len(segments) > 1 and any(s in segments[0] for s in ("w_", "h_", "c_", "q_", "f_")):
+                path = "/".join(segments[1:])
+            # Strip extension e.g. .jpg, .png
+            if "." in path:
+                path = path.rsplit(".", 1)[0]
+            return path
+    elif not trimmed.startswith("http") and not trimmed.startswith("/static/"):
+        return trimmed
+    return None
+
+
+async def destroy_cloudinary_asset(public_id: str) -> bool:
     """Invokes Cloudinary image destroy REST API using authenticated HMAC-SHA1 signature."""
     if not (settings.CLOUDINARY_CLOUD_NAME and settings.CLOUDINARY_API_KEY and settings.CLOUDINARY_API_SECRET):
         return False
+    if not public_id:
+        return False
+    clean_id = extract_cloudinary_public_id(public_id) or public_id
     timestamp = int(time.time())
-    to_sign = f"public_id={public_id}&timestamp={timestamp}{settings.CLOUDINARY_API_SECRET}"
+    to_sign = f"public_id={clean_id}&timestamp={timestamp}{settings.CLOUDINARY_API_SECRET}"
     signature = hashlib.sha1(to_sign.encode("utf-8")).hexdigest()
     try:
         import httpx
@@ -339,7 +344,7 @@ async def _destroy_cloudinary_asset(public_id: str) -> bool:
             resp = await client.post(
                 url,
                 data={
-                    "public_id": public_id,
+                    "public_id": clean_id,
                     "timestamp": timestamp,
                     "api_key": settings.CLOUDINARY_API_KEY,
                     "signature": signature,
@@ -349,6 +354,8 @@ async def _destroy_cloudinary_asset(public_id: str) -> bool:
             return data.get("result") in ("ok", "not found")
     except Exception:
         return False
+
+_destroy_cloudinary_asset = destroy_cloudinary_asset
 
 
 @router.delete(

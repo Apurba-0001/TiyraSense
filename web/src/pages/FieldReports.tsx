@@ -19,6 +19,7 @@ import {
   uploadEvidencePhoto,
   getAssetUrl,
 } from '../services/api';
+import { useAuth } from '../state/AuthContext';
 
 
 interface FieldReportItem {
@@ -29,7 +30,9 @@ interface FieldReportItem {
   hazardType: 'Landslide' | 'Flash Flood' | 'Debris' | 'Road Subsidance' | 'Bridge Strain';
   severity: 'FULL BLOCKAGE' | 'PARTIAL' | 'SHOULDER';
   status: 'PENDING' | 'VERIFIED' | 'DISPATCHED' | 'REJECTED';
+  workerId?: string;
   workerName: string;
+  workerRole?: string;
   workerInitials: string;
   workerUnit: string;
   coordinates: string;
@@ -38,52 +41,6 @@ interface FieldReportItem {
   dispatchNotes?: string;
   photoUrl?: string;
 }
-
-const INITIAL_REPORTS: FieldReportItem[] = [
-  {
-    id: 'RP-2847',
-    submitted: '6m ago',
-    corridor: 'NH-06',
-    km: 'KM 52.3',
-    hazardType: 'Landslide',
-    severity: 'FULL BLOCKAGE',
-    status: 'PENDING',
-    workerName: 'Sanjay Kumar',
-    workerInitials: 'SK',
-    workerUnit: 'Field Unit 4',
-    coordinates: '26.0124° N, 91.8901° E',
-    description: 'Large boulder roll-down on left shoulder. One lane blocked, second lane at risk of secondary debris flow. Immediate earth-mover intervention requested.',
-  },
-  {
-    id: 'RP-2846',
-    submitted: '18m ago',
-    corridor: 'NH-29',
-    km: 'KM 81.1',
-    hazardType: 'Flash Flood',
-    severity: 'PARTIAL',
-    status: 'VERIFIED',
-    workerName: 'Priya Mao',
-    workerInitials: 'PM',
-    workerUnit: 'Field Unit 2',
-    coordinates: '25.6812° N, 93.7145° E',
-    description: 'Mountain stream overflow depositing gravel across 40 meters of roadway. Water depth approximately 20cm. Light vehicles diverted.',
-  },
-  {
-    id: 'RP-2845',
-    submitted: '42m ago',
-    corridor: 'NH-37',
-    km: 'KM 124.0',
-    hazardType: 'Debris',
-    severity: 'SHOULDER',
-    status: 'DISPATCHED',
-    workerName: 'Ratan Das',
-    workerInitials: 'RD',
-    workerUnit: 'Logistics Patrol 1',
-    coordinates: '26.5410° N, 93.1892° E',
-    description: 'Uprooted tree branches partially encroaching eastbound emergency shoulder. Clearance squad en route.',
-    dispatchUnit: 'BRO Rapid Clearance #1',
-  },
-];
 
 function formatRelativeTime(dateStr?: string | null): string {
   if (!dateStr) return 'Just now';
@@ -102,8 +59,11 @@ function formatRelativeTime(dateStr?: string | null): string {
 }
 
 export const FieldReports: React.FC = () => {
-  const [reports, setReports] = useState<FieldReportItem[]>(INITIAL_REPORTS);
-  const [selectedReport, setSelectedReport] = useState<FieldReportItem | null>(INITIAL_REPORTS[0] || null);
+  const { user } = useAuth();
+  const isOfficialOrAdmin = user?.role === 'OFFICIAL' || user?.role === 'ADMIN';
+
+  const [reports, setReports] = useState<FieldReportItem[]>([]);
+  const [selectedReport, setSelectedReport] = useState<FieldReportItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'DISPATCHED' | 'REJECTED'>('ALL');
   const [corridorFilter, setCorridorFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,8 +74,8 @@ export const FieldReports: React.FC = () => {
   const [newKm, setNewKm] = useState('KM 54.2');
   const [newHazardType, setNewHazardType] = useState<FieldReportItem['hazardType']>('Landslide');
   const [newSeverity, setNewSeverity] = useState<FieldReportItem['severity']>('FULL BLOCKAGE');
-  const [newWorkerName, setNewWorkerName] = useState('Sub-Inspector D. Sangma');
-  const [newWorkerUnit, setNewWorkerUnit] = useState('Field Recon Unit 5');
+  const [newWorkerName, setNewWorkerName] = useState(user?.full_name || 'Field Scout');
+  const [newWorkerUnit, setNewWorkerUnit] = useState(user?.organization || (user?.role === 'DRIVER' ? 'Fleet Logistics' : 'Field Recon Unit 5'));
   const [newCoordinates, setNewCoordinates] = useState('25.5788° N, 92.2140° E');
   const [newDescription, setNewDescription] = useState('');
   const [submitFeedback, setSubmitFeedback] = useState<string | null>(null);
@@ -146,6 +106,9 @@ export const FieldReports: React.FC = () => {
             else if (rawHz.toLowerCase().includes('subsid') || rawHz.toLowerCase().includes('collapse')) hzType = 'Road Subsidance';
             else if (rawHz.toLowerCase().includes('bridge')) hzType = 'Bridge Strain';
 
+            const rawName = (d.reporter_name && d.reporter_name !== 'None' && d.reporter_name !== 'null') ? d.reporter_name : 'Field Scout';
+            const role = (d.reporter_role || (rawName.toLowerCase().includes('driver') ? 'DRIVER' : 'FIELD_WORKER')).toUpperCase();
+
             return {
               id: d.id,
               submitted: formatRelativeTime(d.submitted_at),
@@ -154,9 +117,11 @@ export const FieldReports: React.FC = () => {
               hazardType: hzType,
               severity: (d.severity as FieldReportItem['severity']) || 'FULL BLOCKAGE',
               status: (d.status as FieldReportItem['status']) || 'PENDING',
-              workerName: d.reporter_name || 'Field Scout',
-              workerInitials: (d.reporter_name || 'FS').slice(0, 2).toUpperCase(),
-              workerUnit: d.reporter_unit || 'Field Recon',
+              workerId: d.reporter_id || (d.id.length > 8 ? d.id.slice(0, 8) : undefined),
+              workerName: rawName,
+              workerRole: role,
+              workerInitials: rawName.trim().split(' ').map((n) => n[0] || '').slice(0, 2).join('').toUpperCase() || rawName.slice(0, 2).toUpperCase(),
+              workerUnit: d.reporter_unit || (role === 'DRIVER' ? 'Fleet Logistics' : 'Field Recon'),
               coordinates: `${d.latitude.toFixed(4)}° N, ${d.longitude.toFixed(4)}° E`,
               description: d.description,
               dispatchUnit: d.dispatch_unit,
@@ -177,7 +142,7 @@ export const FieldReports: React.FC = () => {
 
   useEffect(() => {
     loadReports();
-    const interval = setInterval(loadReports, 8000);
+    const interval = setInterval(loadReports, 5000);
     const onOnline = () => loadReports();
     const onFocus = () => loadReports();
     window.addEventListener('online', onOnline);
@@ -238,6 +203,7 @@ export const FieldReports: React.FC = () => {
         dispatch_unit: dispatchUnit,
         dispatch_notes: dispatchNotes.trim() || undefined,
       });
+      loadReports();
     } catch {
       // Keep optimistic state
     }
@@ -255,6 +221,7 @@ export const FieldReports: React.FC = () => {
 
     try {
       await verifyFieldReport(id, { status: 'REJECTED' });
+      loadReports();
     } catch {
       // Keep optimistic state
     }
@@ -273,6 +240,7 @@ export const FieldReports: React.FC = () => {
 
     try {
       await deleteFieldReport(id);
+      loadReports();
     } catch {
       // Keep optimistic state
     }
@@ -634,7 +602,7 @@ export const FieldReports: React.FC = () => {
                 <th style={{ padding: '0 12px' }}>Hazard Type</th>
                 <th style={{ padding: '0 12px' }}>Severity</th>
                 <th style={{ padding: '0 12px' }}>Status</th>
-                <th style={{ padding: '0 12px' }}>Field Worker</th>
+                <th style={{ padding: '0 12px' }}>Reporter / Role</th>
                 <th style={{ padding: '0 12px', textAlign: 'right' }}>Action</th>
               </tr>
             </thead>
@@ -745,25 +713,55 @@ export const FieldReports: React.FC = () => {
                     </td>
                     <td style={{ padding: '0 12px' }}>{renderStatusBadge(r.status)}</td>
                     <td style={{ padding: '0 12px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div
-                          style={{
-                            width: '28px',
-                            height: '28px',
-                            borderRadius: '50%',
-                            backgroundColor: 'var(--color-container)',
-                            color: 'var(--color-text-secondary)',
-                            fontSize: '11px',
-                            fontWeight: 700,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {r.workerInitials}
-                        </div>
-                        <span style={{ fontSize: '12px', fontWeight: 500 }}>{r.workerName}</span>
-                      </div>
+                      {(() => {
+                        const isDriver = r.workerRole === 'DRIVER';
+                        const isOfficial = r.workerRole === 'OFFICIAL' || r.workerRole === 'ADMIN';
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '50%',
+                                backgroundColor: isDriver ? '#EFF6FF' : isOfficial ? '#F5F3FF' : 'var(--color-container)',
+                                color: isDriver ? '#1D4ED8' : isOfficial ? '#6D28D9' : 'var(--color-text-secondary)',
+                                fontSize: '11px',
+                                fontWeight: 700,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexShrink: 0,
+                              }}
+                            >
+                              {r.workerInitials}
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{r.workerName}</span>
+                                <span
+                                  style={{
+                                    fontSize: '9px',
+                                    fontWeight: 700,
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    textTransform: 'uppercase',
+                                    backgroundColor: isDriver ? '#EFF6FF' : isOfficial ? '#F5F3FF' : '#ECFDF5',
+                                    color: isDriver ? '#1D4ED8' : isOfficial ? '#6D28D9' : '#047857',
+                                    border: `1px solid ${isDriver ? '#BFDBFE' : isOfficial ? '#DDD6FE' : '#A7F3D0'}`,
+                                  }}
+                                >
+                                  {isDriver ? 'Driver' : isOfficial ? 'Official' : 'Field Scout'}
+                                </span>
+                              </div>
+                              {r.workerId && (
+                                <div className="mono" style={{ fontSize: '10px', color: 'var(--color-text-muted)', marginTop: '1px' }}>
+                                  ID: {r.workerId.length > 8 ? r.workerId.slice(0, 8) : r.workerId}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '0 12px', textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
@@ -772,46 +770,57 @@ export const FieldReports: React.FC = () => {
                             e.stopPropagation();
                             setSelectedReport(r);
                           }}
-                          style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)' }}
+                          style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-primary)', background: 'none', border: 'none', cursor: 'pointer' }}
                         >
-                          Review
+                          {isOfficialOrAdmin ? 'Review' : 'View Details'}
                         </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleReject(r.id);
-                          }}
-                          style={{ fontSize: '12px', fontWeight: 600, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer' }}
-                        >
-                          Reject
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(r.id);
-                          }}
-                          data-testid={`delete-report-btn-${r.id}`}
-                          style={{
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: 'var(--color-danger)',
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '3px',
-                          }}
-                          title="Delete / Purge Report"
-                        >
-                          <Trash2 size={13} />
-                          <span>Delete</span>
-                        </button>
+                        {isOfficialOrAdmin && (
+                          <>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleReject(r.id);
+                              }}
+                              style={{ fontSize: '12px', fontWeight: 600, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer' }}
+                            >
+                              Reject
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDelete(r.id);
+                              }}
+                              data-testid={`delete-report-btn-${r.id}`}
+                              style={{
+                                fontSize: '12px',
+                                fontWeight: 600,
+                                color: 'var(--color-danger)',
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                              title="Delete / Purge Report"
+                            >
+                              <Trash2 size={13} />
+                              <span>Delete</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
                 );
               })}
+              {filteredReports.length === 0 && (
+                <tr>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '36px 16px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
+                    No field hazard reports found in operations database.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
           </div>
@@ -1017,184 +1026,253 @@ export const FieldReports: React.FC = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
+                gap: '12px',
                 paddingTop: '12px',
                 borderTop: '1px solid var(--color-border)',
               }}
             >
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--color-primary-bg)',
-                  color: 'var(--color-primary)',
-                  fontWeight: 700,
-                  fontSize: '12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {selectedReport.workerInitials}
-              </div>
-              <div>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
-                  {selectedReport.workerName} · {selectedReport.workerUnit}
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                  Submitted {selectedReport.submitted} · Device Calibrated
-                </div>
-              </div>
+              {(() => {
+                const isDriver = selectedReport.workerRole === 'DRIVER';
+                const isOfficial = selectedReport.workerRole === 'OFFICIAL' || selectedReport.workerRole === 'ADMIN';
+                return (
+                  <>
+                    <div
+                      style={{
+                        width: '36px',
+                        height: '36px',
+                        borderRadius: '50%',
+                        backgroundColor: isDriver ? '#EFF6FF' : isOfficial ? '#F5F3FF' : 'var(--color-primary-bg)',
+                        color: isDriver ? '#1D4ED8' : isOfficial ? '#6D28D9' : 'var(--color-primary)',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {selectedReport.workerInitials}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--color-text-primary)' }}>
+                          {selectedReport.workerName}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                            backgroundColor: isDriver ? '#EFF6FF' : isOfficial ? '#F5F3FF' : '#ECFDF5',
+                            color: isDriver ? '#1D4ED8' : isOfficial ? '#6D28D9' : '#047857',
+                            border: `1px solid ${isDriver ? '#BFDBFE' : isOfficial ? '#DDD6FE' : '#A7F3D0'}`,
+                          }}
+                        >
+                          {isDriver ? 'Commercial / Fleet Driver' : isOfficial ? 'ASDMA Official' : 'Field Recon Scout'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                        {selectedReport.workerId && <span className="mono" style={{ marginRight: '8px' }}>User ID: {selectedReport.workerId}</span>}
+                        <span>{selectedReport.workerUnit}</span> · <span>Submitted {selectedReport.submitted}</span>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
 
-            {/* INTERACTIVE DISPATCH SECTION */}
-            <div
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '12px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-              }}
-            >
-              <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
-                Operational Response & Dispatch
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                  Assign Clearance Squad / Unit
-                </label>
-                <select
-                  value={dispatchUnit}
-                  onChange={(e) => setDispatchUnit(e.target.value)}
+            {/* INTERACTIVE DISPATCH SECTION / STATUS SECTION */}
+            {isOfficialOrAdmin ? (
+              <>
+                <div
                   style={{
-                    width: '100%',
-                    height: '34px',
-                    padding: '0 8px',
-                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
-                    fontSize: '12px',
-                    backgroundColor: '#FFFFFF',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
                   }}
                 >
-                  <option value="Excavator 12T (Jowai Base)">Excavator 12T (Jowai Base)</option>
-                  <option value="BRO Rapid Clearance Unit #1">BRO Rapid Clearance Unit #1</option>
-                  <option value="Meghalaya PWD Mobile Patrol">Meghalaya PWD Mobile Patrol</option>
-                  <option value="Disaster Management Crane Unit">Disaster Management Crane Unit</option>
-                  <option value="Traffic Diversion & Warning Squad">Traffic Diversion & Warning Squad</option>
-                </select>
-              </div>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+                    Operational Response & Dispatch
+                  </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
-                  Verification / Dispatch Instructions
-                </label>
-                <textarea
-                  rows={2}
-                  value={dispatchNotes}
-                  onChange={(e) => setDispatchNotes(e.target.value)}
-                  placeholder="Enter detour advisory or dispatch instructions..."
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    borderRadius: 'var(--radius-sm)',
-                    border: '1px solid var(--color-border)',
-                    fontSize: '12px',
-                    fontFamily: 'inherit',
-                    resize: 'vertical',
-                  }}
-                />
-              </div>
-            </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+                      Assign Clearance Squad / Unit
+                    </label>
+                    <select
+                      value={dispatchUnit}
+                      onChange={(e) => setDispatchUnit(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '34px',
+                        padding: '0 8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '12px',
+                        backgroundColor: '#FFFFFF',
+                      }}
+                    >
+                      <option value="Excavator 12T (Jowai Base)">Excavator 12T (Jowai Base)</option>
+                      <option value="BRO Rapid Clearance Unit #1">BRO Rapid Clearance Unit #1</option>
+                      <option value="Meghalaya PWD Mobile Patrol">Meghalaya PWD Mobile Patrol</option>
+                      <option value="Disaster Management Crane Unit">Disaster Management Crane Unit</option>
+                      <option value="Traffic Diversion & Warning Squad">Traffic Diversion & Warning Squad</option>
+                    </select>
+                  </div>
 
-            {actionFeedback && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', fontWeight: 600, color: 'var(--color-text-muted)', marginBottom: '4px' }}>
+                      Verification / Dispatch Instructions
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={dispatchNotes}
+                      onChange={(e) => setDispatchNotes(e.target.value)}
+                      placeholder="Enter detour advisory or dispatch instructions..."
+                      style={{
+                        width: '100%',
+                        padding: '8px',
+                        borderRadius: 'var(--radius-sm)',
+                        border: '1px solid var(--color-border)',
+                        fontSize: '12px',
+                        fontFamily: 'inherit',
+                        resize: 'vertical',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {actionFeedback && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 12px',
+                      backgroundColor: 'var(--color-success-bg)',
+                      border: '1px solid var(--color-success)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--color-success)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>{actionFeedback}</span>
+                  </div>
+                )}
+
+                {/* Pinned Bottom Actions for Officials and Admin */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto', paddingTop: '12px' }}>
+                  <button
+                    onClick={() => handleVerify(selectedReport.id)}
+                    style={{
+                      width: '100%',
+                      height: '44px',
+                      backgroundColor: 'var(--color-success)',
+                      color: '#FFFFFF',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                      border: 'none',
+                    }}
+                  >
+                    <CheckCircle2 size={16} />
+                    <span>Verify & Dispatch Unit</span>
+                  </button>
+
+                  <button
+                    onClick={() => handleReject(selectedReport.id)}
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid var(--color-danger)',
+                      color: 'var(--color-danger)',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      borderRadius: 'var(--radius-sm)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Reject Report
+                  </button>
+
+                  <button
+                    data-testid="panel-delete-report-btn"
+                    onClick={() => handleDelete(selectedReport.id)}
+                    style={{
+                      width: '100%',
+                      height: '36px',
+                      backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                      border: '1px solid var(--color-danger)',
+                      color: 'var(--color-danger)',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      borderRadius: 'var(--radius-sm)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    <span>Delete / Purge Report</span>
+                  </button>
+                </div>
+              </>
+            ) : (
+              /* Read-only verification status view for Drivers & Field Workers */
               <div
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 12px',
-                  backgroundColor: 'var(--color-success-bg)',
-                  border: '1px solid var(--color-success)',
+                  backgroundColor: 'var(--color-canvas)',
+                  border: '1px solid var(--color-border)',
                   borderRadius: 'var(--radius-sm)',
-                  color: 'var(--color-success)',
-                  fontSize: '12px',
-                  fontWeight: 600,
+                  padding: '14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  marginTop: 'auto',
                 }}
               >
-                <CheckCircle2 size={16} />
-                <span>{actionFeedback}</span>
+                <div style={{ fontSize: '11px', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+                  Verification Status & Official Review
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  {renderStatusBadge(selectedReport.status)}
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                    {selectedReport.status === 'PENDING'
+                      ? 'Under Review by Regional Authorities'
+                      : selectedReport.status === 'VERIFIED'
+                      ? 'Verified by ASDMA Official'
+                      : selectedReport.status === 'DISPATCHED'
+                      ? 'Emergency Clearance Dispatched'
+                      : 'Dismissed / Inactive'}
+                  </span>
+                </div>
+                {selectedReport.dispatchUnit && (
+                  <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', backgroundColor: '#FFFFFF', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--color-border)' }}>
+                    <strong>Assigned Unit:</strong> {selectedReport.dispatchUnit}
+                    {selectedReport.dispatchNotes && <div style={{ marginTop: '2px' }}><em>{selectedReport.dispatchNotes}</em></div>}
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  Drivers and Field Workers can monitor report statuses in real-time. Review, approval, and dismiss actions are restricted to Government Officials and Admin.
+                </div>
               </div>
             )}
-
-            {/* Pinned Bottom Actions */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto', paddingTop: '12px' }}>
-              <button
-                onClick={() => handleVerify(selectedReport.id)}
-                style={{
-                  width: '100%',
-                  height: '44px',
-                  backgroundColor: 'var(--color-success)',
-                  color: '#FFFFFF',
-                  fontSize: '13px',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  border: 'none',
-                }}
-              >
-                <CheckCircle2 size={16} />
-                <span>Verify & Dispatch Unit</span>
-              </button>
-
-              <button
-                onClick={() => handleReject(selectedReport.id)}
-                style={{
-                  width: '100%',
-                  height: '36px',
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid var(--color-danger)',
-                  color: 'var(--color-danger)',
-                  fontSize: '12px',
-                  fontWeight: 600,
-                  borderRadius: 'var(--radius-sm)',
-                  cursor: 'pointer',
-                }}
-              >
-                Reject Report
-              </button>
-
-              <button
-                data-testid="panel-delete-report-btn"
-                onClick={() => handleDelete(selectedReport.id)}
-                style={{
-                  width: '100%',
-                  height: '36px',
-                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid var(--color-danger)',
-                  color: 'var(--color-danger)',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderRadius: 'var(--radius-sm)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                }}
-              >
-                <Trash2 size={14} />
-                <span>Delete / Purge Report</span>
-              </button>
-            </div>
           </div>
         )}
       </div>

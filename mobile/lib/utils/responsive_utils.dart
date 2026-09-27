@@ -107,17 +107,50 @@ class ResponsiveWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final defaultPadding = EdgeInsets.symmetric(
-      horizontal: Responsive.horizontalPadding(context),
-      vertical: 12.0,
-    );
-
     return Align(
       alignment: alignment,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
-        child: Padding(
-          padding: padding ?? defaultPadding,
+        child: padding != null
+            ? Padding(
+                padding: padding!,
+                child: child,
+              )
+            : child,
+      ),
+    );
+  }
+}
+
+/// A responsive bottom sheet wrapper that pins content to the bottom of the screen,
+/// constraints maximum width on tablets, and respects safe areas without gaps.
+class ResponsiveBottomSheetWrapper extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+  final double? maxHeightRatio;
+
+  const ResponsiveBottomSheetWrapper({
+    super.key,
+    required this.child,
+    this.maxWidth = 640.0,
+    this.maxHeightRatio,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final screenH = MediaQuery.sizeOf(context).height;
+    final ratio = maxHeightRatio ?? Responsive.sheetHeightRatio(context, defaultRatio: 0.88);
+    final sheetMaxH = screenH * ratio;
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxWidth,
+          maxHeight: sheetMaxH,
+        ),
+        child: SizedBox(
+          width: double.infinity,
           child: child,
         ),
       ),
@@ -156,3 +189,4 @@ class ResponsiveDialogWrapper extends StatelessWidget {
     );
   }
 }
+

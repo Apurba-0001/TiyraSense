@@ -301,7 +301,7 @@ describe('Role-Based Dashboard Telemetry & Fleet Tracking', () => {
     // Field incident reports verification queue
     expect(screen.getByTestId('official-reports-verification-queue')).toBeInTheDocument();
     expect(screen.getByText('Field Incident Verification Queue')).toBeInTheDocument();
-    expect(screen.getByText('RP-2847')).toBeInTheDocument();
+    expect(screen.getByText(/All monitored corridor sectors clear/i)).toBeInTheDocument();
   });
 
   it('renders interactive fleet markers in VectorGisMap and handles selection', () => {

@@ -82,7 +82,6 @@ const INITIAL_FLEET_VEHICLES: FleetVehicle[] = [
     progress: 0.52,
     status: 'IN_TRANSIT',
     lastPing: '12s ago',
-    hazardAhead: 'KM 52 Landslide boulder roll-down (Speed restricted to 25 km/h)',
   },
   {
     id: 'TRK-02',
@@ -160,24 +159,6 @@ const INITIAL_FLEET_VEHICLES: FleetVehicle[] = [
     progress: 0.82,
     status: 'HALTED_CHECKPOINT',
     lastPing: '40s ago',
-    hazardAhead: 'Structure 14B Acoustic Checkpoint Inspection',
-  },
-];
-
-const INITIAL_VERIFICATION_REPORTS: WebFieldReport[] = [
-  {
-    id: 'RP-2847',
-    hazard_type: 'Landslide',
-    severity: 'FULL BLOCKAGE',
-    status: 'PENDING',
-    reporter_name: 'Sanjay Kumar',
-    reporter_unit: 'Field Unit 4',
-    submitted_at: '6m ago',
-    description: 'Large boulder roll-down obstructing both lanes. Earth-mover clearance requested.',
-    corridor_name: 'NH-06',
-    km_marker: 'KM 52.3',
-    latitude: 26.0124,
-    longitude: 91.8901,
   },
 ];
 
@@ -200,7 +181,7 @@ export const Dashboard: React.FC = () => {
   const [corridorQuery, setCorridorQuery] = useState('');
   const [isAuditModalOpen, setIsAuditModalOpen] = useState(false);
   const [auditBreakdown, setAuditBreakdown] = useState<DistanceBreakdown | null>(null);
-  const [fieldReports, setFieldReports] = useState<WebFieldReport[]>(INITIAL_VERIFICATION_REPORTS);
+  const [fieldReports, setFieldReports] = useState<WebFieldReport[]>([]);
   const [dashboardLightbox, setDashboardLightbox] = useState<string | null>(null);
 
   const filteredVehicles = React.useMemo(() => {
@@ -323,9 +304,9 @@ export const Dashboard: React.FC = () => {
         );
       }
 
-      if (alertRes.status === 'fulfilled' && alertRes.value.length > 0) {
+      if (alertRes.status === 'fulfilled') {
         setAlerts(
-          alertRes.value.map((a) => ({
+          (alertRes.value || []).map((a) => ({
             id: a.id,
             severity: (a.severity as LiveAlert['severity']) || 'INFO',
             corridor: a.corridor,
@@ -460,12 +441,12 @@ export const Dashboard: React.FC = () => {
     const reportsInterval = setInterval(() => {
       fetchFieldReports()
         .then((reps) => {
-          if (reps && reps.length > 0) setFieldReports(reps);
+          if (Array.isArray(reps)) setFieldReports(reps);
         })
         .catch(() => {});
       fetchAlerts()
         .then((alts) => {
-          if (alts && alts.length > 0) {
+          if (Array.isArray(alts)) {
             setAlerts(
               alts.map((a) => ({
                 id: a.id,
@@ -2096,6 +2077,20 @@ export const Dashboard: React.FC = () => {
                 onSelectVehicle={(veh) => setSelectedVehicleId(veh.id)}
                 fleetViewMode={mapFleetViewMode}
                 onFleetViewModeChange={(m) => setMapFleetViewMode(m)}
+                alerts={alerts.map((a) => ({
+                  id: a.id,
+                  lat: 25.8617,
+                  lng: 91.8148,
+                  title: a.title,
+                  severity: a.severity,
+                }))}
+                incidents={fieldReports.map((r) => ({
+                  id: r.id,
+                  lat: r.latitude,
+                  lng: r.longitude,
+                  title: `${r.hazard_type}: ${r.km_marker || 'KM marker'}`,
+                  severity: r.severity,
+                }))}
                 onOpenClauses={() => {
                   const b = computeDetailedBreakdown({
                     lat1: isFleetMode ? currentVeh.originCoords.lat : 26.1445,
@@ -2786,35 +2781,54 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {[
-              { actor: 'Sanjay Kumar', action: 'Uploaded landslide report at KM 52.3', time: '6m ago', dot: 'var(--color-danger)' },
-              { actor: 'Dr. Anamika Barua', action: 'Issued regional caution advisory for NH-29', time: '18m ago', dot: 'var(--color-warning)' },
-              { actor: 'Priya Mao', action: 'Confirmed clear passage on NH-40 Jowai segment', time: '34m ago', dot: 'var(--color-success)' },
-              { actor: 'System ML', action: 'Re-evaluated NH-37 flood probability to 78%', time: '1h ago', dot: 'var(--color-primary)' },
-              { actor: 'Ratan Das', action: 'Logged offline checkpoint sync at Nongpoh', time: '2h ago', dot: 'var(--color-success)' },
-            ].map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                <span
-                  style={{
-                    width: '8px',
-                    height: '8px',
-                    borderRadius: '50%',
-                    backgroundColor: item.dot,
-                    marginTop: '5px',
-                    flexShrink: 0,
-                  }}
-                />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', lineHeight: 1.3 }}>
-                    <span style={{ fontWeight: 600 }}>{item.actor}</span>{' '}
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{item.action}</span>
+            {(() => {
+              const dynamicEvents = [
+                ...fieldReports.map((r) => ({
+                  actor: r.reporter_name || 'Field Scout',
+                  action: `Logged ${r.hazard_type} (${r.severity}) at ${r.km_marker || r.corridor_name || 'Sector'}`,
+                  time: r.submitted_at || 'Just now',
+                  dot: (r.severity === 'CRITICAL' || r.severity === 'FULL BLOCKAGE') ? 'var(--color-danger)' : 'var(--color-warning)',
+                })),
+                ...alerts.map((a) => ({
+                  actor: 'Operations Dispatch',
+                  action: a.title,
+                  time: a.time || 'Active radar',
+                  dot: a.severity === 'EMERGENCY' ? 'var(--color-danger)' : 'var(--color-warning)',
+                })),
+              ];
+
+              const defaultEvents = [
+                { actor: 'System ML Risk Engine', action: 'Continuous corridor risk evaluation active', time: 'Live Radar', dot: 'var(--color-primary)' },
+                { actor: 'Telemetry Sync', action: 'Ground stations communicating with central hub', time: 'Synchronized', dot: 'var(--color-success)' },
+                { actor: 'Field Dispatch', action: 'All operational reconnaissance units online', time: 'Standby', dot: 'var(--color-success)' },
+              ];
+
+              const itemsToRender = dynamicEvents.length > 0 ? dynamicEvents.slice(0, 5) : defaultEvents;
+
+              return itemsToRender.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                  <span
+                    style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: item.dot,
+                      marginTop: '5px',
+                      flexShrink: 0,
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: '13px', color: 'var(--color-text-primary)', lineHeight: 1.3 }}>
+                      <span style={{ fontWeight: 600 }}>{item.actor}</span>{' '}
+                      <span style={{ color: 'var(--color-text-secondary)' }}>{item.action}</span>
+                    </div>
+                    <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      {item.time}
+                    </span>
                   </div>
-                  <span className="mono" style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
-                    {item.time}
-                  </span>
                 </div>
-              </div>
-            ))}
+              ));
+            })()}
           </div>
         </div>
       </div>
