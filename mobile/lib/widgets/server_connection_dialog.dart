@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 
 class ServerConnectionSheet extends StatefulWidget {
   final VoidCallback? onUrlUpdated;
@@ -11,6 +12,7 @@ class ServerConnectionSheet extends StatefulWidget {
   static Future<void> show(BuildContext context, {VoidCallback? onUrlUpdated}) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => ServerConnectionSheet(onUrlUpdated: onUrlUpdated),
@@ -88,7 +90,9 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return ResponsiveBottomSheetWrapper(
+      maxWidth: 560,
+      child: Container(
       padding: EdgeInsets.only(
         left: 20,
         right: 20,
@@ -365,6 +369,7 @@ class _ServerConnectionSheetState extends State<ServerConnectionSheet> {
           ],
         ),
       ),
+    ),
     );
   }
 }

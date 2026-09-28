@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import 'journey_planning_sheet.dart';
 
 class VehicleProfileSheet extends StatefulWidget {
@@ -9,10 +10,14 @@ class VehicleProfileSheet extends StatefulWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => const VehicleProfileSheet(),
+      builder: (sheetContext) => const ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        child: VehicleProfileSheet(),
+      ),
     );
   }
 
@@ -60,13 +65,16 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (modalCtx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(modalCtx).viewInsets.bottom,
-        ),
-        child: Container(
+      builder: (modalCtx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 520,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(modalCtx).viewInsets.bottom,
+          ),
+          child: Container(
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             color: AppTheme.surface,
@@ -172,6 +180,7 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -183,13 +192,16 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (modalCtx) => Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(modalCtx).viewInsets.bottom,
-        ),
-        child: Container(
+      builder: (modalCtx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 520,
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(modalCtx).viewInsets.bottom,
+          ),
+          child: Container(
           padding: const EdgeInsets.all(20),
           decoration: const BoxDecoration(
             color: AppTheme.surface,
@@ -277,6 +289,7 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -309,27 +322,29 @@ class _VehicleProfileSheetState extends State<VehicleProfileSheet> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Vehicle & Cargo Configuration',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: AppTheme.textHigh,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Vehicle & Cargo Configuration',
+                        style: TextStyle(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: AppTheme.textHigh,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Adapts route clearance, bridge limits, & gradient safety',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: AppTheme.textLow,
-                        fontWeight: FontWeight.w500,
+                      const SizedBox(height: 2),
+                      Text(
+                        'Adapts route clearance, bridge limits, & gradient safety',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppTheme.textLow,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, color: AppTheme.textMid),

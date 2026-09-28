@@ -20,6 +20,7 @@ class HazardReportSheet extends StatefulWidget {
   static Future<void> show(BuildContext context, {VoidCallback? onSubmit, String? initialHazardType}) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => HazardReportSheet(onSubmit: onSubmit, initialHazardType: initialHazardType),
@@ -108,8 +109,11 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
   void _showPhotoPicker() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 520,
+        child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: AppTheme.surface,
@@ -160,6 +164,7 @@ class _HazardReportSheetState extends State<HazardReportSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

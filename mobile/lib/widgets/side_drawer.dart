@@ -5,6 +5,7 @@ import '../services/localization_service.dart';
 import '../services/vehicle_service.dart';
 import '../state/auth_provider.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import 'app_logo.dart';
 import 'hazard_report_sheet.dart';
 import 'vehicle_profile_sheet.dart';
@@ -422,63 +423,73 @@ class SideDrawer extends StatelessWidget {
   static void showOfflineSyncSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: Colors.white,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.cloud_done_rounded, color: AppTheme.primaryBlue, size: 24),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.cloud_done_rounded, color: AppTheme.primaryBlue, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Offline Maps & Storage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          Text('High-resolution NER road segments cached', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Offline Maps & Storage', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      Text('High-resolution NER road segments cached', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-                    ],
+                const SizedBox(height: 16),
+                _buildStatusRow('NH-06 Guwahati-Shillong', '14.2 MB (Ready)'),
+                _buildStatusRow('NH-102 Imphal-Moreh', '8.4 MB (Ready)'),
+                _buildStatusRow('Pending Offline Hazard Queue', '0 Reports Pending'),
+                _buildStatusRow('Last Sync with Server', 'Just now'),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 44,
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: const Text('Offline cache synchronized with TiyraSense server.'),
+                          behavior: SnackBarBehavior.floating,
+                          backgroundColor: AppTheme.green,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.sync_rounded, size: 18),
+                    label: const Text('Refresh Cache Now'),
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildStatusRow('NH-06 Guwahati-Shillong', '14.2 MB (Ready)'),
-            _buildStatusRow('NH-102 Imphal-Moreh', '8.4 MB (Ready)'),
-            _buildStatusRow('Pending Offline Hazard Queue', '0 Reports Pending'),
-            _buildStatusRow('Last Sync with Server', 'Just now'),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 44,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Offline cache synchronized with TiyraSense server.'),
-                      behavior: SnackBarBehavior.floating,
-                      backgroundColor: AppTheme.green,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.sync_rounded, size: 18),
-                label: const Text('Refresh Cache Now'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBlue),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -488,42 +499,52 @@ class SideDrawer extends StatelessWidget {
   static void showEmergencySosSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: Colors.white,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.emergency_rounded, color: AppTheme.red, size: 24),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: AppTheme.red.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.emergency_rounded, color: AppTheme.red, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Emergency Highway Helplines', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                          Text('Direct dispatch for road blockades & recovery', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Emergency Highway Helplines', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-                      Text('Direct dispatch for road blockades & recovery', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-                    ],
-                  ),
-                ),
+                const SizedBox(height: 16),
+                _buildEmergencyContactRow(context, 'National Emergency & Highway Police', '112', Icons.local_police_rounded),
+                _buildEmergencyContactRow(context, 'ASDMA Disaster Response Room', '1070', Icons.shield_rounded),
+                _buildEmergencyContactRow(context, 'NER Commercial Crane & Towing', '+91-361-2237000', Icons.car_crash_rounded),
+                const SizedBox(height: 12),
               ],
             ),
-            const SizedBox(height: 16),
-            _buildEmergencyContactRow(context, 'National Emergency & Highway Police', '112', Icons.local_police_rounded),
-            _buildEmergencyContactRow(context, 'ASDMA Disaster Response Room', '1070', Icons.shield_rounded),
-            _buildEmergencyContactRow(context, 'NER Commercial Crane & Towing', '+91-361-2237000', Icons.car_crash_rounded),
-            const SizedBox(height: 12),
-          ],
+          ),
         ),
       ),
     );
@@ -534,63 +555,73 @@ class SideDrawer extends StatelessWidget {
     final isDriver = role == UserRole.driver;
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: Colors.white,
-      builder: (sheetContext) => ListenableBuilder(
-        listenable: vehicleService,
-        builder: (context, _) {
-          final veh = vehicleService.selectedVehicle;
-          final cargo = vehicleService.selectedCargo;
-          return Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isDriver ? 'Truck & Axle Specifications' : 'Field Inspection Equipment',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isDriver ? 'Configured for risk evaluation along hilly terrain' : 'Diagnostic telemetry sensor statuses',
-                  style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
-                ),
-                const SizedBox(height: 16),
-                if (isDriver) ...[
-                  _buildStatusRow('Vehicle Class', '${veh.category} (${veh.title})'),
-                  _buildStatusRow('Gross Registered Weight', veh.grossWeight),
-                  _buildStatusRow('Maximum Hill Gradient', veh.maxGradient),
-                  _buildStatusRow('Cargo Classification', cargo.title),
-                  _buildStatusRow('Telematics GPS Ping', veh.telematicsStatus),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(sheetContext).pop();
-                        VehicleProfileSheet.show(context);
-                      },
-                      icon: const Icon(Icons.tune_rounded, size: 18),
-                      label: const Text('Switch Vehicle & Cargo Profile', style: TextStyle(fontWeight: FontWeight.w700)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBlue,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: ListenableBuilder(
+          listenable: vehicleService,
+          builder: (context, _) {
+            final veh = vehicleService.selectedVehicle;
+            final cargo = vehicleService.selectedCargo;
+            return Container(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              padding: const EdgeInsets.all(20),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isDriver ? 'Truck & Axle Specifications' : 'Field Inspection Equipment',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
                     ),
-                  ),
-                ] else ...[
-                  _buildStatusRow('Survey Hardware Kit', 'Laser Ranger + Handheld GNSS'),
-                  _buildStatusRow('Position Accuracy', '±0.4m CEP (Barapani Base)'),
-                  _buildStatusRow('Geotag Image Storage', 'Active (Local encrypted)'),
-                  _buildStatusRow('Offline Report Cache', 'Synchronized'),
-                ],
-                const SizedBox(height: 12),
-              ],
-            ),
-          );
-        },
+                    const SizedBox(height: 4),
+                    Text(
+                      isDriver ? 'Configured for risk evaluation along hilly terrain' : 'Diagnostic telemetry sensor statuses',
+                      style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
+                    ),
+                    const SizedBox(height: 16),
+                    if (isDriver) ...[
+                      _buildStatusRow('Vehicle Class', '${veh.category} (${veh.title})'),
+                      _buildStatusRow('Gross Registered Weight', veh.grossWeight),
+                      _buildStatusRow('Maximum Hill Gradient', veh.maxGradient),
+                      _buildStatusRow('Cargo Classification', cargo.title),
+                      _buildStatusRow('Telematics GPS Ping', veh.telematicsStatus),
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.of(sheetContext).pop();
+                            VehicleProfileSheet.show(context);
+                          },
+                          icon: const Icon(Icons.tune_rounded, size: 18),
+                          label: const Text('Switch Vehicle & Cargo Profile', style: TextStyle(fontWeight: FontWeight.w700)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryBlue,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ),
+                    ] else ...[
+                      _buildStatusRow('Survey Hardware Kit', 'Laser Ranger + Handheld GNSS'),
+                      _buildStatusRow('Position Accuracy', '±0.4m CEP (Barapani Base)'),
+                      _buildStatusRow('Geotag Image Storage', 'Active (Local encrypted)'),
+                      _buildStatusRow('Offline Report Cache', 'Synchronized'),
+                    ],
+                    const SizedBox(height: 12),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -599,24 +630,34 @@ class SideDrawer extends StatelessWidget {
   static void showWeatherWatchSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: Colors.white,
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('NER Monsoon & Landslide Watch', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 4),
-            const Text('IMD radar and regional soil saturation advisory', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-            const SizedBox(height: 16),
-            _buildStatusRow('NH-06 Nongpoh Sector', 'Continuous Moderate Rain (28mm/24h)'),
-            _buildStatusRow('Landslide Hazard Index', 'MEDIUM (Caution on cut slopes)'),
-            _buildStatusRow('Barapani Bridge Level', 'Normal Operational Clearance'),
-            _buildStatusRow('Next IMD Advisory Update', 'In 45 minutes'),
-            const SizedBox(height: 12),
-          ],
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          padding: const EdgeInsets.all(20),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('NER Monsoon & Landslide Watch', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 4),
+                const Text('IMD radar and regional soil saturation advisory', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                const SizedBox(height: 16),
+                _buildStatusRow('NH-06 Nongpoh Sector', 'Continuous Moderate Rain (28mm/24h)'),
+                _buildStatusRow('Landslide Hazard Index', 'MEDIUM (Caution on cut slopes)'),
+                _buildStatusRow('Barapani Bridge Level', 'Normal Operational Clearance'),
+                _buildStatusRow('Next IMD Advisory Update', 'In 45 minutes'),
+                const SizedBox(height: 12),
+              ],
+            ),
+          ),
         ),
       ),
     );

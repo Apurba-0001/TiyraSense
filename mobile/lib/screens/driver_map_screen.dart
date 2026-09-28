@@ -9,6 +9,7 @@ import '../services/offline_storage_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_utils.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/journey_planning_sheet.dart';
 import '../widgets/live_notification_card.dart';
@@ -685,9 +686,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.85,
+        child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.85,
@@ -904,6 +909,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           ),
         ),
       ),
+      ),
     );
   }
 
@@ -1061,9 +1067,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     final maneuvers = _getManeuvers();
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.75,
+        child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.75,
@@ -1179,6 +1189,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

@@ -1602,10 +1602,13 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Container(
+        builder: (ctx, setSheetState) => ResponsiveBottomSheetWrapper(
+          maxWidth: 560,
+          child: Container(
           padding: EdgeInsets.only(
             left: 20,
             right: 20,
@@ -1750,6 +1753,7 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

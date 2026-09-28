@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/location_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/responsive_utils.dart';
 import '../widgets/app_logo.dart';
 import '../widgets/hazard_report_sheet.dart';
 import '../widgets/map_layer_sheet.dart';
@@ -131,6 +132,7 @@ class _FieldWorkerMapScreenState extends State<FieldWorkerMapScreen> {
       appBar: AppBar(
         backgroundColor: AppTheme.surface,
         elevation: 0,
+        centerTitle: true,
         leading: widget.onOpenDrawer != null
             ? IconButton(
                 icon: const Icon(Icons.menu_rounded, color: AppTheme.textHigh),
@@ -140,30 +142,28 @@ class _FieldWorkerMapScreenState extends State<FieldWorkerMapScreen> {
                 padding: EdgeInsets.all(8.0),
                 child: AppLogo.icon(size: 36, radius: 9),
               ),
-        title: Center(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppTheme.container,
-              borderRadius: BorderRadius.circular(AppTheme.radiusChip),
-              border: Border.all(color: AppTheme.borderLight),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.pin_drop_rounded, size: 14, color: AppTheme.amber),
-                const SizedBox(width: 6),
-                Text(
-                  '${_cameraLat.toStringAsFixed(4)}° N, ${_cameraLng.toStringAsFixed(4)}° E',
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppTheme.textHigh,
-                  ),
+        title: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppTheme.container,
+            borderRadius: BorderRadius.circular(AppTheme.radiusChip),
+            border: Border.all(color: AppTheme.borderLight),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.pin_drop_rounded, size: 14, color: AppTheme.amber),
+              const SizedBox(width: 6),
+              Text(
+                '${_cameraLat.toStringAsFixed(4)}° N, ${_cameraLng.toStringAsFixed(4)}° E',
+                style: const TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textHigh,
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
         actions: const [
@@ -409,9 +409,13 @@ class _FieldWorkerMapScreenState extends State<FieldWorkerMapScreen> {
   void _showPatrolIncidentsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.75,
+        child: Container(
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.75,
         ),
@@ -524,6 +528,7 @@ class _FieldWorkerMapScreenState extends State<FieldWorkerMapScreen> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

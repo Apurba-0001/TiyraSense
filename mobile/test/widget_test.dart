@@ -531,6 +531,46 @@ void main() {
     expect(find.text('Broadcast Incident Report'), findsOneWidget);
   });
 
+  testWidgets('HazardReportSheet.show displays sheet anchored to bottom of screen', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) => ElevatedButton(
+              onPressed: () => HazardReportSheet.show(ctx),
+              child: const Text('Open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final containerFinder = find.descendant(
+      of: find.byType(HazardReportSheet),
+      matching: find.byType(Container),
+    ).first;
+    final rect = tester.getRect(containerFinder);
+    expect(rect.bottom, equals(600.0));
+  });
+
+  testWidgets('Edit Profile sheet displays anchored to bottom of screen', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: ProfileScreen(role: UserRole.driver),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Edit Profile'));
+    await tester.pumpAndSettle();
+
+    final saveButtonFinder = find.widgetWithText(ElevatedButton, 'Save Changes');
+    final buttonRect = tester.getRect(saveButtonFinder);
+    expect(buttonRect.bottom, greaterThan(500.0));
+  });
+
   testWidgets('renders AlertsScreen with categories and empty filter handling', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(

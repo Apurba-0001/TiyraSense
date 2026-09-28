@@ -952,13 +952,17 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   void _showEvidenceManagementSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheetState) {
           final recentImages = _evidenceStats?['recent_images'] as List<dynamic>? ?? [];
 
-          return Container(
+          return ResponsiveBottomSheetWrapper(
+            maxWidth: 600,
+            maxHeightRatio: 0.75,
+            child: Container(
             height: MediaQuery.of(ctx).size.height * 0.75,
             padding: const EdgeInsets.all(16),
             decoration: const BoxDecoration(
@@ -1115,6 +1119,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                 ),
               ],
             ),
+          ),
           );
         },
       ),
@@ -1765,10 +1770,13 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheetState) => Container(
+        builder: (ctx, setSheetState) => ResponsiveBottomSheetWrapper(
+          maxWidth: 560,
+          child: Container(
           padding: EdgeInsets.only(
             left: 20,
             right: 20,
@@ -1884,6 +1892,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
               ],
             ),
           ),
+        ),
         ),
       ),
     );

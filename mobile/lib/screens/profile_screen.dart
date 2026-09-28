@@ -39,9 +39,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => ResponsiveWrapper(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
         maxWidth: 520,
         child: Container(
           padding: EdgeInsets.only(
@@ -144,10 +145,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => ResponsiveWrapper(
+        builder: (ctx, setModalState) => ResponsiveBottomSheetWrapper(
           maxWidth: 520,
           child: Container(
             padding: EdgeInsets.only(
@@ -256,8 +258,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showOfflineDataSheet() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: Container(
         padding: const EdgeInsets.all(20),
         decoration: const BoxDecoration(
           color: AppTheme.surface,
@@ -313,8 +318,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildOfflineRow(String name, String size, bool downloaded) {
     return Padding(
@@ -350,67 +356,71 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _showNotificationsSheet() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Container(
-          padding: const EdgeInsets.all(20),
-          decoration: const BoxDecoration(
-            color: AppTheme.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Notification Settings',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded),
-                    onPressed: () => Navigator.of(ctx).pop(),
-                  ),
-                ],
-              ),
-              SwitchListTile(
-                title: const Text('Hazard Audio Beacon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Audible alarm when approaching active landslide zones', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-                value: _audioAlarms,
-                activeTrackColor: AppTheme.primaryBlue,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (val) {
-                  setModalState(() => _audioAlarms = val);
-                  setState(() => _audioAlarms = val);
-                },
-              ),
-              const Divider(color: AppTheme.borderLight),
-              SwitchListTile(
-                title: const Text('Corridor Risk Push Alerts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Immediate broadcast when road status transitions to Blocked', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-                value: _pushAlerts,
-                activeTrackColor: AppTheme.primaryBlue,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (val) {
-                  setModalState(() => _pushAlerts = val);
-                  setState(() => _pushAlerts = val);
-                },
-              ),
-              const Divider(color: AppTheme.borderLight),
-              SwitchListTile(
-                title: const Text('Severe Weather Disruption Warnings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                subtitle: const Text('Precipitation rate radar alerts (>40mm/h)', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
-                value: _weatherWarnings,
-                activeTrackColor: AppTheme.primaryBlue,
-                contentPadding: EdgeInsets.zero,
-                onChanged: (val) {
-                  setModalState(() => _weatherWarnings = val);
-                  setState(() => _weatherWarnings = val);
-                },
-              ),
-            ],
+        builder: (ctx, setModalState) => ResponsiveBottomSheetWrapper(
+          maxWidth: 560,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Notification Settings',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded),
+                      onPressed: () => Navigator.of(ctx).pop(),
+                    ),
+                  ],
+                ),
+                SwitchListTile(
+                  title: const Text('Hazard Audio Beacon', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Audible alarm when approaching active landslide zones', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                  value: _audioAlarms,
+                  activeTrackColor: AppTheme.primaryBlue,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) {
+                    setModalState(() => _audioAlarms = val);
+                    setState(() => _audioAlarms = val);
+                  },
+                ),
+                const Divider(color: AppTheme.borderLight),
+                SwitchListTile(
+                  title: const Text('Corridor Risk Push Alerts', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Immediate broadcast when road status transitions to Blocked', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                  value: _pushAlerts,
+                  activeTrackColor: AppTheme.primaryBlue,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) {
+                    setModalState(() => _pushAlerts = val);
+                    setState(() => _pushAlerts = val);
+                  },
+                ),
+                const Divider(color: AppTheme.borderLight),
+                SwitchListTile(
+                  title: const Text('Severe Weather Disruption Warnings', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                  subtitle: const Text('Precipitation rate radar alerts (>40mm/h)', style: TextStyle(fontSize: 11, color: AppTheme.textLow)),
+                  value: _weatherWarnings,
+                  activeTrackColor: AppTheme.primaryBlue,
+                  contentPadding: EdgeInsets.zero,
+                  onChanged: (val) {
+                    setModalState(() => _weatherWarnings = val);
+                    setState(() => _weatherWarnings = val);
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -422,13 +432,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Material(
-        color: AppTheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 560,
+        child: Material(
+          color: AppTheme.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -479,8 +492,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   void _showClearCacheDialog() {
     showDialog(

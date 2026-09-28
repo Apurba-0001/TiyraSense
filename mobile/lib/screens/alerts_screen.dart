@@ -709,9 +709,12 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        child: Container(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
         decoration: const BoxDecoration(
           color: AppTheme.surface,
@@ -891,6 +894,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
           ],
         ),
       ),
+    ),
     );
   }
 

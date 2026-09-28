@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../utils/responsive_utils.dart';
 
 /// Colorful Google Maps style vector location pin inside white squircle
 class GoogleMapsPinWidget extends StatelessWidget {
@@ -237,6 +238,7 @@ class LiveNotificationLockscreenSheet extends StatefulWidget {
   }) {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => LiveNotificationLockscreenSheet(
@@ -292,9 +294,12 @@ class _LiveNotificationLockscreenSheetState extends State<LiveNotificationLocksc
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: MediaQuery.of(context).size.height * 0.78,
-      decoration: const BoxDecoration(
+    return ResponsiveBottomSheetWrapper(
+      maxWidth: 560,
+      maxHeightRatio: 0.78,
+      child: Container(
+        height: MediaQuery.of(context).size.height * 0.78,
+        decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -501,6 +506,7 @@ class _LiveNotificationLockscreenSheetState extends State<LiveNotificationLocksc
           ],
         ),
       ),
+    ),
     );
   }
 }

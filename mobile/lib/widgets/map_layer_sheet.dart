@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../utils/responsive_utils.dart';
 
 enum AppMapType {
   road,
@@ -39,6 +40,7 @@ class MapLayerSheet extends StatelessWidget {
 
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
@@ -67,8 +69,10 @@ class MapLayerSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
+    return ResponsiveBottomSheetWrapper(
+      maxWidth: 560,
+      child: Container(
+        decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
@@ -194,6 +198,7 @@ class MapLayerSheet extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 

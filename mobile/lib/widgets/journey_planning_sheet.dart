@@ -28,6 +28,7 @@ class JourneyPlanningSheet extends StatefulWidget {
   }) {
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => JourneyPlanningSheet(
@@ -311,6 +312,7 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
@@ -319,7 +321,10 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
               .where((hub) => hub.toLowerCase().contains(query.toLowerCase()))
               .toList();
 
-          return Material(
+          return ResponsiveBottomSheetWrapper(
+            maxWidth: 600,
+            maxHeightRatio: 0.75,
+            child: Material(
             color: AppTheme.surface,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: Container(
@@ -336,9 +341,12 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        isOrigin ? localizationService.tr('select_origin') : localizationService.tr('select_dest'),
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                      Expanded(
+                        child: Text(
+                          isOrigin ? localizationService.tr('select_origin') : localizationService.tr('select_dest'),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close_rounded),
@@ -536,6 +544,7 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
                 ],
               ),
             ),
+          ),
           );
         },
       ),
@@ -632,9 +641,13 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
   void _showVehiclePicker() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.75,
+        child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.75,
@@ -768,15 +781,20 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
           ),
         ),
       ),
+      ),
     );
   }
 
   void _showCargoPicker() {
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.75,
+        child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.75,
@@ -909,6 +927,7 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
             ),
           ),
         ),
+      ),
       ),
     );
   }
@@ -1571,9 +1590,13 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
 
     showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => SafeArea(
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.85,
+        child: SafeArea(
         child: Container(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.of(ctx).size.height * 0.85,
@@ -1789,6 +1812,7 @@ class _JourneyPlanningSheetState extends State<JourneyPlanningSheet> {
             ],
           ),
         ),
+      ),
       ),
     );
   }
