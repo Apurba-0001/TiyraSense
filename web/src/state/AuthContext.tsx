@@ -22,7 +22,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const INACTIVITY_TIMEOUT_MS = 30 * 60 * 1000;
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    const storedUserStr = sessionStorage.getItem('tiyrasense_user') || localStorage.getItem('tiyrasense_user');
+    if (storedUserStr) {
+      try {
+        return JSON.parse(storedUserStr);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
   const [token, setToken] = useState<string | null>(() => {
     return sessionStorage.getItem('tiyrasense_token') || localStorage.getItem('tiyrasense_token');
   });
@@ -157,22 +167,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
-    const fallbackUser: User = {
-      id: 'official-01',
-      email: 'official@tiyrasense.in',
-      full_name: 'Dr. Anamika Barua',
-      role: 'OFFICIAL',
-      organization: 'Assam State Disaster Management Authority (ASDMA)',
-      phone_number: '+91 94350 12345',
-    };
-    return {
-      user: fallbackUser,
-      token: 'demo-token',
-      isLoading: false,
-      login: async () => ({} as TokenResponse),
-      logout: () => {},
-      updateUserProfile: async () => fallbackUser,
-    };
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };

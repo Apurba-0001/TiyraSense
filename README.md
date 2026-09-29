@@ -6,18 +6,18 @@
 
 <p align="center">
   <strong>SIH 2026 · Problem Statement 26002</strong><br>
-  <em>AI-Powered Smart Logistics & Accessibility Intelligence Platform for the North Eastern Region (NER)</em>
+  <em>AI-Powered Smart Logistics &amp; Accessibility Intelligence Platform for the North Eastern Region (NER)</em>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Python-3.12+-3776AB?style=flat&logo=python&logoColor=white" alt="Python 3.12+" />
-  <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/FastAPI-0.110+-009688?style=flat&logo=fastapi&logoColor=white" alt="FastAPI" />
   <img src="https://img.shields.io/badge/React-18.2+-61DAFB?style=flat&logo=react&logoColor=black" alt="React 18" />
   <img src="https://img.shields.io/badge/TypeScript-5.4+-3178C6?style=flat&logo=typescript&logoColor=white" alt="TypeScript" />
   <img src="https://img.shields.io/badge/Flutter-3.x-02569B?style=flat&logo=flutter&logoColor=white" alt="Flutter" />
   <img src="https://img.shields.io/badge/PostgreSQL_16-PostGIS_3.4-336791?style=flat&logo=postgresql&logoColor=white" alt="PostGIS" />
   <img src="https://img.shields.io/badge/scikit--learn-1.6+-F7931E?style=flat&logo=scikit-learn&logoColor=white" alt="scikit-learn" />
-  <img src="https://img.shields.io/badge/Tests-129%20Passing%20(100%25)-brightgreen?style=flat" alt="Tests" />
+  <img src="https://img.shields.io/badge/Tests-132%20Passing%20(100%25)-brightgreen?style=flat" alt="Tests" />
   <img src="https://img.shields.io/badge/Analysis-0%20Issues-brightgreen?style=flat" alt="Analysis" />
 </p>
 
@@ -44,13 +44,13 @@
 ---
 
 
-## 1. High-Level Architecture & Information Flow
+## 1. High-Level Architecture &amp; Information Flow
 
 ```
 [EXTERNAL DATA SOURCES] ───► Open-Meteo Weather, OSM Corridors, GSI Lithology, Cloudinary
           │
           ▼
-[ML PREDICTION SERVICE] ───► Calibrated P_disrupt (2-Hour Forward Horizon, ROC-AUC: 0.8557)
+[ML PREDICTION SERVICE] ───► Calibrated P_disrupt (2-Hour Forward Horizon, ROC-AUC: 0.856)
           │
           ▼
 [DETERMINISTIC RISK ENGINE] ──► Multi-Factor Segment Score (Rain 35%, Slope 25%, History 15%, Obs 25%)
@@ -89,7 +89,7 @@ $$R = w_r \cdot S_{\text{rain}} + w_s \cdot S_{\text{slope}} + w_h \cdot S_{\tex
 - **Features:** 8 physical, meteorological, and crowd features (`precip_1h_mm`, `precip_forecast_2h_mm`, `soil_moisture_pct`, `slope_degrees`, `landslide_susceptibility`, `historical_cuts_count`, `road_class_encoded`, `recent_unverified_reports`).
 - **Strict Anti-Leakage Temporal Splitting:** Strict chronological cutoffs prevent monsoon autocorrelation leakage (Train: Monsoon 2023–2024, Val: June 2025, Test: Peak Monsoon July–August 2025).
 - **Calibrated Classifier:** `HistGradientBoostingClassifier` with sigmoid probability calibration (`CalibratedClassifierCV`).
-- **Verified Benchmark:** **ROC-AUC: 0.8557** ($\ge 0.85$ target met), **PR-AUC: 0.7749** ($\ge 0.72$ target met), with sub-5ms forward inference latency (`ml/predict.py`).
+- **Verified Benchmark:** **ROC-AUC: 0.856** ($\ge 0.85$ target met), **PR-AUC: 0.775** ($\ge 0.72$ target met), with sub-5ms forward inference latency (`ml/predict.py`).
 
 ### 2.3 Dual-Route Logistics Optimization
 - Generates candidate multi-route geometries between hubs (e.g., Guwahati Logistics Hub $\rightarrow$ Shillong Command Terminal) via OSRM.
@@ -97,25 +97,25 @@ $$R = w_r \cdot S_{\text{rain}} + w_s \cdot S_{\text{slope}} + w_h \cdot S_{\tex
 - Recommends the **Safest Viable Route** based on composite segment risk while continuously displaying the **Fastest Available Route** for dispatcher comparison.
 - When critical incidents block a primary corridor (such as NH-06), virtual hazard segments inject safety penalties into OSRM bounding boxes, immediately diverting transit onto viable bypasses (such as the Damra-Mawkyrwat State Highway).
 
-### 2.4 Real-Time GPS Telemetry Radar & Hazard Lookahead
+### 2.4 Real-Time GPS Telemetry Radar &amp; Hazard Lookahead
 - Ingests driver GPS telemetry breadcrumbs (latitude, longitude, speed, heading, altitude).
 - Computes dynamic remaining distance and ETA to destination.
 - Runs a forward hazard radar lookahead alerting in-transit drivers to verified blockages and impending high-risk zones up to 25 km ahead along their active path.
 
-### 2.5 Offline-First Mobile Client & Autonomous Background Sync
+### 2.5 Offline-First Mobile Client &amp; Autonomous Background Sync
 - **Encrypted Session Persistence:** Stores JWT tokens and user models in hardware-backed secure storage (`flutter_secure_storage` backed by Android Keystore AES-GCM, iOS Keychain, and Windows DPAPI). Cold boots in remote dead zones without cellular reception retain login state.
 - **Offline Incident Queueing:** Ground reports captured in connectivity dead zones are persisted in `OfflineStorageService` with status `PENDING_SYNC`.
-- **Autonomous Sync Daemon:** Proactive background auto-sync loops (running every 8 seconds) and app resume listeners (`WidgetsBindingObserver`) detect network restoration and automatically push queued reports and photo evidence.
+- **Autonomous Sync Daemon:** Proactive background auto-sync loops and app resume listeners (`WidgetsBindingObserver`) detect network restoration and automatically push queued reports and photo evidence.
 - **Direct Cloud CDN Upload:** Physical mobile devices upload evidence photos directly to Cloudinary CDN via HTTPS, eliminating port forwarding and local loopback bottlenecks.
 - **Flexible Network Configuration:** Built-in `ServerConnectionSheet` modal supports 1-tap switching between USB ADB reverse (`adb reverse tcp:8000 tcp:8000`), local Wi-Fi LAN (`10.x`, `192.168.x`), and Android emulator loopbacks (`10.0.2.2`).
 
-### 2.6 Command & Control Operations Console
+### 2.6 Command &amp; Control Operations Console
 - **Interactive Leaflet GIS Map:** Displays real Web Mercator spatial tiles, monitored corridors (NH-06, Damra Bypass, NH-27, NH-37, NH-102), real-time accessibility colors, and Google Maps styled layer switches (Default, Satellite, Terrain).
 - **Fleet Telemetry Inspector:** Tracks active vehicles with driver names, vehicle registration numbers, speed, heading, and live corridor status.
 - **Field Incident Verification Workbench:** Disaster officials inspect incoming reports, check GPS accuracy, view full-resolution photo evidence in an interactive modal lightbox, and execute 1-click verification (`PATCH /api/v1/reports/{id}/verify`).
 - **Emergency Alert Feed:** Broadcasts urgent corridor warnings, tracks driver acknowledgments, and notifies dispatchers in real time.
 
-### 2.7 Evidence Conflict Resolution & Ground Truth Arbitration
+### 2.7 Evidence Conflict Resolution &amp; Ground Truth Arbitration
 - Weights incoming reports by reporter credibility:
   - Disaster Authority / Government Official: **Weight 1.0**
   - Field Worker (with geotagged photographic evidence): **Weight 0.85**
@@ -126,21 +126,21 @@ $$R = w_r \cdot S_{\text{rain}} + w_s \cdot S_{\text{slope}} + w_h \cdot S_{\tex
 
 ## 3. Technology Stack
 
-| Layer | Technologies Used | Key Packages & Libraries | Role in TiyraSense |
+| Layer | Technologies Used | Key Packages &amp; Libraries | Role in TiyraSense |
 |---|---|---|---|
 | **Mobile Client** | Flutter 3.x, Dart 3.x | `flutter_secure_storage`, `geolocator`, `image_picker`, `image`, `flutter_local_notifications`, `http` | Offline-first driver and field-worker client with hardware encryption, GPS radar telemetry, offline queueing, and Cloudinary photo evidence. |
-| **Web Console** | React 18, TypeScript 5.4, Vite | `leaflet`, `lucide-react`, `react-router-dom`, `vitest`, `@testing-library/react` | Command & control operations dashboard for disaster officials and dispatchers with live GIS maps, fleet tracking, and incident verification. |
+| **Web Console** | React 18, TypeScript 5.4, Vite | `leaflet`, `lucide-react`, `react-router-dom`, `vitest`, `@testing-library/react` | Command &amp; control operations dashboard for disaster officials and dispatchers with live GIS maps, fleet tracking, and incident verification. |
 | **Backend API** | Python 3.12+, FastAPI, Uvicorn | `SQLAlchemy` (asyncio), `asyncpg`, `GeoAlchemy2`, `Pydantic v2`, `python-jose`, `passlib` (bcrypt), `httpx` | Asynchronous REST gateway, deterministic risk scoring, corridor routing optimizer, multi-source evidence arbitration, and role-based access control. |
-| **Machine Learning** | Python 3.12+, scikit-learn | `HistGradientBoostingClassifier`, `CalibratedClassifierCV`, `joblib`, `numpy`, `scipy` | Sub-5ms forward Disruption Probability model trained on 8 physical features with strict anti-leakage temporal splitting (ROC-AUC: 0.8557, PR-AUC: 0.7749). |
-| **Spatial Database** | PostgreSQL 16 + PostGIS 3.4 | PostGIS extension, spatial R-Tree indexing, Row-Level Security (RLS) | 18 normalized tables managing road segments, dynamic hazard polygons, fleet telemetry breadcrumbs, field reports, and audit logs. |
-| **GIS & Routing** | OpenStreetMap, Leaflet, OSRM | OSRM v5.24 HTTP client, EPSG:4326 PostGIS geometry | Free, open-source cartography and routing engine with dynamic risk-penalized alternative route calculation. |
+| **Machine Learning** | Python 3.12+, scikit-learn | `HistGradientBoostingClassifier`, `CalibratedClassifierCV`, `joblib`, `numpy`, `scipy` | Sub-5ms forward Disruption Probability model trained on 8 physical features with strict anti-leakage temporal splitting (ROC-AUC: 0.856, PR-AUC: 0.775). |
+| **Spatial Database** | PostgreSQL 16 + PostGIS 3.4 | PostGIS extension, spatial R-Tree indexing, Row-Level Security (RLS) | Normalized tables managing road segments, dynamic hazard polygons, fleet telemetry breadcrumbs, field reports, and audit logs. |
+| **GIS &amp; Routing** | OpenStreetMap, Leaflet, OSRM | OSRM v5.24 HTTP client, EPSG:4326 PostGIS geometry | Free, open-source cartography and routing engine with dynamic risk-penalized alternative route calculation. |
 | **Weather Telemetry** | Open-Meteo API | REST API / ECMWF IFS high-resolution model | Automated hourly rainfall, soil moisture, surface pressure, and 2-hour forecasts along North Eastern corridors. |
-| **Multilingual AI** | Google Gemini API (Flash 2.0 / 1.5) | `google-genai` Python SDK | Natural-language incident translation and localized driver safety advisories backed by deterministic template fallbacks. |
+| **Multilingual AI** | Google Gemini API | `google-genai` Python SDK | Natural-language incident translation and localized driver safety advisories backed by deterministic template fallbacks. |
 | **Cloud Storage** | Cloudinary | Direct REST upload integration | Secure media storage and CDN delivery for geotagged field incident photographs. |
 
 ---
 
-## 4. User Personas & RBAC Matrix
+## 4. User Personas &amp; RBAC Matrix
 
 | Role | Client Interface | Primary Capabilities | Registration Mechanism |
 |---|---|---|---|
@@ -166,52 +166,164 @@ TiyraSense/
 │   ├── login.webp                    # Mobile authentication UI screenshot
 │   └── signup.webp                   # Mobile self-registration UI screenshot
 ├── backend/                          # FastAPI REST services, risk engine, and PostGIS models
-│   ├── app/                          # Core application package
-│   │   ├── api/                      # REST endpoints (auth, routes, journeys, reports, alerts, evidence)
-│   │   ├── core/                     # Settings, async database session engine, security utils
-│   │   ├── models/                   # SQLAlchemy declarative models (18 PostGIS spatial tables)
-│   │   ├── schemas/                  # Pydantic v2 request/response schemas
-│   │   ├── services/                 # Risk engine, routing optimizer, weather, conflict resolver, radar
-│   │   └── main.py                   # FastAPI entrypoint, CORS configuration, and security middleware
-│   ├── migrations/init.sql           # PostGIS schema definition (18 tables, spatial indexes, RLS)
-│   ├── tests/                        # Backend unit, security, and integration test suite
-│   ├── requirements.txt              # Locked Python package dependencies
+│   ├── app/
+│   │   ├── api/
+│   │   │   ├── deps.py               # Auth, DB session, and RBAC dependency injection
+│   │   │   └── v1/
+│   │   │       ├── endpoints/
+│   │   │       │   ├── alerts.py     # Dynamic emergency alerts & affected driver queries
+│   │   │       │   ├── auth.py       # Registration, login, profile, and role verification
+│   │   │       │   ├── evidence.py   # Geotagged photo upload and metadata mapping
+│   │   │       │   ├── external.py   # Weather data and external telemetry proxies
+│   │   │       │   ├── field_reports.py # Crowdsourced hazard submission & official verification
+│   │   │       │   ├── health.py     # Liveness/readiness probes & PostGIS extension check
+│   │   │       │   ├── journeys.py   # Journey lifecycle, rerouting, & GPS telemetry pings
+│   │   │       │   ├── routes.py     # Multi-candidate route evaluation (Safest vs Fastest)
+│   │   │       │   └── settings.py   # System settings & governance configuration
+│   │   │       └── router.py         # Top-level API router mounting all endpoint groups
+│   │   ├── core/
+│   │   │   ├── config.py             # Pydantic Settings management (env vars, secrets)
+│   │   │   ├── database.py           # Async engine and async sessionmaker lifecycle
+│   │   │   └── security.py           # Password hashing, JWT token creation/decoding
+│   │   ├── models/
+│   │   │   └── user.py               # SQLAlchemy User model (Driver, Field Worker, Official, Admin)
+│   │   ├── schemas/                  # Pydantic request/response validation schemas
+│   │   │   ├── alerts.py
+│   │   │   ├── auth.py
+│   │   │   ├── evidence.py
+│   │   │   ├── journeys.py
+│   │   │   ├── reports.py
+│   │   │   ├── routes.py
+│   │   │   └── settings.py
+│   │   ├── services/                 # Core business logic and computational services
+│   │   │   ├── external_ingestion_service.py # Open-Meteo weather data ingestion
+│   │   │   ├── geocoding_service.py  # Coordinate-to-hub and corridor lookup
+│   │   │   ├── risk_engine.py        # Deterministic multi-factor road risk calculation
+│   │   │   ├── routing_service.py    # OSRM interface, segment penalization, route comparator
+│   │   │   ├── supabase_service.py   # Supabase Cloud PostgreSQL dual-write sync
+│   │   │   └── telemetry_service.py  # Real-time fleet GPS tracking and hazard lookahead
+│   │   ├── static/                   # Uploaded evidence photos & system settings JSON
+│   │   └── main.py                   # FastAPI entrypoint, CORS, rate limiting & security middleware
+│   ├── migrations/
+│   │   └── init.sql                  # Canonical PostGIS database schema (tables, spatial indexes, RLS)
+│   ├── tests/                        # Pytest test suite (auth, routes, risk, reports, ML, E2E security)
+│   │   ├── conftest.py               # Shared test fixtures and async client setup
+│   │   ├── test_auth.py
+│   │   ├── test_external.py
+│   │   ├── test_health.py
+│   │   ├── test_journeys.py
+│   │   ├── test_ml.py
+│   │   ├── test_reports_alerts.py
+│   │   ├── test_routing.py
+│   │   └── test_security.py
+│   ├── Dockerfile                    # Production Docker image (Python 3.12 slim, non-root user)
+│   ├── requirements.txt              # Python package dependencies
 │   └── README.md                     # Backend-specific architecture and developer guide
 ├── web/                              # React 18 + TypeScript + Vite operations dashboard
-│   ├── src/                          # Application source code
-│   │   ├── components/               # Modular UI (VectorGisMap, JourneyPlanningModal, Header, Sidebar)
-│   │   ├── layouts/                  # Authenticated master dashboard layout
-│   │   ├── pages/                    # Views (Dashboard, FieldReports, CorridorMonitor, AlertFeed, Settings)
-│   │   ├── routes/RoleGuard.tsx      # Client-side RBAC protection enforcing Official & Admin access
-│   │   ├── services/api.ts           # Typed API client with automatic Bearer token handling
-│   │   ├── state/AuthContext.tsx     # React authentication context and profile state
-│   │   └── types/                    # TypeScript interfaces for data models and API envelopes
-│   ├── test/                         # Vitest component and integration tests
-│   ├── package.json                  # Web dependencies and scripts
-│   ├── vite.config.ts                # Vite configuration with backend proxying
+│   ├── src/
+│   │   ├── components/               # Modular UI components
+│   │   │   ├── AccountDetailsModal.tsx
+│   │   │   ├── Button.tsx
+│   │   │   ├── DistanceClausesModal.tsx
+│   │   │   ├── Header.tsx
+│   │   │   ├── JourneyPlanningModal.tsx
+│   │   │   ├── Sidebar.tsx
+│   │   │   ├── StatusBadge.tsx
+│   │   │   └── VectorGisMap.tsx
+│   │   ├── layouts/
+│   │   │   └── AuthenticatedLayout.tsx # Master layout with responsive sidebar and header
+│   │   ├── pages/                    # Role-specific operational views
+│   │   │   ├── AlertFeed.tsx         # Real-time incident alert broadcast & acknowledgment feed
+│   │   │   ├── CorridorMonitor.tsx   # Live NH corridor status and risk overview
+│   │   │   ├── Dashboard.tsx         # Master dispatch command center (map + metrics + feed)
+│   │   │   ├── FieldReports.tsx      # Incident verification workbench with photo evidence modal
+│   │   │   ├── Login.tsx             # Official & Admin secure authentication portal
+│   │   │   ├── SystemSettings.tsx    # System governance, risk thresholds, and alert rules
+│   │   │   └── UserManagement.tsx    # Role administration & personnel provisioning
+│   │   ├── routes/
+│   │   │   └── RoleGuard.tsx         # Client-side route protection by role hierarchy
+│   │   ├── services/
+│   │   │   └── api.ts                # Typed API client with automatic JWT header attachment
+│   │   ├── state/
+│   │   │   └── AuthContext.tsx       # React Context providing user profile and login/logout
+│   │   ├── test/                     # Vitest component and integration tests
+│   │   │   ├── Interactivity.test.tsx
+│   │   │   ├── LiveTrackingAndClauses.test.tsx
+│   │   │   └── Login.test.tsx
+│   │   ├── types/
+│   │   │   └── auth.ts               # TypeScript interfaces for users, roles, and tokens
+│   │   ├── App.tsx                   # Root routing configuration
+│   │   ├── index.css                 # Global typography, color tokens, and utility classes
+│   │   └── main.tsx                  # Vite React application entrypoint
+│   ├── public/
+│   │   └── _redirects                # Cloudflare Pages SPA routing rule
+│   ├── package.json                  # NPM package definitions and scripts
+│   ├── tsconfig.json                 # TypeScript compiler configuration
+│   ├── vite.config.ts                # Vite build and test configuration
 │   └── README.md                     # Web console architecture and developer guide
 ├── mobile/                           # Flutter offline-first mobile application
-│   ├── lib/                          # Application source code
-│   │   ├── models/                   # Dart domain models (UserModel, ReportItem)
-│   │   ├── screens/                  # Views (DriverHome, FieldWorkerHome, MapScreen, Reports, Profile)
-│   │   ├── services/                 # ApiService, LocationService, OfflineStorageService, ReportService
-│   │   ├── state/auth_provider.dart  # Hardware-backed encrypted session management
-│   │   ├── theme/app_theme.dart      # High-visibility dark theme optimized for in-cab operation
-│   │   └── widgets/                  # Modular widgets (ServerConnectionSheet, StatusPillBadge, Sheets)
-│   ├── test/                         # Flutter widget and unit test suite
-│   ├── pubspec.yaml                  # Mobile dependencies and asset declarations
+│   ├── lib/
+│   │   ├── models/
+│   │   │   └── user_model.dart       # Authenticated user state (UserModel, UserRole enum)
+│   │   ├── screens/                  # User interface screens
+│   │   │   ├── admin_home_screen.dart
+│   │   │   ├── alerts_screen.dart
+│   │   │   ├── driver_home_screen.dart
+│   │   │   ├── driver_map_screen.dart
+│   │   │   ├── field_worker_home_screen.dart
+│   │   │   ├── field_worker_map_screen.dart
+│   │   │   ├── login_screen.dart
+│   │   │   ├── official_home_screen.dart
+│   │   │   ├── profile_screen.dart
+│   │   │   ├── report_history_screen.dart
+│   │   │   ├── signup_screen.dart
+│   │   │   └── splash_screen.dart
+│   │   ├── services/                 # Business logic and device services
+│   │   │   ├── alert_service.dart    # Active alert polling, acknowledgment, and local notification dispatch
+│   │   │   ├── api_service.dart      # Central HTTP client with JWT header attachment
+│   │   │   ├── image_compressor_service.dart # Compresses camera photos <500KB before upload
+│   │   │   ├── localization_service.dart # Indic language strings (Assamese, Bengali, Hindi, English)
+│   │   │   ├── location_service.dart # GPS coordinates, heading, and distance-to-hazard tracking
+│   │   │   ├── notification_service.dart # Heads-up notification channels and emergency alarms
+│   │   │   ├── offline_storage_service.dart # Persistent storage for offline report queue & sync
+│   │   │   ├── report_service.dart   # Incident submission, photo upload, and offline queuing
+│   │   │   └── vehicle_service.dart  # Vehicle profile, gross weight, and cargo type parameters
+│   │   ├── state/
+│   │   │   └── auth_provider.dart    # Hardware-backed encrypted session management
+│   │   ├── theme/
+│   │   │   └── app_theme.dart        # High-visibility dark theme optimized for in-cab viewing
+│   │   ├── utils/
+│   │   │   ├── distance_utils.dart   # Haversine distance and spatial containment math
+│   │   │   └── responsive_utils.dart # Breakpoint engine, ResponsiveWrapper, adaptive grids
+│   │   ├── widgets/                  # Modular UI widgets
+│   │   │   ├── app_logo.dart
+│   │   │   ├── hazard_report_sheet.dart
+│   │   │   ├── journey_planning_sheet.dart
+│   │   │   ├── live_notification_card.dart
+│   │   │   ├── map_layer_sheet.dart
+│   │   │   ├── server_connection_dialog.dart
+│   │   │   ├── side_drawer.dart
+│   │   │   ├── slippy_tile_layer.dart
+│   │   │   ├── status_pill_badge.dart
+│   │   │   └── vehicle_profile_sheet.dart
+│   │   └── main.dart                 # App initialization, service bootstrap, and root widget
+│   ├── test/
+│   │   └── widget_test.dart          # Flutter widget and unit test suite (58 tests)
+│   ├── pubspec.yaml                  # Flutter dependencies and asset configuration
 │   └── README.md                     # Mobile architecture and developer guide
 ├── ml/                               # Machine Learning disruption prediction pipeline
 │   ├── models/                       # Serialized model artifacts (joblib) and metadata (json)
+│   │   ├── disruption_v1.0.joblib    # Trained scikit-learn CalibratedClassifierCV artifact
+│   │   └── disruption_v1.0.json      # Metadata (metrics, features, timestamp, data_label)
 │   ├── dataset.py                    # Anti-leakage temporal dataset generator & feature engineer
-│   ├── train.py                      # Model training, probability calibration, and export script
 │   ├── predict.py                    # Sub-5ms forward inference service with physics fallback
-│   ├── requirements.txt              # Locked ML dependencies (scikit-learn, joblib, numpy, scipy)
+│   ├── train.py                      # Model training, probability calibration, and export script
+│   ├── requirements.txt              # ML dependencies (scikit-learn, joblib, numpy, scipy)
 │   └── README.md                     # ML pipeline and feature engineering guide
 ├── docs/                             # Comprehensive system specifications
 │   ├── architecture.md               # High-level architecture, module boundaries, external integrations
 │   ├── api_specification.md          # REST API contracts, endpoints, and response envelopes
-│   ├── data_model.md                 # 18-table PostGIS spatial schema and entity relationships
+│   ├── data_model.md                 # PostGIS spatial schema and entity relationships
 │   ├── data_sources_and_pipelines.md # External data ingestion (Open-Meteo, OSM, Cloudinary)
 │   ├── ml_specification.md           # Machine learning model design & validation protocols
 │   ├── risk_and_conflict_resolution.md # Multi-factor risk math and evidence arbitration rules
@@ -225,21 +337,27 @@ TiyraSense/
 │   ├── seed_users.py                 # Seeds test users across Driver, Field, Official, Admin roles
 │   └── seed_road_network.py          # Seeds NH-06, Damra bypass, and regional corridors in PostGIS
 ├── tests/                            # Cross-stack integration and end-to-end tests
-│   └── test_e2e_demo_scenario.py     # Continuous 20-step canonical selection demonstration scenario
+│   └── test_e2e_demo_scenario.py     # 20-step canonical selection demonstration scenario
+├── .github/
+│   └── workflows/
+│       └── ci.yml                    # GitHub Actions CI pipeline (backend, web, mobile)
 ├── AGENTS.md                         # Authoritative rules of engagement for developers and AI agents
-├── BUILD_GUIDE.md                    # Canonical 11-phase development roadmap and exit criteria
-├── DECISIONS.md                      # Architectural decision records (D-001 through D-018)
+├── BUILD_GUIDE.md                    # Canonical development phase roadmap and exit criteria
+├── DECISIONS.md                      # Architectural decision records (D-001 through D-019)
 ├── PROJECT_CONTEXT.md                # Permanent product knowledge, core promise, operating principles
 ├── SECURITY.md                       # Authoritative security policy, RBAC gates, vulnerability checklist
 ├── SESSION.md                        # Active session state and verified handoff history
 ├── LOG.md                            # Forensic chronological development log
-├── TODO.md                           # Master phase status board (all 11 phases COMPLETE)
-└── docker-compose.yml                # Multi-container orchestration (PostGIS database)
+├── TODO.md                           # Master phase status board
+├── docker-compose.yml                # Multi-container orchestration (PostGIS + FastAPI)
+├── render.yaml                       # Render cloud deployment blueprint
+├── .env.example                      # Environment variable template (no secrets committed)
+└── pytest.ini                        # pytest configuration
 ```
 
 ---
 
-## 6. Monitored Corridors & Seed Data
+## 6. Monitored Corridors &amp; Seed Data
 
 The platform comes pre-seeded with primary North Eastern Region supply corridors and default test accounts:
 
@@ -261,7 +379,7 @@ The platform comes pre-seeded with primary North Eastern Region supply corridors
 
 ---
 
-## 7. Quickstart & Execution Guide
+## 7. Quickstart &amp; Execution Guide
 
 ### 7.1 Start the PostGIS Spatial Database
 ```bash
@@ -287,8 +405,9 @@ python scripts/seed_road_network.py
 # 4. Start FastAPI server
 uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-- Interactive Swagger OpenAPI documentation: `http://localhost:8000/docs`
+- Interactive Swagger OpenAPI documentation: `http://localhost:8000/docs` (development mode only)
 - Health probe: `http://localhost:8000/api/v1/health`
+- Keep-alive ping: `http://localhost:8000/ping`
 
 ### 7.3 Run the React Operations Console
 ```bash
@@ -297,7 +416,7 @@ npm install
 npm run dev
 ```
 - Console will be available at: `http://localhost:5173`
-- Log in with your Official or Admin credentials (e.g. `demo-official@tiyrasense.in` or `demo-admin@tiyrasense.in`) to access command features.
+- Log in with Official or Admin credentials to access command features.
 
 ### 7.4 Run the Flutter Mobile Client
 ```bash
@@ -311,7 +430,7 @@ flutter run -d chrome
 adb reverse tcp:8000 tcp:8000
 flutter run -d <device_id>
 ```
-*On physical devices, open the connection chip on the login screen to toggle between USB ADB (`127.0.0.1:8000`), Laptop Wi-Fi LAN (`http://<laptop_ip>:8000/api/v1`), or Cloudflare/Ngrok tunnels.*
+*On physical devices, open the connection chip on the login screen to toggle between USB ADB (`127.0.0.1:8000`), Laptop Wi-Fi LAN (`http://<laptop_ip>:8000/api/v1`), or cloud backend URLs.*
 
 ### 7.5 Retrain ML Disruption Model (Optional)
 ```bash
@@ -321,70 +440,87 @@ python ml/train.py
 
 ---
 
-## 8. Verification & Comprehensive Automated Testing
+## 8. Verification &amp; Comprehensive Automated Testing
 
-The entire platform is protected by strict automated test suites across all tiers. Currently, **129 out of 129 automated tests pass with 100% success**:
+The entire platform is protected by strict automated test suites across all tiers. Currently, **132 out of 132 automated tests pass with 100% success**:
 
 ```bash
-# 1. Backend Unit, Security, ML & 20-Step Continuous Scenario Tests (49/49 Passing)
-python -m pytest backend/tests tests/test_e2e_demo_scenario.py -v
+# 1. Backend unit, security, ML & 20-step E2E scenario tests (48/48 passing)
+python -m pytest backend/tests -v
 
-# 2. Web Frontend Component, Tracking & Integration Tests (26/26 Passing)
+# 2. End-to-end cross-stack scenario test
+python -m pytest tests/test_e2e_demo_scenario.py -v
+
+# 3. Web frontend component and integration tests (26/26 passing)
 cd web && npm test -- --run
 
-# 3. Web Production Build Compilation (Clean Build, 0 Errors)
+# 4. Web production build compilation (clean build, 0 errors)
 cd web && npm run build
 
-# 4. Mobile Unit & Widget Tests (54/54 Passing)
+# 5. Mobile unit & widget tests (58/58 passing)
 cd mobile && flutter test
 
-# 5. Mobile Static Analysis (0 Errors, 0 Warnings, 0 Hints)
+# 6. Mobile static analysis (0 errors, 0 warnings, 0 hints)
 cd mobile && flutter analyze
-
-# 6. Backend Static Type Analysis (0 Errors, 0 Warnings)
-npx pyright backend/app
 ```
 
 ---
 
-## 9. Security & Provenance Standards
+## 9. Security &amp; Provenance Standards
 
 1. **Database-Authoritative RBAC:** User roles are verified against live database records on every privileged request, preventing privilege escalation from stale or forged JWT claims.
 2. **Mandatory Provenance Tagging:** Every API response attaches `X-TiyraSense-Data-Label: LIVE | HISTORICAL | SIMULATED | TEST`. Simulated data is never conflated with live ground data.
 3. **OS-Level Encrypted Mobile Sessions:** Mobile JWT tokens and user profiles are stored using hardware-backed encryption (Android Keystore AES-GCM / iOS Keychain) per OWASP Mobile Top 10 standards.
-4. **Input Sanitization & Injection Defense:** Pydantic v2 schemas reject SQL injection patterns, control characters, null bytes, and out-of-bounds coordinate payloads at API boundaries before business logic execution.
+4. **Input Sanitization &amp; Injection Defense:** Pydantic v2 schemas reject SQL injection patterns, control characters, null bytes, and out-of-bounds coordinate payloads at API boundaries before business logic execution.
 5. **HTTP Security Headers:** Responses enforce `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`, and restrictive Content Security Policies.
+6. **Rate Limiting:** Sliding-window in-memory rate limiter defends authentication endpoints (20 login/min, 10 register/min, 120 general API/min).
+7. **Zero Secrets in Source Control:** No credentials, tokens, or private keys are committed. `AUTH_SECRET_KEY` is either supplied via environment variable or auto-generated ephemerally in development.
 
 ---
 
-## 10. Documentation Index
+## 10. Cloud Deployment
 
-### Core Working Agreements & Governance
-- [AGENTS.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/AGENTS.md) — Authoritative agent instructions, reading order, code conciseness rules, and Definition of Done.
-- [SECURITY.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/SECURITY.md) — Authoritative security policy, RBAC verification, credential handling, and threat checklist.
-- [DECISIONS.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/DECISIONS.md) — Binding architectural decision records (D-001 through D-018).
-- [PROJECT_CONTEXT.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/PROJECT_CONTEXT.md) — Permanent product context, core promise, operating principles, and target personas.
-- [BUILD_GUIDE.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/BUILD_GUIDE.md) — Canonical 11-phase development roadmap and exit criteria.
-- [SESSION.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/SESSION.md) — Active session state, verification evidence, and handoff history.
-- [LOG.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/LOG.md) — Forensic chronological development log of every completed task.
-- [TODO.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/TODO.md) — Current work board and phase completion status.
+The backend is deployed to **Render** (Singapore region) via Docker:
+- Service: `tiyrasense-api` — configured in `render.yaml`
+- CORS: allows `*.onrender.com`, `*.pages.dev`, and `*.vercel.app`
+- Keep-alive: `GET /ping` endpoint for UptimeRobot monitoring (prevents Render free-tier spin-down)
+
+The web dashboard is deployed to **Cloudflare Pages**:
+- Build command: `npm run build` (Vite), output directory: `dist`
+- SPA routing: `web/public/_redirects` (`/* /index.html 200`)
+- Environment variable: `VITE_API_URL` → production backend URL
+
+---
+
+## 11. Documentation Index
+
+### Core Working Agreements &amp; Governance
+- [AGENTS.md](AGENTS.md) — Authoritative agent instructions, reading order, code conciseness rules, and Definition of Done.
+- [SECURITY.md](SECURITY.md) — Authoritative security policy, RBAC verification, credential handling, and threat checklist.
+- [DECISIONS.md](DECISIONS.md) — Binding architectural decision records (D-001 through D-019).
+- [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) — Permanent product context, core promise, operating principles, and target personas.
+- [BUILD_GUIDE.md](BUILD_GUIDE.md) — Canonical development phase roadmap and exit criteria.
+- [SESSION.md](SESSION.md) — Active session state, verification evidence, and handoff history.
+- [LOG.md](LOG.md) — Forensic chronological development log of every completed task.
+- [TODO.md](TODO.md) — Current work board and phase completion status.
+- [DEPLOYMENT_AND_NETWORK_GUIDE.md](DEPLOYMENT_AND_NETWORK_GUIDE.md) — Production deployment guide for Render and Cloudflare Pages.
 
 ### Module Technical Guides
-- [backend/README.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/backend/README.md) — FastAPI services, risk engine, database models, and API map.
-- [web/README.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/web/README.md) — React dashboard, Leaflet GIS mapping, and verification workbench.
-- [mobile/README.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/mobile/README.md) — Flutter client, offline storage queue, and GPS telemetry radar.
-- [ml/README.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/ml/README.md) — Disruption prediction model, features, and inference engine.
+- [backend/README.md](backend/README.md) — FastAPI services, risk engine, database models, and API map.
+- [web/README.md](web/README.md) — React dashboard, Leaflet GIS mapping, and verification workbench.
+- [mobile/README.md](mobile/README.md) — Flutter client, offline storage queue, and GPS telemetry radar.
+- [ml/README.md](ml/README.md) — Disruption prediction model, features, and inference engine.
 
 ### Detailed Architectural Specifications
-- [docs/architecture.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/architecture.md) — High-level architecture, topology, and module boundaries.
-- [docs/api_specification.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/api_specification.md) — REST API contracts, endpoints, and response envelopes.
-- [docs/data_model.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/data_model.md) — 18-table PostGIS spatial schema and entity relationships.
-- [docs/data_sources_and_pipelines.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/data_sources_and_pipelines.md) — External data integration specifications (Open-Meteo, OSM, Cloudinary).
-- [docs/ml_specification.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/ml_specification.md) — Machine learning model design, temporal splitting, and validation protocols.
-- [docs/risk_and_conflict_resolution.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/risk_and_conflict_resolution.md) — Multi-factor risk math and evidence arbitration rules.
-- [docs/alert_and_emergency.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/alert_and_emergency.md) — Alert dispatch and emergency mode protocols.
-- [docs/offline_and_sync.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/offline_and_sync.md) — Offline caching and synchronization protocols.
-- [docs/user_roles_and_flows.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/user_roles_and_flows.md) — User personas and interaction workflows.
-- [docs/testing_strategy.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/testing_strategy.md) — Testing pyramid and QA verification gates.
-- [docs/deployment.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/deployment.md) — Local evaluation and production deployment.
-- [docs/CLOUDINARY_SETUP_GUIDE.md](file:///c:/Users/APURBA/CodeArena/Manual_Commits/TiyraSense/docs/CLOUDINARY_SETUP_GUIDE.md) — Cloudinary media storage configuration.
+- [docs/architecture.md](docs/architecture.md) — High-level architecture, topology, and module boundaries.
+- [docs/api_specification.md](docs/api_specification.md) — REST API contracts, endpoints, and response envelopes.
+- [docs/data_model.md](docs/data_model.md) — PostGIS spatial schema and entity relationships.
+- [docs/data_sources_and_pipelines.md](docs/data_sources_and_pipelines.md) — External data integration specifications (Open-Meteo, OSM, Cloudinary).
+- [docs/ml_specification.md](docs/ml_specification.md) — Machine learning model design, temporal splitting, and validation protocols.
+- [docs/risk_and_conflict_resolution.md](docs/risk_and_conflict_resolution.md) — Multi-factor risk math and evidence arbitration rules.
+- [docs/alert_and_emergency.md](docs/alert_and_emergency.md) — Alert dispatch and emergency mode protocols.
+- [docs/offline_and_sync.md](docs/offline_and_sync.md) — Offline caching and synchronization protocols.
+- [docs/user_roles_and_flows.md](docs/user_roles_and_flows.md) — User personas and interaction workflows.
+- [docs/testing_strategy.md](docs/testing_strategy.md) — Testing pyramid and QA verification gates.
+- [docs/deployment.md](docs/deployment.md) — Local evaluation and production deployment.
+- [docs/CLOUDINARY_SETUP_GUIDE.md](docs/CLOUDINARY_SETUP_GUIDE.md) — Cloudinary media storage configuration.

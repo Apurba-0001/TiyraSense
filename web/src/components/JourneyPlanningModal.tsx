@@ -224,8 +224,8 @@ export const JourneyPlanningModal: React.FC<JourneyPlanningModalProps> = ({
         const safestRoute = data.routes.find((r) => r.is_recommended_safest) || data.routes[0];
         setSelectedRoute(safestRoute.id);
       }
-    } catch {
-      // Retain fallback demonstration
+    } catch (err) {
+      // Live routing evaluation error handled gracefully
     } finally {
       setIsCalculating(false);
     }

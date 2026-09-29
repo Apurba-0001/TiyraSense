@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../services/alert_service.dart';
 import '../services/api_service.dart';
 import '../services/localization_service.dart';
 import '../services/location_service.dart';
 import '../services/notification_service.dart';
 import '../services/offline_storage_service.dart';
+import '../services/report_service.dart';
 import '../services/vehicle_service.dart';
 import '../theme/app_theme.dart';
 import '../utils/distance_utils.dart';
 import '../utils/responsive_utils.dart';
-import '../widgets/app_logo.dart';
+import '../widgets/hazard_report_sheet.dart';
 import '../widgets/journey_planning_sheet.dart';
 import '../widgets/live_notification_card.dart';
 import '../widgets/map_layer_sheet.dart';
@@ -43,12 +45,16 @@ class NavigationManeuver {
 class DriverMapScreen extends StatefulWidget {
   final VoidCallback? onOpenDrawer;
   final ApiService? apiServiceOverride;
+  final AlertService? alertServiceOverride;
+  final ReportService? reportServiceOverride;
   final Map<String, dynamic>? initialRouteData;
 
   const DriverMapScreen({
     super.key,
     this.onOpenDrawer,
     this.apiServiceOverride,
+    this.alertServiceOverride,
+    this.reportServiceOverride,
     this.initialRouteData,
   });
 
@@ -60,6 +66,8 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   bool _isNavigating = false;
   int _selectedRoute = 0; // 0 = Recommended, 1 = Faster
   late ApiService _apiService;
+  late final AlertService _alertService;
+  late final ReportService _reportService;
   Timer? _telemetryTimer;
   StreamSubscription<LocationResult>? _locationSubscription;
   String? _activeJourneyId;
@@ -258,6 +266,10 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   void initState() {
     super.initState();
     _apiService = widget.apiServiceOverride ?? ApiService();
+    _alertService = widget.alertServiceOverride ?? AlertService();
+    _reportService = widget.reportServiceOverride ?? ReportService();
+    _alertService.syncLiveAlerts();
+    _reportService.syncLiveReports();
     _applyRouteData(widget.initialRouteData);
     if (_routeCoordinates.isEmpty && widget.initialRouteData?['geometry_geojson'] == null && widget.initialRouteData?['coordinates'] == null) {
       _fetchRealRoute();
@@ -1063,6 +1075,592 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
     );
   }
 
+  void _announceCurrentManeuver(NavigationManeuver m) {
+    final distanceText = _getNextManeuverDistanceText(m);
+    final speechText = '$distanceText, ${m.instruction}${m.roadName.isNotEmpty ? " onto ${m.roadName}" : ""}';
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.volume_up_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                '🔊 "$speechText"',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF005A53),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showDestinationOverview() {
+    setState(() {
+      _cameraLat = (_originLat + _destLat) / 2.0;
+      _cameraLng = (_originLng + _destLng) / 2.0;
+      _cameraZoom = 10.5;
+    });
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.pin_drop_rounded, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Destination Overview: $_destName · ${_remainingDistanceKm.toStringAsFixed(1)} km remaining',
+                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF005A53),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _showSearchAlongRouteSheet(BuildContext context) {
+    final searchItems = [
+      {
+        'category': 'Gas & Fuel Stations',
+        'icon': Icons.local_gas_station_rounded,
+        'color': const Color(0xFF0284C7),
+        'items': [
+          {'name': 'Indian Oil Kisan Seva Kendra', 'dist': '12.4 km ahead', 'status': 'Open 24/7 · Diesel / High Speed', 'km': 'KM 38.2'},
+          {'name': 'Bharat Petroleum Fuel Point', 'dist': '28.1 km ahead', 'status': 'Open 24/7 · Heavy Truck Bay', 'km': 'KM 54.0'},
+          {'name': 'Hindustan Petroleum Highway Outpost', 'dist': '44.8 km ahead', 'status': 'Open 06:00 - 23:00', 'km': 'KM 71.5'},
+        ]
+      },
+      {
+        'category': 'Rest Stops & Dhabas',
+        'icon': Icons.restaurant_rounded,
+        'color': const Color(0xFF10B981),
+        'items': [
+          {'name': 'Nongpoh Food Plaza & Tourist Lodge', 'dist': '16.5 km ahead', 'status': 'Fresh Meals & Clean Restrooms', 'km': 'KM 42.1'},
+          {'name': 'Highway Valley Dhaba', 'dist': '34.2 km ahead', 'status': 'Hot Tea & 24/7 Truck Parking', 'km': 'KM 60.3'},
+        ]
+      },
+      {
+        'category': 'Emergency & Trauma Centers',
+        'icon': Icons.local_hospital_rounded,
+        'color': const Color(0xFFEF4444),
+        'items': [
+          {'name': 'Nongpoh Civil Hospital (24/7 Emergency)', 'dist': '17.0 km ahead', 'status': 'Level 2 Trauma & Ambulance Bay', 'km': 'KM 43.0'},
+          {'name': 'Umsning Community Health Clinic', 'dist': '51.3 km ahead', 'status': 'First Aid & Emergency Desk', 'km': 'KM 78.4'},
+        ]
+      },
+      {
+        'category': 'Mechanics & Breakdown',
+        'icon': Icons.build_rounded,
+        'color': const Color(0xFFF59E0B),
+        'items': [
+          {'name': 'NH-06 Heavy Vehicle Tire & Axle Repair', 'dist': '8.2 km ahead', 'status': 'Mobile Crane & Welding On-Site', 'km': 'KM 34.0'},
+          {'name': 'Ghat Hydraulic & Brake Specialist', 'dist': '22.0 km ahead', 'status': 'Hill Brake Inspection Desk', 'km': 'KM 48.0'},
+        ]
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.85,
+        child: Container(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.80),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: AppTheme.borderMed, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.search_rounded, color: AppTheme.primaryBlue, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Search Along Route',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppTheme.textLow, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                decoration: InputDecoration(
+                  hintText: 'Search petrol, dhabas, hospitals, mechanic...',
+                  hintStyle: const TextStyle(fontSize: 13, color: AppTheme.textLow),
+                  prefixIcon: const Icon(Icons.search_rounded, size: 18, color: AppTheme.textMid),
+                  filled: true,
+                  fillColor: AppTheme.canvas,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.borderLight),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppTheme.borderLight),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: searchItems.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 16),
+                  itemBuilder: (context, catIdx) {
+                    final cat = searchItems[catIdx];
+                    final items = cat['items'] as List<Map<String, String>>;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(cat['icon'] as IconData, size: 16, color: cat['color'] as Color),
+                            const SizedBox(width: 6),
+                            Text(
+                              cat['category'] as String,
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        ...items.map((it) {
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppTheme.canvas,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppTheme.borderLight),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        it['name']!,
+                                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppTheme.textHigh),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        '${it['dist']} · ${it['km']}',
+                                        style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primaryBlue),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        it['status']!,
+                                        style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                OutlinedButton.icon(
+                                  onPressed: () {
+                                    Navigator.of(ctx).pop();
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text('Added waypoint stop: ${it['name']} (+2.4 km detour)'),
+                                        backgroundColor: AppTheme.green,
+                                        duration: const Duration(seconds: 2),
+                                      ),
+                                    );
+                                  },
+                                  icon: const Icon(Icons.add_location_alt_rounded, size: 14),
+                                  label: const Text('Add Stop', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700)),
+                                  style: OutlinedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    side: const BorderSide(color: AppTheme.primaryBlue),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                      ],
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAlternativeRoutesSheet(BuildContext context) {
+    final routes = [
+      {
+        'index': 0,
+        'title': 'NH-06 via Nongpoh (Recommended Safest)',
+        'duration': _getFormattedRemainingDuration(),
+        'distance': '${_remainingDistanceKm.toStringAsFixed(1)} km',
+        'risk': 'Low Risk (0.18)',
+        'riskColor': AppTheme.green,
+        'tag': 'FASTEST & SAFEST',
+        'desc': 'All ghat sectors clear. Continuous slope monitoring active.',
+      },
+      {
+        'index': 1,
+        'title': 'Guwahati-Damra Secondary Bypass',
+        'duration': '${((_remainingDistanceKm * 1.15) / 35.0 * 60).round()} min',
+        'distance': '${(_remainingDistanceKm * 1.15).toStringAsFixed(1)} km',
+        'risk': 'Moderate Risk (0.34)',
+        'riskColor': AppTheme.amber,
+        'tag': '+15.2 km · LIGHT RAIN',
+        'desc': 'Valley road bypass. Slower speeds but avoids hairpin turns.',
+      },
+      {
+        'index': 2,
+        'title': 'NH-27 / NH-29 via Jagiroad Detour',
+        'duration': '${((_remainingDistanceKm * 1.35) / 35.0 * 60).round()} min',
+        'distance': '${(_remainingDistanceKm * 1.35).toStringAsFixed(1)} km',
+        'risk': 'Caution (0.42)',
+        'riskColor': AppTheme.amber,
+        'tag': '+29.6 km · FREIGHT DETOUR',
+        'desc': 'Wide carriageway detour recommended for multi-axle trailers.',
+      },
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.80,
+        child: Container(
+          constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.75),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: AppTheme.borderMed, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: const [
+                      Icon(Icons.alt_route_rounded, color: AppTheme.primaryBlue, size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Alternative Routes',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: AppTheme.textLow, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Expanded(
+                child: ListView.separated(
+                  itemCount: routes.length,
+                  separatorBuilder: (_, _) => const SizedBox(height: 12),
+                  itemBuilder: (context, idx) {
+                    final r = routes[idx];
+                    final isCurrent = _selectedRoute == r['index'];
+                    return Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isCurrent ? AppTheme.primaryBlue.withValues(alpha: 0.08) : AppTheme.canvas,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: isCurrent ? AppTheme.primaryBlue : AppTheme.borderLight,
+                          width: isCurrent ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  r['title'] as String,
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
+                                    color: isCurrent ? AppTheme.primaryBlue : AppTheme.textHigh,
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                decoration: BoxDecoration(
+                                  color: (r['riskColor'] as Color).withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  r['tag'] as String,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: r['riskColor'] as Color,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Text(
+                                r['duration'] as String,
+                                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+                              ),
+                              const Text(' • ', style: TextStyle(color: AppTheme.textLow, fontWeight: FontWeight.bold)),
+                              Text(
+                                r['distance'] as String,
+                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppTheme.textMid),
+                              ),
+                              const Text(' • ', style: TextStyle(color: AppTheme.textLow, fontWeight: FontWeight.bold)),
+                              Text(
+                                r['risk'] as String,
+                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: r['riskColor'] as Color),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            r['desc'] as String,
+                            style: const TextStyle(fontSize: 11, color: AppTheme.textLow),
+                          ),
+                          const SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: isCurrent
+                                  ? null
+                                  : () {
+                                      setState(() {
+                                        _selectedRoute = r['index'] as int;
+                                        if (_selectedRoute == 0) {
+                                          _isSafest = true;
+                                        } else {
+                                          _isSafest = false;
+                                        }
+                                      });
+                                      Navigator.of(ctx).pop();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Switched active route to: ${r['title']}'),
+                                          backgroundColor: AppTheme.primaryBlue,
+                                          duration: const Duration(seconds: 2),
+                                        ),
+                                      );
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isCurrent ? AppTheme.green : AppTheme.primaryBlue,
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: Text(
+                                isCurrent ? 'Active Navigation Route' : 'Switch to this Route',
+                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showRouteOptimizationModal(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => ResponsiveBottomSheetWrapper(
+        maxWidth: 600,
+        maxHeightRatio: 0.80,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF0F172A),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(AppTheme.radiusSheet)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(color: Colors.white30, borderRadius: BorderRadius.circular(2)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF38BDF8), size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'AI Corridor Copilot Optimization',
+                      style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: Colors.white),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.white54, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E293B),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white12),
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('Hill Descent Gradient', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text('-6.2% (Ghat Curves)', style: TextStyle(color: Color(0xFFF59E0B), fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10, height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('Road Surface Friction', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text('0.74 (Optimum Grip)', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10, height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('Recommended Heavy Cruise', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text('42 km/h Target', style: TextStyle(color: Color(0xFF38BDF8), fontWeight: FontWeight.w800, fontSize: 13)),
+                      ],
+                    ),
+                    const Divider(color: Colors.white10, height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: const [
+                        Text('Projected Fuel Savings', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Text('+11% Diesel Efficiency', style: TextStyle(color: Color(0xFF10B981), fontWeight: FontWeight.w700, fontSize: 13)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'AI Copilot Guidance:',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white70),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'Smooth throttle modulation recommended between Km 32–48. Steady hill pacing prevents brake pad glazing on steep Barapani descent.',
+                style: TextStyle(fontSize: 12, color: Colors.white60, height: 1.35),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.of(ctx).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('✓ AI Cruise Target Applied: Optimal 42 km/h locked for active hill sector.'),
+                        backgroundColor: Color(0xFF0D9488),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.check_circle_outline_rounded, size: 18),
+                  label: const Text('Apply AI Optimized Target', style: TextStyle(fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0284C7),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showTurnByTurnDirectionsSheet(BuildContext context) {
     final maneuvers = _getManeuvers();
     showModalBottomSheet(
@@ -1195,30 +1793,50 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
   }
 
   Widget _buildLaneGuidance(List<String> lanes, int activeIndex) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(lanes.length, (idx) {
-        final isActive = idx == activeIndex;
-        IconData laneIcon = Icons.arrow_upward_rounded;
-        if (lanes[idx] == 'left') laneIcon = Icons.arrow_back_rounded;
-        if (lanes[idx] == 'right') laneIcon = Icons.arrow_forward_rounded;
-        if (lanes[idx] == 'slight_right') laneIcon = Icons.turn_slight_right_rounded;
-        if (lanes[idx] == 'slight_left') laneIcon = Icons.turn_slight_left_rounded;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.25),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(lanes.length, (idx) {
+          final isActive = idx == activeIndex;
+          final laneType = lanes[idx].toLowerCase();
+          IconData laneIcon = Icons.arrow_upward_rounded;
+          if (laneType.contains('left')) laneIcon = Icons.turn_left_rounded;
+          if (laneType.contains('right')) laneIcon = Icons.turn_right_rounded;
 
-        return Container(
-          margin: const EdgeInsets.only(right: 4),
-          padding: const EdgeInsets.all(3),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.white24,
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Icon(
-            laneIcon,
-            size: 13,
-            color: isActive ? const Color(0xFF0D652D) : Colors.white70,
-          ),
-        );
-      }),
+          final Color bgColor = isActive ? const Color(0xFF005A53) : const Color(0xFFF1F5F9);
+          final Color iconColor = isActive
+              ? Colors.white
+              : (laneType.contains('left') || laneType.contains('right')
+                  ? const Color(0xFFDC2626) // Red turn arrow for non-designated split
+                  : const Color(0xFF64748B));
+
+          return Container(
+            margin: EdgeInsets.only(right: idx < lanes.length - 1 ? 4 : 0),
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Icon(
+              laneIcon,
+              size: 15,
+              color: iconColor,
+            ),
+          );
+        }),
+      ),
     );
   }
 
@@ -1236,152 +1854,162 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Main Deep Teal Green Maneuver Card
-          Container(
-            decoration: BoxDecoration(
-              color: const Color(0xFF005A53), // Google Maps Rich Teal
+          // Main Deep Teal Green Maneuver Card (Interactive tap repeats voice / opens list)
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                _announceCurrentManeuver(currentManeuver);
+                _showTurnByTurnDirectionsSheet(context);
+              },
               borderRadius: BorderRadius.circular(20),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF005A53), // Google Maps Rich Teal
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Autonomous GPS Satellite Bar
-                ListenableBuilder(
-                  listenable: offlineStorageService,
-                  builder: (context, _) {
-                    final isOnline = offlineStorageService.isOnline;
-                    return Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isOnline ? const Color(0xFF00433E) : const Color(0xFF0F172A),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-                      ),
-                      child: Row(
-                        children: [
-                          Icon(
-                            isOnline ? Icons.satellite_alt_rounded : Icons.satellite_rounded,
-                            size: 13,
-                            color: isOnline ? Colors.white70 : const Color(0xFF38BDF8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Autonomous GPS Satellite Bar
+                    ListenableBuilder(
+                      listenable: offlineStorageService,
+                      builder: (context, _) {
+                        final isOnline = offlineStorageService.isOnline;
+                        return Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isOnline ? const Color(0xFF00433E) : const Color(0xFF0F172A),
+                            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
                           ),
-                          const SizedBox(width: 6),
-                          Text(
-                            isOnline
-                                ? 'ASDMA TELEMETRY ONLINE · CORRIDOR LIVE'
-                                : '🛰️ DIRECT SATELLITE GPS · OFFLINE AUTONOMOUS',
-                            style: TextStyle(
-                              fontSize: 9,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 0.5,
-                              color: isOnline ? Colors.white70 : const Color(0xFF38BDF8),
-                            ),
-                          ),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: isOnline
-                                  ? Colors.tealAccent.withValues(alpha: 0.25)
-                                  : const Color(0xFF0284C7).withValues(alpha: 0.3),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              isOnline ? 'LIVE SYNC' : 'OFFLINE GPS',
-                              style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w900,
-                                color: isOnline ? Colors.white : const Color(0xFF7DD3FC),
+                          child: Row(
+                            children: [
+                              Icon(
+                                isOnline ? Icons.satellite_alt_rounded : Icons.satellite_rounded,
+                                size: 13,
+                                color: isOnline ? Colors.white70 : const Color(0xFF38BDF8),
                               ),
+                              const SizedBox(width: 6),
+                              Text(
+                                isOnline
+                                    ? 'ASDMA TELEMETRY ONLINE · CORRIDOR LIVE'
+                                    : '🛰️ DIRECT SATELLITE GPS · OFFLINE AUTONOMOUS',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 0.5,
+                                  color: isOnline ? Colors.white70 : const Color(0xFF38BDF8),
+                                ),
+                              ),
+                              const Spacer(),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                decoration: BoxDecoration(
+                                  color: isOnline
+                                      ? Colors.tealAccent.withValues(alpha: 0.25)
+                                      : const Color(0xFF0284C7).withValues(alpha: 0.3),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  isOnline ? 'LIVE SYNC' : 'OFFLINE GPS',
+                                  style: TextStyle(
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w900,
+                                    color: isOnline ? Colors.white : const Color(0xFF7DD3FC),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+
+                    // Primary Turn Guidance Row: Big White Direction Arrow + Instruction Text
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(
+                              currentManeuver.icon,
+                              size: 36,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(width: 14),
+
+                          // Instruction details
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  distanceText,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  currentManeuver.instruction,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: -0.3,
+                                    height: 1.15,
+                                  ),
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                if (currentManeuver.roadName.isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    currentManeuver.roadName,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white.withValues(alpha: 0.85),
+                                    ),
+                                  ),
+                                ],
+                              ],
                             ),
                           ),
                         ],
                       ),
-                    );
-                  },
+                    ),
+                  ],
                 ),
-
-                // Primary Turn Guidance Row: Big White Direction Arrow + Instruction Text
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      // Big white direction arrow (like Google Maps ⬆)
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Icon(
-                          currentManeuver.icon,
-                          size: 36,
-                          color: Colors.white,
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-
-                      // Instruction details
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              distanceText,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white70,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              currentManeuver.instruction,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w900,
-                                color: Colors.white,
-                                letterSpacing: -0.3,
-                                height: 1.15,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            if (currentManeuver.roadName.isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                currentManeuver.roadName,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
 
-          // Sub-pill with next turn preview (Floating below on left: Then ↰)
+          // Sub-row with next turn preview (Then ↰) and Lane Guidance Indicator
           Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisSize: MainAxisSize.min,
               children: [
+                // Then sub-pill
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
@@ -1415,7 +2043,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                       if (nextManeuver != null) ...[
                         const SizedBox(width: 6),
                         ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 180),
+                          constraints: const BoxConstraints(maxWidth: 160),
                           child: Text(
                             nextManeuver.instruction,
                             style: const TextStyle(
@@ -1431,11 +2059,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     ],
                   ),
                 ),
-                if (currentManeuver.lanes.isNotEmpty)
+                if (currentManeuver.lanes.isNotEmpty) ...[
+                  const SizedBox(width: 8),
                   _buildLaneGuidance(
                     currentManeuver.lanes,
                     currentManeuver.activeLaneIndex,
                   ),
+                ],
               ],
             ),
           ),
@@ -1663,68 +2293,53 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
 
                 // Center: Big Bold ETA and Distance / Arrival Time
                 Expanded(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        _getFormattedRemainingDuration(),
-                        style: const TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          color: Colors.white,
-                          letterSpacing: -0.5,
+                  child: InkWell(
+                    onTap: () => _showTurnByTurnDirectionsSheet(context),
+                    borderRadius: BorderRadius.circular(12),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          _getFormattedRemainingDuration(),
+                          style: const TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                            letterSpacing: -0.5,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 2),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            '${_remainingDistanceKm.toStringAsFixed(1)} km',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white70,
+                        const SizedBox(height: 2),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${_remainingDistanceKm.toStringAsFixed(1)} km',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
+                              ),
                             ),
-                          ),
-                          const Text(' • ', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
-                          Text(
-                            _getFormattedArrivalTime().toLowerCase(),
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white70,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 14),
-
-                // Right: Gemini AI sparkle assistant button
-                GestureDetector(
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: const [
-                            Icon(Icons.auto_awesome_rounded, color: Color(0xFF60A5FA), size: 18),
-                            SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'AI Corridor Copilot: Route clear, optimum hill speed 42 km/h',
-                                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                            const Text(' • ', style: TextStyle(color: Colors.white38, fontWeight: FontWeight.bold)),
+                            Text(
+                              _getFormattedArrivalTime().toLowerCase(),
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white70,
                               ),
                             ),
                           ],
                         ),
-                        backgroundColor: const Color(0xFF1E293B),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 14),
+
+                // Right: Gemini AI sparkle assistant button (Route Optimization Button)
+                GestureDetector(
+                  onTap: () => _showRouteOptimizationModal(context),
                   child: Container(
                     width: 48,
                     height: 48,
@@ -1870,45 +2485,64 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
           : AppBar(
               backgroundColor: AppTheme.surface,
               elevation: 0,
-              leading: widget.onOpenDrawer != null
-                  ? IconButton(
-                      icon: const Icon(Icons.menu_rounded, color: AppTheme.textHigh),
-                      onPressed: widget.onOpenDrawer,
-                    )
-                  : const Padding(
-                      padding: EdgeInsets.all(8.0),
-                      child: AppLogo.icon(size: 36, radius: 9),
-                    ),
+              leading: Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu_rounded, color: AppTheme.textHigh),
+                  tooltip: 'Open Menu',
+                  onPressed: widget.onOpenDrawer ?? () => Scaffold.maybeOf(ctx)?.openDrawer(),
+                ),
+              ),
               title: Center(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AppTheme.container,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusChip),
-                    border: Border.all(color: AppTheme.borderLight),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.my_location_rounded, size: 14, color: AppTheme.primaryBlue),
-                      const SizedBox(width: 6),
-                      Text(
-                        'NH-06 Km 52.4',
-                        style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.textHigh,
+                child: InkWell(
+                  onTap: () => _showSearchAlongRouteSheet(context),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusChip),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppTheme.container,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusChip),
+                      border: Border.all(color: AppTheme.borderLight),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: const [
+                        Icon(Icons.my_location_rounded, size: 14, color: AppTheme.primaryBlue),
+                        SizedBox(width: 6),
+                        Text(
+                          'NH-06 Km 52.4',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.textHigh,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-              actions: const [
-                Icon(Icons.layers_outlined, color: AppTheme.textLow, size: 22),
-                SizedBox(width: 12),
-                Icon(Icons.search_rounded, color: AppTheme.textLow, size: 22),
-                SizedBox(width: 16),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.layers_outlined, color: AppTheme.textLow, size: 22),
+                  tooltip: 'Change Map View',
+                  onPressed: () {
+                    MapLayerSheet.show(
+                      context: context,
+                      currentMapType: _mapType,
+                      showAlerts: _showAlertsLayer,
+                      showIncidents: _showIncidentsLayer,
+                      onMapTypeChanged: (type) => setState(() => _mapType = type),
+                      onToggleAlerts: (val) => setState(() => _showAlertsLayer = val),
+                      onToggleIncidents: (val) => setState(() => _showIncidentsLayer = val),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.search_rounded, color: AppTheme.textLow, size: 22),
+                  tooltip: 'Search / Filter Location',
+                  onPressed: () => _showSearchAlongRouteSheet(context),
+                ),
+                const SizedBox(width: 8),
               ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(1),
@@ -1951,34 +2585,39 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     panOffset: Offset.zero,
                     mapType: _mapType,
                   ),
-                  CustomPaint(
-                    painter: _DriverMapPainter(
-                      originLat: _originLat,
-                      originLng: _originLng,
-                      originName: _originName,
-                      destLat: _destLat,
-                      destLng: _destLng,
-                      destName: _destName,
-                      currentLat: _currentLat,
-                      currentLng: _currentLng,
-                      currentSpeed: _currentSpeed,
-                      isNavigating: _isNavigating,
-                      distanceKm: _distanceKm,
-                      remainingDistanceKm: _remainingDistanceKm,
-                      forwardHazards: _forwardHazards,
-                      cameraLat: _cameraLat,
-                      cameraLng: _cameraLng,
-                      cameraZoom: _cameraZoom,
-                      zoomLevel: _cameraZoom,
-                      panOffset: Offset.zero,
-                      routeCoordinates: _routeCoordinates,
-                      isSafest: _selectedRoute == 0 || _isSafest,
-                      mapType: _mapType,
-                      showAlerts: _showAlertsLayer,
-                      showIncidents: _showIncidentsLayer,
-                      currentRoadName: _getManeuvers().isNotEmpty && _activeManeuverIndex < _getManeuvers().length
-                          ? _getManeuvers()[_activeManeuverIndex].roadName
-                          : '',
+                  ListenableBuilder(
+                    listenable: Listenable.merge([_alertService, _reportService]),
+                    builder: (context, _) => CustomPaint(
+                      painter: _DriverMapPainter(
+                        originLat: _originLat,
+                        originLng: _originLng,
+                        originName: _originName,
+                        destLat: _destLat,
+                        destLng: _destLng,
+                        destName: _destName,
+                        currentLat: _currentLat,
+                        currentLng: _currentLng,
+                        currentSpeed: _currentSpeed,
+                        isNavigating: _isNavigating,
+                        distanceKm: _distanceKm,
+                        remainingDistanceKm: _remainingDistanceKm,
+                        forwardHazards: _forwardHazards,
+                        cameraLat: _cameraLat,
+                        cameraLng: _cameraLng,
+                        cameraZoom: _cameraZoom,
+                        zoomLevel: _cameraZoom,
+                        panOffset: Offset.zero,
+                        routeCoordinates: _routeCoordinates,
+                        isSafest: _selectedRoute == 0 || _isSafest,
+                        mapType: _mapType,
+                        showAlerts: _showAlertsLayer,
+                        showIncidents: _showIncidentsLayer,
+                        alerts: _alertService.alerts,
+                        reports: _reportService.reports,
+                        currentRoadName: _getManeuvers().isNotEmpty && _activeManeuverIndex < _getManeuvers().length
+                            ? _getManeuvers()[_activeManeuverIndex].roadName
+                            : '',
+                      ),
                     ),
                   ),
                 ],
@@ -1996,21 +2635,13 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
               child: Column(
                 children: [
                   _buildCompassButton(),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: Icons.search_rounded,
                     tooltip: 'Search along route',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Search along corridor: Fuel, Rest stops, Emergency'),
-                          backgroundColor: AppTheme.primaryBlue,
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                    onTap: () => _showSearchAlongRouteSheet(context),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: _voiceGuidanceMode == 0
                         ? Icons.volume_up_rounded
@@ -2021,28 +2652,26 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                     tooltip: 'Voice Guidance',
                     onTap: _cycleVoiceGuidance,
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
+                  _buildDarkNavigationFab(
+                    icon: Icons.pin_drop_rounded,
+                    tooltip: 'Destination Overview',
+                    onTap: _showDestinationOverview,
+                  ),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: Icons.alt_route_rounded,
                     tooltip: 'Alternative Routes',
-                    onTap: () => _showTurnByTurnDirectionsSheet(context),
+                    onTap: () => _showAlternativeRoutesSheet(context),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: Icons.warning_amber_rounded,
                     iconColor: const Color(0xFFF59E0B),
                     tooltip: 'Report Road Hazard',
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Report hazard: Landslide, Waterlogging, Obstruction'),
-                          backgroundColor: Color(0xFFD97706),
-                          duration: Duration(seconds: 2),
-                        ),
-                      );
-                    },
+                    onTap: () => HazardReportSheet.show(context),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: Icons.layers_rounded,
                     iconColor: _mapType != AppMapType.road ? const Color(0xFF16A34A) : Colors.white,
@@ -2059,7 +2688,7 @@ class _DriverMapScreenState extends State<DriverMapScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 8),
                   _buildDarkNavigationFab(
                     icon: Icons.notifications_active_rounded,
                     iconColor: const Color(0xFF60A5FA),
@@ -2532,6 +3161,8 @@ class _DriverMapPainter extends CustomPainter {
   final AppMapType mapType;
   final bool showAlerts;
   final bool showIncidents;
+  final List<AlertItem> alerts;
+  final List<ReportItem> reports;
   final String? currentRoadName;
 
   _DriverMapPainter({
@@ -2558,6 +3189,8 @@ class _DriverMapPainter extends CustomPainter {
     this.mapType = AppMapType.road,
     this.showAlerts = true,
     this.showIncidents = true,
+    this.alerts = const [],
+    this.reports = const [],
     this.currentRoadName,
   });
 
@@ -2687,23 +3320,46 @@ class _DriverMapPainter extends CustomPainter {
 
     // 8. Alerts Layer (Only rendered when showAlerts == true)
     if (showAlerts) {
-      // Forward Hazards
-      if (forwardHazards.isNotEmpty) {
-        final midX = (originPos.dx + destPos.dx) / 2;
-        final midY = (originPos.dy + destPos.dy) / 2;
-        final hazardPos = Offset(midX, midY - 20);
-        _drawHazardBeacon(canvas, hazardPos, const Color(0xFFEF4444), 'ALT: Ahead Hazard');
+      // Forward Hazards from journey telemetry
+      for (final h in forwardHazards) {
+        if (h is Map) {
+          final lat = (h['latitude'] as num?)?.toDouble() ?? (h['lat'] as num?)?.toDouble();
+          final lng = (h['longitude'] as num?)?.toDouble() ?? (h['lng'] as num?)?.toDouble() ?? (h['lon'] as num?)?.toDouble();
+          final hType = h['hazard_type']?.toString() ?? 'Ahead Hazard';
+          if (lat != null && lng != null) {
+            _drawHazardBeacon(canvas, toScreen(lat, lng), const Color(0xFFEF4444), 'ALT: $hType');
+          }
+        }
       }
 
-      // Live Corridor Alerts
-      _drawHazardBeacon(canvas, toScreen(25.9820, 91.8850), const Color(0xFFF59E0B), 'ALT: Nongpoh Landslide');
-      _drawHazardBeacon(canvas, toScreen(25.6812, 93.7145), const Color(0xFF38BDF8), 'ALT: Zubza Flood Watch');
+      // Live Corridor Alerts (anchored to authentic geographic coordinates)
+      for (final alert in alerts) {
+        final pos = toScreen(alert.lat, alert.lng);
+        if (pos.dx < -150 || pos.dx > size.width + 150 || pos.dy < -150 || pos.dy > size.height + 150) continue;
+        final isEmerg = alert.isEmergency || alert.severity.toUpperCase().contains('EMERGENCY') || alert.severity.toUpperCase().contains('CRITICAL');
+        final isCaution = alert.severity.toUpperCase().contains('CAUTION') || alert.severity.toUpperCase().contains('HIGH');
+        final color = isEmerg ? const Color(0xFFEF4444) : (isCaution ? const Color(0xFFF59E0B) : const Color(0xFF38BDF8));
+        final label = alert.title.length > 20 ? '${alert.title.substring(0, 18)}...' : alert.title;
+        _drawHazardBeacon(canvas, pos, color, 'ALT: $label');
+      }
     }
 
     // 9. Incidents Layer (Only rendered when showIncidents == true)
     if (showIncidents) {
-      _drawIncidentBeacon(canvas, toScreen(26.0124, 91.8901), const Color(0xFFDC2626), 'INC: Boulder Roll');
-      _drawIncidentBeacon(canvas, toScreen(25.7500, 91.9010), const Color(0xFFEA580C), 'INC: Heavy Fog Sector');
+      for (final report in reports) {
+        final pos = toScreen(report.lat, report.lng);
+        if (pos.dx < -150 || pos.dx > size.width + 150 || pos.dy < -150 || pos.dy > size.height + 150) continue;
+        final Color color;
+        if (report.severity.toUpperCase().contains('FULL') || report.severity.toUpperCase().contains('CRITICAL')) {
+          color = const Color(0xFFDC2626);
+        } else if (report.severity.toUpperCase().contains('PARTIAL') || report.severity.toUpperCase().contains('MODERATE')) {
+          color = const Color(0xFFEA580C);
+        } else {
+          color = const Color(0xFF059669);
+        }
+        final label = report.hazardType.length > 18 ? '${report.hazardType.substring(0, 16)}...' : report.hazardType;
+        _drawIncidentBeacon(canvas, pos, color, 'INC: $label');
+      }
     }
 
     // 10. Origin and Destination Pins
@@ -2760,9 +3416,18 @@ class _DriverMapPainter extends CustomPainter {
           : (originName == 'Guwahati' ? 'Ramkrishnapur Rd' : '$originName Express');
       _drawVehicleRoadTag(canvas, currentPos, displayRoad);
 
-      // Road hazard caution badge on corridor ("⚠️ Narrow road")
-      final hazardMid = Offset((originPos.dx + destPos.dx) / 2 + 35, (originPos.dy + destPos.dy) / 2 - 25);
-      _drawRoadHazardPill(canvas, hazardMid, 'Narrow road');
+      // Dynamic road hazard caution badge on corridor (if verified hazard ahead)
+      if (forwardHazards.isNotEmpty) {
+        final top = forwardHazards.first;
+        if (top is Map) {
+          final lat = (top['latitude'] as num?)?.toDouble() ?? (top['lat'] as num?)?.toDouble();
+          final lng = (top['longitude'] as num?)?.toDouble() ?? (top['lng'] as num?)?.toDouble();
+          final hType = top['hazard_type']?.toString() ?? 'Caution Ahead';
+          if (lat != null && lng != null) {
+            _drawRoadHazardPill(canvas, toScreen(lat, lng), hType);
+          }
+        }
+      }
     } else {
       // Standard standby beacon
       canvas.drawCircle(currentPos, 18, Paint()..color = AppTheme.primaryBlue.withValues(alpha: 0.2));

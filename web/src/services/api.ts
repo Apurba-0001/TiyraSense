@@ -709,4 +709,47 @@ export async function deleteUser(userId: string): Promise<boolean> {
   return true;
 }
 
+export interface WebSystemSettings {
+  platform_designation: string;
+  jurisdiction: string;
+  monsoon_season: string;
+  sync_frequency: string;
+  auto_escalate: boolean;
+  caution_boundary: number;
+  high_boundary: number;
+  emergency_threshold: number;
+  broadcast_to_drivers: boolean;
+  audible_alarm: boolean;
+  daily_digest: boolean;
+  auto_clear_resolved: boolean;
+  quorum_threshold: string;
+}
+
+export async function fetchSystemSettings(): Promise<WebSystemSettings> {
+  const res = await fetch(`${API_BASE}/settings`, {
+    headers: getHeaders(true),
+  });
+  if (!res.ok) {
+    throw new ApiErrorResponse('Failed to fetch system settings', res.status);
+  }
+  return res.json();
+}
+
+export async function updateSystemSettings(settings: Partial<WebSystemSettings>): Promise<WebSystemSettings> {
+  const res = await fetch(`${API_BASE}/settings`, {
+    method: 'PATCH',
+    headers: getHeaders(true),
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) {
+    let errorMsg = 'Failed to update system settings';
+    try {
+      const err = await res.json();
+      if (err.detail) errorMsg = err.detail;
+    } catch {}
+    throw new ApiErrorResponse(errorMsg, res.status);
+  }
+  return res.json();
+}
+
 

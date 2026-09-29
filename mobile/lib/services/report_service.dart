@@ -26,6 +26,8 @@ class ReportItem {
   String? reporterId;
   String? reporterRole;
   final String coordinates;
+  final double? latitude;
+  final double? longitude;
   String? dispatchUnit;
   String? dispatchNotes;
   final bool isMine;
@@ -51,6 +53,8 @@ class ReportItem {
     this.reporterId,
     this.reporterRole,
     this.coordinates = '26.0124° N, 91.8901° E',
+    this.latitude,
+    this.longitude,
     this.dispatchUnit,
     this.dispatchNotes,
     this.isMine = false,
@@ -63,6 +67,42 @@ class ReportItem {
   // Bidirectional aliases
   String get description => notes;
   String get submitted => relativeTime;
+
+  double get lat {
+    if (latitude != null) return latitude!;
+    return parseCoordinate(coordinates, true) ?? parseCoordinate(location, true) ?? 25.9030;
+  }
+
+  double get lng {
+    if (longitude != null) return longitude!;
+    return parseCoordinate(coordinates, false) ?? parseCoordinate(location, false) ?? 91.8780;
+  }
+
+  static double? parseCoordinate(String? text, bool isLat) {
+    if (text == null || text.trim().isEmpty) return null;
+    final reg = RegExp(r'([0-9]+\.?[0-9]*)\s*°?\s*([NS])?.*?([0-9]+\.?[0-9]*)\s*°?\s*([EW])?');
+    final match = reg.firstMatch(text);
+    if (match != null) {
+      if (isLat) {
+        final val = double.tryParse(match.group(1) ?? '');
+        if (val != null) {
+          final isSouth = (match.group(2) ?? '').toUpperCase() == 'S';
+          return isSouth ? -val : val;
+        }
+      } else {
+        final val = double.tryParse(match.group(3) ?? '');
+        if (val != null) {
+          final isWest = (match.group(4) ?? '').toUpperCase() == 'W';
+          return isWest ? -val : val;
+        }
+      }
+    }
+    final nums = RegExp(r'[-+]?[0-9]+\.[0-9]+').allMatches(text).map((m) => double.tryParse(m.group(0)!)).whereType<double>().toList();
+    if (nums.length >= 2) {
+      return isLat ? nums[0] : nums[1];
+    }
+    return null;
+  }
 
   String get relativeTime {
     final diff = DateTime.now().difference(timestamp);
@@ -90,6 +130,8 @@ class ReportItem {
     'reporterId': reporterId,
     'reporterRole': reporterRole,
     'coordinates': coordinates,
+    'latitude': latitude ?? lat,
+    'longitude': longitude ?? lng,
     'dispatchUnit': dispatchUnit,
     'dispatchNotes': dispatchNotes,
     'isMine': isMine,
@@ -98,6 +140,8 @@ class ReportItem {
   };
 
   factory ReportItem.fromJson(Map<String, dynamic> json) {
+    final parsedLat = (json['latitude'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble();
+    final parsedLng = (json['longitude'] as num?)?.toDouble() ?? (json['lon'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble();
     return ReportItem(
       id: json['id']?.toString() ?? 'RP-${DateTime.now().millisecondsSinceEpoch}',
       corridor: json['corridor']?.toString() ?? json['corridor_name']?.toString() ?? 'NH-06',
@@ -119,7 +163,9 @@ class ReportItem {
       workerUnit: json['workerUnit']?.toString() ?? json['reporter_unit']?.toString() ?? 'Field Recon',
       reporterId: json['reporterId']?.toString() ?? json['reporter_id']?.toString(),
       reporterRole: json['reporterRole']?.toString() ?? json['reporter_role']?.toString() ?? json['worker_role']?.toString(),
-      coordinates: json['coordinates']?.toString() ?? '${json['latitude'] ?? 26.0124}° N, ${json['longitude'] ?? 91.8901}° E',
+      coordinates: json['coordinates']?.toString() ?? (parsedLat != null && parsedLng != null ? '${parsedLat.toStringAsFixed(4)}° N, ${parsedLng.toStringAsFixed(4)}° E' : '26.0124° N, 91.8901° E'),
+      latitude: parsedLat,
+      longitude: parsedLng,
       dispatchUnit: json['dispatchUnit']?.toString() ?? json['dispatch_unit']?.toString(),
       dispatchNotes: json['dispatchNotes']?.toString() ?? json['dispatch_notes']?.toString(),
       isMine: json['isMine'] == true,

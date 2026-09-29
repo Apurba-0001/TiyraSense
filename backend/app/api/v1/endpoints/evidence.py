@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.app.api.deps import get_optional_current_user
+from backend.app.api.deps import get_current_user, get_optional_current_user
 from backend.app.core.config import settings
 from backend.app.core.database import get_db_session
 from backend.app.models.user import User
@@ -35,7 +35,7 @@ _IN_MEMORY_EVIDENCE: List[dict] = []
 )
 async def generate_upload_signature(
     req: CloudinarySignatureRequest,
-    current_user: Optional[User] = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Generate SHA-1 signature for secure direct client-side upload to Cloudinary.

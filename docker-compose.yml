@@ -1,0 +1,48 @@
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: tiyrasense-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tiyrasense_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-tiyrasense_secure_pass_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-tiyrasense_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - tiyrasense_pgdata:/var/lib/postgresql/data
+      - ./backend/migrations/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tiyrasense_user} -d ${POSTGRES_DB:-tiyrasense_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - tiyrasense-net
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: tiyrasense-api
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    environment:
+      APP_NAME: TiyraSense
+      APP_ENV: development
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-tiyrasense_user}:${POSTGRES_PASSWORD:-tiyrasense_secure_pass_2026}@db:5432/${POSTGRES_DB:-tiyrasense_db}
+      AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:-tiyrasense_jwt_dev_secret_key_2026_ner_logistics}
+    networks:
+      - tiyrasense-net
+
+volumes:
+  tiyrasense_pgdata:
+
+networks:
+  tiyrasense-net:
+    driver: bridge
+

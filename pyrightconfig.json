@@ -1,0 +1,12 @@
+{
+  "venvPath": ".",
+  "venv": ".venv",
+  "include": [
+    "backend",
+    "scripts"
+  ],
+  "extraPaths": [
+    ".",
+    ".venv/Lib/site-packages"
+  ]
+}

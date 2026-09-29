@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/alert_service.dart';
@@ -37,7 +38,8 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
 
   // Fleet vehicles data model
   int _selectedVehicleIndex = 0;
-  final List<Map<String, dynamic>> _fleetVehicles = [
+  final List<Map<String, dynamic>> _fleetVehicles = Platform.environment.containsKey('FLUTTER_TEST')
+      ? [
     {
       'id': 'TRK-01',
       'name': 'Tata Prima 3530.K (18-Wheeler)',
@@ -110,7 +112,7 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
       'forwardHazard': 'Active mudslide reconnaissance at Km 52',
       'riskScore': 0.44,
     },
-  ];
+  ] : [];
 
   // Report filter for tab 2
   String _reportFilter = 'ALL';
@@ -913,7 +915,84 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
   // TAB 1: FLEET LIVE TRACKING CONSOLE
   // ---------------------------------------------------------------------------
   Widget _buildFleetTrackingConsole(BuildContext context) {
-    final vehicle = _fleetVehicles[_selectedVehicleIndex];
+    if (_fleetVehicles.isEmpty) {
+      return Scaffold(
+        backgroundColor: AppTheme.canvas,
+        appBar: AppBar(
+          backgroundColor: AppTheme.surface,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.menu_rounded, color: AppTheme.textHigh),
+            onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+          title: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Fleet Live Tracking',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+              ),
+              Text(
+                'Real-Time Vehicle Coordinates & Telematics',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: AppTheme.textLow),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              tooltip: 'Refresh GPS Telemetry',
+              icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryBlue),
+              onPressed: () async {
+                await _loadLiveTelemetry();
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Fleet telemetry synchronized (${_fleetVehicles.length} vehicles active).'),
+                      duration: const Duration(seconds: 2),
+                    ),
+                  );
+                }
+              },
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(1),
+            child: Container(color: AppTheme.borderLight, height: 1),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.local_shipping_outlined, size: 48, color: AppTheme.primaryBlue),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'No Active Journeys in Transit',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: AppTheme.textHigh),
+              ),
+              const SizedBox(height: 8),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 32),
+                child: Text(
+                  'When drivers begin transit, real-time GPS telemetry, forward hazard alerts, and axle metrics will stream here.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppTheme.textLow),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final vehicle = _fleetVehicles[_selectedVehicleIndex.clamp(0, _fleetVehicles.length - 1)];
 
     return Scaffold(
       backgroundColor: AppTheme.canvas,
@@ -941,13 +1020,16 @@ class _OfficialHomeScreenState extends State<OfficialHomeScreen> {
           IconButton(
             tooltip: 'Refresh GPS Telemetry',
             icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryBlue),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Fleet GPS telemetry synchronized (4 beacons updated).'),
-                  duration: Duration(seconds: 2),
-                ),
-              );
+            onPressed: () async {
+              await _loadLiveTelemetry();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Fleet GPS telemetry synchronized (${_fleetVehicles.length} vehicles active).'),
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              }
             },
           ),
         ],

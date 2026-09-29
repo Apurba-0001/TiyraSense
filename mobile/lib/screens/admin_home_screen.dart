@@ -29,7 +29,7 @@ class AdminHomeScreen extends StatefulWidget {
 class _AdminHomeScreenState extends State<AdminHomeScreen> {
   int _currentTabIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final ApiService _apiService = ApiService();
+  ApiService get _apiService => widget.authProvider.apiService;
 
   // Storage & Evidence State
   Map<String, dynamic>? _evidenceStats;
@@ -1320,21 +1320,72 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                               minimumSize: Size.zero,
                               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            onPressed: () {
+                            onPressed: () async {
+                              final newStatus = isActive ? 'SUSPENDED' : 'ACTIVE';
                               setState(() {
-                                u['status'] = isActive ? 'SUSPENDED' : 'ACTIVE';
+                                u['status'] = newStatus;
                               });
                               ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(
-                                  content: Text('User ${u['name']} status toggled to ${u['status']}.'),
+                                  content: Text('User ${u['name']} status toggled to $newStatus.'),
                                   backgroundColor: isActive ? AppTheme.red : AppTheme.green,
                                 ),
                               );
+                              try {
+                                await _apiService.updateUser(
+                                  userId: u['id'].toString(),
+                                  status: newStatus,
+                                );
+                                await _loadUsers();
+                              } catch (_) {}
                             },
                             child: Text(
                               isActive ? 'Suspend User' : 'Activate User',
                               style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                             ),
+                          ),
+                          const SizedBox(width: 6),
+                          IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: AppTheme.red, size: 20),
+                            tooltip: 'Delete User Account',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogCtx) => AlertDialog(
+                                  title: const Text('Delete User Account?'),
+                                  content: Text('Permanently delete ${u['name']} (${u['email']})? This action cannot be undone.'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.of(dialogCtx).pop(false),
+                                      child: const Text('Cancel'),
+                                    ),
+                                    ElevatedButton(
+                                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.red),
+                                      onPressed: () => Navigator.of(dialogCtx).pop(true),
+                                      child: const Text('Delete', style: TextStyle(color: Colors.white)),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true) {
+                                setState(() {
+                                  _users.removeWhere((item) => item['id'] == u['id']);
+                                });
+                                if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text('User ${u['name']} deleted.'),
+                                      backgroundColor: AppTheme.green,
+                                    ),
+                                  );
+                                }
+                                try {
+                                  await _apiService.deleteUser(u['id'].toString());
+                                  await _loadUsers();
+                                } catch (_) {}
+                              }
+                            },
                           ),
                         ],
                       ),
@@ -1860,9 +1911,10 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    onPressed: () {
+                    onPressed: () async {
                       final name = nameController.text.trim();
                       final email = emailController.text.trim();
+                      final org = orgController.text.trim();
                       if (name.isEmpty || email.isEmpty) return;
 
                       setState(() {
@@ -1871,7 +1923,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                           'name': name,
                           'email': email,
                           'role': selectedRole,
-                          'org': orgController.text.trim(),
+                          'org': org,
                           'status': 'ACTIVE',
                           'phone': '+91 98000 00000',
                           'joined': 'Just now',
@@ -1885,6 +1937,16 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
                           backgroundColor: AppTheme.green,
                         ),
                       );
+
+                      try {
+                        await _apiService.inviteUser(
+                          email: email,
+                          name: name,
+                          role: selectedRole,
+                          organization: org,
+                        );
+                        await _loadUsers();
+                      } catch (_) {}
                     },
                     child: const Text('Provision User Account', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w800)),
                   ),

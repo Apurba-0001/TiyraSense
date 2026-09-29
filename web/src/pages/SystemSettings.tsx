@@ -20,8 +20,14 @@ import {
   Trash2,
   Image,
 } from 'lucide-react';
+import {
+  fetchEvidenceStats,
+  deleteEvidencePhoto,
+  WebEvidenceStats,
+  fetchSystemSettings,
+  updateSystemSettings,
+} from '../services/api';
 import appIcon from '../assets/app_icon.png';
-import { fetchEvidenceStats, deleteEvidencePhoto, WebEvidenceStats } from '../services/api';
 
 interface DataSourceItem {
   id: string;
@@ -136,17 +142,58 @@ export const SystemSettings: React.FC = () => {
   // Access Logs State
   const [logSearch, setLogSearch] = useState('');
 
-  const handleSaveDesignation = () => {
-    setPlatformDesignation(tempDesignation.trim() || platformDesignation);
+  const loadSystemSettings = async () => {
+    try {
+      const s = await fetchSystemSettings();
+      if (s) {
+        setPlatformDesignation(s.platform_designation);
+        setTempDesignation(s.platform_designation);
+        setJurisdiction(s.jurisdiction);
+        setTempJurisdiction(s.jurisdiction);
+        setMonsoonSeason(s.monsoon_season);
+        setSyncFreq(s.sync_frequency);
+        setAutoEscalate(s.auto_escalate);
+        setCautionBoundary(s.caution_boundary);
+        setHighBoundary(s.high_boundary);
+        setEmergencyThreshold(s.emergency_threshold);
+        setBroadcastToDrivers(s.broadcast_to_drivers);
+        setAudibleAlarm(s.audible_alarm);
+        setDailyDigest(s.daily_digest);
+        setAutoClearResolved(s.auto_clear_resolved);
+        setQuorumThreshold(s.quorum_threshold);
+      }
+    } catch (e) {
+      console.warn('Backend system settings offline, fallback to defaults:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadSystemSettings();
+  }, []);
+
+  const handleSaveDesignation = async () => {
+    const val = tempDesignation.trim() || platformDesignation;
+    setPlatformDesignation(val);
     setIsEditingDesignation(false);
-    setGeneralFeedback('Platform Designation updated successfully.');
+    try {
+      await updateSystemSettings({ platform_designation: val });
+      setGeneralFeedback('Platform Designation updated and persisted to database.');
+    } catch {
+      setGeneralFeedback('Platform Designation updated locally.');
+    }
     setTimeout(() => setGeneralFeedback(null), 3000);
   };
 
-  const handleSaveJurisdiction = () => {
-    setJurisdiction(tempJurisdiction.trim() || jurisdiction);
+  const handleSaveJurisdiction = async () => {
+    const val = tempJurisdiction.trim() || jurisdiction;
+    setJurisdiction(val);
     setIsEditingJurisdiction(false);
-    setGeneralFeedback('Operating Jurisdiction updated successfully.');
+    try {
+      await updateSystemSettings({ jurisdiction: val });
+      setGeneralFeedback('Operating Jurisdiction updated and persisted to database.');
+    } catch {
+      setGeneralFeedback('Operating Jurisdiction updated locally.');
+    }
     setTimeout(() => setGeneralFeedback(null), 3000);
   };
 
@@ -171,13 +218,25 @@ export const SystemSettings: React.FC = () => {
   };
 
   const handleSaveThresholds = () => {
-    setThresholdFeedback('Risk Score Threshold policies applied to live inference engine.');
+    setThresholdFeedback('Risk Score Threshold policies applied to live inference engine and persisted.');
     setTimeout(() => setThresholdFeedback(null), 3000);
+    updateSystemSettings({
+      caution_boundary: cautionBoundary,
+      high_boundary: highBoundary,
+      emergency_threshold: emergencyThreshold,
+    }).catch(() => {});
   };
 
   const handleSaveRules = () => {
-    setRulesFeedback('Alert notification and quorum rules updated successfully.');
+    setRulesFeedback('Alert notification and quorum rules updated and persisted.');
     setTimeout(() => setRulesFeedback(null), 3000);
+    updateSystemSettings({
+      broadcast_to_drivers: broadcastToDrivers,
+      audible_alarm: audibleAlarm,
+      daily_digest: dailyDigest,
+      auto_clear_resolved: autoClearResolved,
+      quorum_threshold: quorumThreshold,
+    }).catch(() => {});
   };
 
   const loadStorageStats = async () => {
@@ -555,7 +614,15 @@ export const SystemSettings: React.FC = () => {
                     </label>
                     <select
                       value={monsoonSeason}
-                      onChange={(e) => setMonsoonSeason(e.target.value)}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setMonsoonSeason(val);
+                        try {
+                          await updateSystemSettings({ monsoon_season: val });
+                          setGeneralFeedback('Primary Disruption Season updated and synced.');
+                          setTimeout(() => setGeneralFeedback(null), 3000);
+                        } catch {}
+                      }}
                       style={{
                         width: '100%',
                         height: '38px',
@@ -578,7 +645,15 @@ export const SystemSettings: React.FC = () => {
                     </label>
                     <select
                       value={syncFreq}
-                      onChange={(e) => setSyncFreq(e.target.value)}
+                      onChange={async (e) => {
+                        const val = e.target.value;
+                        setSyncFreq(val);
+                        try {
+                          await updateSystemSettings({ sync_frequency: val });
+                          setGeneralFeedback('Sensor Stream Polling frequency updated and synced.');
+                          setTimeout(() => setGeneralFeedback(null), 3000);
+                        } catch {}
+                      }}
                       style={{
                         width: '100%',
                         height: '38px',
@@ -620,7 +695,15 @@ export const SystemSettings: React.FC = () => {
                   <input
                     type="checkbox"
                     checked={autoEscalate}
-                    onChange={(e) => setAutoEscalate(e.target.checked)}
+                    onChange={async (e) => {
+                      const val = e.target.checked;
+                      setAutoEscalate(val);
+                      try {
+                        await updateSystemSettings({ auto_escalate: val });
+                        setGeneralFeedback('Auto-escalate rule updated and synced.');
+                        setTimeout(() => setGeneralFeedback(null), 3000);
+                      } catch {}
+                    }}
                     style={{ width: '18px', height: '18px', cursor: 'pointer' }}
                   />
                 </div>

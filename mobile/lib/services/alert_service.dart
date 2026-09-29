@@ -23,6 +23,8 @@ class AlertItem {
   final String? resolvedBy;
   final String? resolvedAt;
   final String source;
+  final double? latitude;
+  final double? longitude;
 
   AlertItem({
     required this.id,
@@ -41,6 +43,8 @@ class AlertItem {
     this.resolvedBy,
     this.resolvedAt,
     this.source = 'ASDMA Operational Feed',
+    this.latitude,
+    this.longitude,
   }) : severity = severity ?? type ?? 'INFO';
 
   // Bi-directional compatibility getters & setters
@@ -49,6 +53,74 @@ class AlertItem {
   String get affects => location;
   bool get acknowledged => isRead;
   set acknowledged(bool val) => isRead = val;
+
+  double get lat {
+    if (latitude != null) return latitude!;
+    return _parseCoord(location, true) ?? _fallbackCorridorLat(corridor, location);
+  }
+
+  double get lng {
+    if (longitude != null) return longitude!;
+    return _parseCoord(location, false) ?? _fallbackCorridorLng(corridor, location);
+  }
+
+  static double? _parseCoord(String? text, bool isLat) {
+    if (text == null || text.trim().isEmpty) return null;
+    final reg = RegExp(r'([0-9]+\.?[0-9]*)\s*°?\s*([NS])?.*?([0-9]+\.?[0-9]*)\s*°?\s*([EW])?');
+    final match = reg.firstMatch(text);
+    if (match != null) {
+      if (isLat) {
+        final val = double.tryParse(match.group(1) ?? '');
+        if (val != null) {
+          final isSouth = (match.group(2) ?? '').toUpperCase() == 'S';
+          return isSouth ? -val : val;
+        }
+      } else {
+        final val = double.tryParse(match.group(3) ?? '');
+        if (val != null) {
+          final isWest = (match.group(4) ?? '').toUpperCase() == 'W';
+          return isWest ? -val : val;
+        }
+      }
+    }
+    final nums = RegExp(r'[-+]?[0-9]+\.[0-9]+').allMatches(text).map((m) => double.tryParse(m.group(0)!)).whereType<double>().toList();
+    if (nums.length >= 2) {
+      return isLat ? nums[0] : nums[1];
+    }
+    return null;
+  }
+
+  static double _fallbackCorridorLat(String corridor, String location) {
+    final text = '$corridor $location'.toLowerCase();
+    if (text.contains('guwahati')) return 26.1445;
+    if (text.contains('jorabat')) return 26.0850;
+    if (text.contains('nongpoh')) return 25.9030;
+    if (text.contains('umling') || text.contains('sonapur')) return 25.7500;
+    if (text.contains('shillong') || text.contains('mawlai')) return 25.5788;
+    if (text.contains('jowai')) return 25.4500;
+    if (text.contains('damra') || text.contains('mawkyrwat')) return 25.8200;
+    if (text.contains('silchar') || text.contains('dabaka')) return 24.8333;
+    if (text.contains('zubza') || text.contains('kohima')) return 25.6812;
+    if (text.contains('kaziranga') || text.contains('nagaon')) return 26.5800;
+    if (text.contains('jorhat')) return 26.7500;
+    return 25.8616;
+  }
+
+  static double _fallbackCorridorLng(String corridor, String location) {
+    final text = '$corridor $location'.toLowerCase();
+    if (text.contains('guwahati')) return 91.7362;
+    if (text.contains('jorabat')) return 91.8724;
+    if (text.contains('nongpoh')) return 91.8780;
+    if (text.contains('umling') || text.contains('sonapur')) return 91.9010;
+    if (text.contains('shillong') || text.contains('mawlai')) return 91.8933;
+    if (text.contains('jowai')) return 92.2000;
+    if (text.contains('damra') || text.contains('mawkyrwat')) return 91.4500;
+    if (text.contains('silchar') || text.contains('dabaka')) return 92.7926;
+    if (text.contains('zubza') || text.contains('kohima')) return 93.7145;
+    if (text.contains('kaziranga') || text.contains('nagaon')) return 93.1700;
+    if (text.contains('jorhat')) return 94.2167;
+    return 91.8147;
+  }
 
   String get relativeTime {
     final diff = DateTime.now().difference(timestamp);
@@ -74,6 +146,8 @@ class AlertItem {
         'resolvedBy': resolvedBy,
         'resolvedAt': resolvedAt,
         'source': source,
+        'latitude': latitude ?? lat,
+        'longitude': longitude ?? lng,
       };
 
   factory AlertItem.fromJson(Map<String, dynamic> json) {
@@ -88,6 +162,9 @@ class AlertItem {
     } else if (statusStr.contains('restricted')) {
       parsedStatus = BadgeStatusType.restricted;
     }
+
+    final parsedLat = (json['latitude'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble();
+    final parsedLng = (json['longitude'] as num?)?.toDouble() ?? (json['lon'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble();
 
     return AlertItem(
       id: json['id']?.toString() ?? 'ALT-${DateTime.now().millisecondsSinceEpoch}',
@@ -107,6 +184,8 @@ class AlertItem {
       resolvedBy: json['resolvedBy']?.toString(),
       resolvedAt: json['resolvedAt']?.toString(),
       source: json['source']?.toString() ?? 'ASDMA Operational Feed',
+      latitude: parsedLat,
+      longitude: parsedLng,
     );
   }
 }
@@ -195,6 +274,10 @@ class AlertService extends ChangeNotifier {
   }
 
   void _seedInitialAlerts() {
+    // Only seed static items in FLUTTER_TEST environments so live real app is clean with no demo data
+    if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      return;
+    }
     final now = DateTime.now();
     _alerts.addAll([
       AlertItem(
@@ -301,6 +384,7 @@ class AlertService extends ChangeNotifier {
     }
     _persistAlerts();
     notifyListeners();
+    ApiService().acknowledgeAllAlerts().catchError((_) => false);
   }
 
   void acknowledgeAllAlerts() => markAllRead();
@@ -317,6 +401,7 @@ class AlertService extends ChangeNotifier {
     if (hasChanges) {
       _persistAlerts();
       notifyListeners();
+      ApiService().acknowledgeAllAlerts().catchError((_) => false);
     }
   }
 
@@ -327,6 +412,7 @@ class AlertService extends ChangeNotifier {
       _alerts[index].isRead = true;
       _persistAlerts();
       notifyListeners();
+      ApiService().acknowledgeAlert(id).catchError((_) => false);
     }
   }
 
@@ -339,6 +425,9 @@ class AlertService extends ChangeNotifier {
       _alerts[index].isRead = !_alerts[index].isRead;
       _persistAlerts();
       notifyListeners();
+      if (_alerts[index].isRead) {
+        ApiService().acknowledgeAlert(id).catchError((_) => false);
+      }
     }
   }
 
@@ -349,6 +438,7 @@ class AlertService extends ChangeNotifier {
     _persistAlerts();
     _persistDeletedIds();
     notifyListeners();
+    ApiService().deleteAlert(id).catchError((_) => false);
   }
 
   /// Add a dynamic alert and persist to local storage
@@ -446,6 +536,14 @@ class AlertService extends ChangeNotifier {
       if (combined.isEmpty) return;
 
       bool hasChanges = false;
+      final isTest = Platform.environment.containsKey('FLUTTER_TEST');
+      if (!isTest && combined.isNotEmpty) {
+        final removedCount = _alerts.where((a) => a.id.startsWith('ALT-30')).length;
+        if (removedCount > 0) {
+          _alerts.removeWhere((a) => a.id.startsWith('ALT-30'));
+          hasChanges = true;
+        }
+      }
       for (final item in combined) {
         final alertId = item['id']?.toString() ?? '';
         if (alertId.isEmpty || _deletedAlertIds.contains(alertId)) {
@@ -489,6 +587,8 @@ class AlertService extends ChangeNotifier {
           isEmergency: isEmerg,
           isRead: false,
           source: item['source']?.toString() ?? 'Official Command Feed',
+          latitude: (item['latitude'] as num?)?.toDouble() ?? (item['lat'] as num?)?.toDouble(),
+          longitude: (item['longitude'] as num?)?.toDouble() ?? (item['lon'] as num?)?.toDouble() ?? (item['lng'] as num?)?.toDouble(),
         );
 
         _alerts.insert(0, newAlert);

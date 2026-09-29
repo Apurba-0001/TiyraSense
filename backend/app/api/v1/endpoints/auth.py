@@ -1,3 +1,4 @@
+import secrets
 import uuid
 from typing import List
 from datetime import timedelta
@@ -70,7 +71,7 @@ async def login(
                 user = User(
                     id=uuid.UUID(sb_user["id"]) if "id" in sb_user else uuid.uuid4(),
                     email=sb_user.get("email", email_clean),
-                    password_hash=sb_user.get("password_hash", get_password_hash("WelcomeTiyra2026!")),
+                    password_hash=sb_user.get("password_hash", get_password_hash(secrets.token_urlsafe(32))),
                     full_name=sb_user.get("full_name", "User"),
                     role=user_role,
                     phone_number=sb_user.get("phone_number"),
@@ -414,7 +415,8 @@ async def invite_user(
         except ValueError:
             db_role = UserRole.OFFICIAL
 
-        temp_password = "WelcomeTiyra2026!"
+        import secrets
+        temp_password = secrets.token_urlsafe(16)  # unique per invite, returned in response for secure delivery
         new_id = uuid.uuid4()
         new_user = User(
             id=new_id,
@@ -480,10 +482,11 @@ async def invite_user(
             db_role = UserRole.OFFICIAL
 
         new_id = uuid.uuid4()
+        import secrets
         fallback_user = User(
             id=new_id,
             email=email_clean,
-            password_hash=get_password_hash("WelcomeTiyra2026!"),
+            password_hash=get_password_hash(secrets.token_urlsafe(16)),
             full_name=invite_in.name.strip(),
             role=db_role,
             phone_number=invite_in.phone_number,

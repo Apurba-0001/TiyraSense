@@ -183,3 +183,67 @@ async def test_security_headers_present_on_api():
         response = await client.get("/api/v1/health")
         assert response.headers.get("x-content-type-options") == "nosniff"
         assert response.headers.get("x-frame-options") == "DENY"
+
+
+# ── Endpoint authentication guards (Security Audit Remediation) ───────────────
+
+@pytest.mark.asyncio
+async def test_settings_endpoint_requires_auth():
+    """GET /api/v1/settings must require authentication and reject anonymous access with 401."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        # 1. Anonymous request must be rejected
+        unauth_res = await client.get("/api/v1/settings")
+        assert unauth_res.status_code == 401
+
+        # 2. Authenticated request must succeed
+        login_res = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "driver@tiyrasense.in", "password": "DriverPass2026!"},
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+
+        auth_res = await client.get(
+            "/api/v1/settings",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert auth_res.status_code == 200
+        data = auth_res.json()
+        assert "caution_boundary" in data
+        assert "emergency_threshold" in data
+
+
+@pytest.mark.asyncio
+async def test_evidence_signature_endpoint_requires_auth():
+    """POST /api/v1/evidence/signature must require authentication and reject anonymous access with 401."""
+    async with AsyncClient(
+        transport=ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        # 1. Anonymous request must be rejected
+        unauth_res = await client.post(
+            "/api/v1/evidence/signature",
+            json={"folder": "tiyrasense/evidence"},
+        )
+        assert unauth_res.status_code == 401
+
+        # 2. Authenticated request must succeed
+        login_res = await client.post(
+            "/api/v1/auth/login",
+            json={"email": "driver@tiyrasense.in", "password": "DriverPass2026!"},
+        )
+        assert login_res.status_code == 200
+        token = login_res.json()["access_token"]
+
+        auth_res = await client.post(
+            "/api/v1/evidence/signature",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"folder": "tiyrasense/evidence"},
+        )
+        assert auth_res.status_code == 200
+        data = auth_res.json()
+        assert "signature" in data
+        assert "upload_url" in data
+        assert "timestamp" in data
+

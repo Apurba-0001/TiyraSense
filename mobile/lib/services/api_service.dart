@@ -967,7 +967,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchCorridors([String? token]) async {
     try {
       final response = await _sendWithFallback((baseUrl) {
-        final url = Uri.parse('$baseUrl/corridors');
+        final url = Uri.parse('$baseUrl/routes/corridors');
         final headers = <String, String>{'Content-Type': 'application/json'};
         if (token != null && token.isNotEmpty) {
           headers['Authorization'] = 'Bearer $token';
@@ -1009,7 +1009,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> fetchRegionalWeather() async {
     try {
       final response = await _sendWithFallback((baseUrl) {
-        final url = Uri.parse('$baseUrl/weather/regional');
+        final url = Uri.parse('$baseUrl/external/weather');
         return _client.get(url);
       });
       if (response.statusCode == 200) {
@@ -1025,11 +1025,14 @@ class ApiService {
   /// Fetch live users list for Admin and Official operations
   Future<List<Map<String, dynamic>>> fetchUsers([String? token]) async {
     try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
       final response = await _sendWithFallback((baseUrl) {
         final url = Uri.parse('$baseUrl/auth/users');
         final headers = <String, String>{'Content-Type': 'application/json'};
-        if (token != null && token.isNotEmpty) {
-          headers['Authorization'] = 'Bearer $token';
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
         }
         return _client.get(url, headers: headers);
       });
@@ -1042,7 +1045,205 @@ class ApiService {
     } catch (_) {}
     return [];
   }
+
+  /// Invite and register a new user (Official and Admin operation)
+  Future<Map<String, dynamic>?> inviteUser({
+    required String name,
+    required String email,
+    required String role,
+    String? organization,
+    String? phoneNumber,
+    String? token,
+  }) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/users/invite');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.post(
+          url,
+          headers: headers,
+          body: jsonEncode({
+            'name': name.trim(),
+            'email': email.trim(),
+            'role': role.trim(),
+            if (organization != null && organization.trim().isNotEmpty)
+              'organization': organization.trim(),
+            if (phoneNumber != null && phoneNumber.trim().isNotEmpty)
+              'phone_number': phoneNumber.trim(),
+          }),
+        );
+      });
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Update user details, role, or status
+  Future<Map<String, dynamic>?> updateUser({
+    required String userId,
+    String? fullName,
+    String? role,
+    String? status,
+    String? organization,
+    String? phoneNumber,
+    String? token,
+  }) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/users/$userId');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        final payload = <String, dynamic>{};
+        if (fullName != null) payload['full_name'] = fullName;
+        if (role != null) payload['role'] = role;
+        if (status != null) payload['status'] = status;
+        if (organization != null) payload['organization'] = organization;
+        if (phoneNumber != null) payload['phone_number'] = phoneNumber;
+        return _client.patch(url, headers: headers, body: jsonEncode(payload));
+      });
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Delete a user account (Admin action)
+  Future<bool> deleteUser(String userId, [String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/auth/users/$userId');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.delete(url, headers: headers);
+      });
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Acknowledge an active corridor alert
+  Future<bool> acknowledgeAlert(String alertId, [String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/alerts/$alertId/acknowledge');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.patch(url, headers: headers);
+      });
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Acknowledge all active corridor alerts
+  Future<bool> acknowledgeAllAlerts([String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/alerts/acknowledge-all');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.post(url, headers: headers);
+      });
+      return response.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Delete an active alert (Official / Admin action)
+  Future<bool> deleteAlert(String alertId, [String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/alerts/$alertId');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.delete(url, headers: headers);
+      });
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Fetch operational system settings & governance thresholds
+  Future<Map<String, dynamic>?> fetchSystemSettings([String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/settings');
+        final headers = <String, String>{};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.get(url, headers: headers);
+      });
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  /// Update operational system settings & governance thresholds
+  Future<Map<String, dynamic>?> updateSystemSettings(Map<String, dynamic> settingsData, [String? token]) async {
+    try {
+      final authToken = (token != null && token.isNotEmpty)
+          ? token
+          : await _storage.read(key: 'tiyrasense_auth_token');
+      final response = await _sendWithFallback((baseUrl) {
+        final url = Uri.parse('$baseUrl/settings');
+        final headers = <String, String>{'Content-Type': 'application/json'};
+        if (authToken != null && authToken.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $authToken';
+        }
+        return _client.patch(url, headers: headers, body: jsonEncode(settingsData));
+      });
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+    return null;
+  }
 }
+
 
 
 

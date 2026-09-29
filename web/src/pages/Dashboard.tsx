@@ -385,54 +385,58 @@ export const Dashboard: React.FC = () => {
     const interval = setInterval(() => {
       fetchActiveJourneys()
         .then((journeys) => {
-          if (journeys && journeys.length > 0) {
-            setFleetVehicles((prevFleet) => {
-              return journeys.map((j, idx) => {
-                const regMatch = j.driver_name.match(/\(([^)]+)\)/);
-                const regNumber = j.vehicle_number || (regMatch ? regMatch[1] : `AS-0${idx + 1}-NER`);
-                const rawModel = j.vehicle_name || (j.driver_name.includes('(') ? j.driver_name.split(' (')[0] : 'Logistics Carrier');
-                const actualDriver = j.vehicle_name ? j.driver_name : (j.driver_name.replace(/\s*\([^)]*\)/, '') || 'Assigned Driver');
-                const isCaution = j.status.includes('CAUTION') || j.status.includes('SLOW') || j.status.includes('STANDBY');
+          if (Array.isArray(journeys)) {
+            if (journeys.length === 0) {
+              setFleetVehicles([]);
+            } else {
+              setFleetVehicles((prevFleet) => {
+                return journeys.map((j, idx) => {
+                  const regMatch = j.driver_name.match(/\(([^)]+)\)/);
+                  const regNumber = j.vehicle_number || (regMatch ? regMatch[1] : `AS-0${idx + 1}-NER`);
+                  const rawModel = j.vehicle_name || (j.driver_name.includes('(') ? j.driver_name.split(' (')[0] : 'Logistics Carrier');
+                  const actualDriver = j.vehicle_name ? j.driver_name : (j.driver_name.replace(/\s*\([^)]*\)/, '') || 'Assigned Driver');
+                  const isCaution = j.status.includes('CAUTION') || j.status.includes('SLOW') || j.status.includes('STANDBY');
 
-                const origLat = j.origin_coords?.latitude ?? 26.1445;
-                const origLng = j.origin_coords?.longitude ?? 91.7362;
-                const destLat = j.destination_coords?.latitude ?? 25.5788;
-                const destLng = j.destination_coords?.longitude ?? 91.8933;
-                const curLat = j.current_location?.latitude ?? origLat;
-                const curLng = j.current_location?.longitude ?? origLng;
+                  const origLat = j.origin_coords?.latitude ?? 26.1445;
+                  const origLng = j.origin_coords?.longitude ?? 91.7362;
+                  const destLat = j.destination_coords?.latitude ?? 25.5788;
+                  const destLng = j.destination_coords?.longitude ?? 91.8933;
+                  const curLat = j.current_location?.latitude ?? origLat;
+                  const curLng = j.current_location?.longitude ?? origLng;
 
-                const existing = prevFleet.find((f) => f.id === j.journey_id);
+                  const existing = prevFleet.find((f) => f.id === j.journey_id);
 
-                let calculatedProgress = existing?.progress ?? (0.52 + (idx * 0.1));
-                const totalSpan = Math.hypot(destLat - origLat, destLng - origLng);
-                const coveredSpan = Math.hypot(curLat - origLat, curLng - origLng);
-                if (totalSpan > 0.005) {
-                  calculatedProgress = Math.min(0.98, Math.max(0.02, coveredSpan / totalSpan));
-                }
+                  let calculatedProgress = existing?.progress ?? (0.52 + (idx * 0.1));
+                  const totalSpan = Math.hypot(destLat - origLat, destLng - origLng);
+                  const coveredSpan = Math.hypot(curLat - origLat, curLng - origLng);
+                  if (totalSpan > 0.005) {
+                    calculatedProgress = Math.min(0.98, Math.max(0.02, coveredSpan / totalSpan));
+                  }
 
-                return {
-                  id: j.journey_id,
-                  vehicleNumber: regNumber,
-                  model: rawModel,
-                  driverName: actualDriver,
-                  driverPhone: j.driver_phone || existing?.driverPhone || '+91 94350-29184',
-                  role: 'DRIVER' as const,
-                  cargo: j.route_name || existing?.cargo || 'Emergency & Freight Logistics',
-                  originName: j.origin_name || existing?.originName || 'Origin Hub',
-                  destName: j.destination_name || existing?.destName || 'Destination Terminal',
-                  originCoords: { lat: origLat, lng: origLng },
-                  destCoords: { lat: destLat, lng: destLng },
-                  routeName: j.route_name || existing?.routeName || 'Monitored Corridor',
-                  currentCoords: { lat: curLat, lng: curLng },
-                  speedKmh: j.speed_kmh ?? (j.status === 'STANDBY_HALTED' ? 0 : 42),
-                  progress: calculatedProgress,
-                  status: isCaution ? 'HAZARD_SLOWED' : 'IN_TRANSIT',
-                  lastPing: j.last_ping_mins_ago === 0 ? 'Live radar' : `${j.last_ping_mins_ago}m ago`,
-                  hazardAhead: isCaution ? 'Terrain advisory / Caution alert active in sector' : undefined,
-                  routeGeometry: j.route_geometry || existing?.routeGeometry,
-                };
+                  return {
+                    id: j.journey_id,
+                    vehicleNumber: regNumber,
+                    model: rawModel,
+                    driverName: actualDriver,
+                    driverPhone: j.driver_phone || existing?.driverPhone || '+91 94350-29184',
+                    role: 'DRIVER' as const,
+                    cargo: j.route_name || existing?.cargo || 'Emergency & Freight Logistics',
+                    originName: j.origin_name || existing?.originName || 'Origin Hub',
+                    destName: j.destination_name || existing?.destName || 'Destination Terminal',
+                    originCoords: { lat: origLat, lng: origLng },
+                    destCoords: { lat: destLat, lng: destLng },
+                    routeName: j.route_name || existing?.routeName || 'Monitored Corridor',
+                    currentCoords: { lat: curLat, lng: curLng },
+                    speedKmh: j.speed_kmh ?? (j.status === 'STANDBY_HALTED' ? 0 : 42),
+                    progress: calculatedProgress,
+                    status: isCaution ? 'HAZARD_SLOWED' : 'IN_TRANSIT',
+                    lastPing: j.last_ping_mins_ago === 0 ? 'Live radar' : `${j.last_ping_mins_ago}m ago`,
+                    hazardAhead: isCaution ? 'Terrain advisory / Caution alert active in sector' : undefined,
+                    routeGeometry: j.route_geometry || existing?.routeGeometry,
+                  };
+                });
               });
-            });
+            }
           }
         })
         .catch(() => {});

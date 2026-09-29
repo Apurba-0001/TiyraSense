@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
 import { AuthProvider } from '../state/AuthContext';
 import { AuthenticatedLayout } from '../layouts/AuthenticatedLayout';
@@ -11,6 +11,11 @@ import { Dashboard } from '../pages/Dashboard';
 import * as api from '../services/api';
 
 describe('Web Platform Interactive Inputs & Consoles', () => {
+  beforeEach(() => {
+    sessionStorage.clear();
+    localStorage.clear();
+    vi.clearAllMocks();
+  });
   describe('JourneyPlanningModal', () => {
     it('renders modal with interactive origin, destination, vehicle, and cargo fields', () => {
       const onClose = vi.fn();
@@ -90,7 +95,11 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
 
   describe('FieldReports Interactivity', () => {
     it('allows filtering by status, search, and creating new reconnaissance report', async () => {
-      render(<FieldReports />);
+      render(
+        <AuthProvider>
+          <FieldReports />
+        </AuthProvider>
+      );
 
       // Status chip click
       const pendingChip = screen.getByRole('button', { name: 'PENDING' });
@@ -151,7 +160,17 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
         },
       ]);
 
-      render(<FieldReports />);
+      sessionStorage.setItem('tiyrasense_token', 'test_official_token');
+      sessionStorage.setItem(
+        'tiyrasense_user',
+        JSON.stringify({ id: 'u-official-01', name: 'Duty Officer', email: 'official@tiyrasense.gov.in', role: 'OFFICIAL' })
+      );
+
+      render(
+        <AuthProvider>
+          <FieldReports />
+        </AuthProvider>
+      );
 
       // Wait for reports to load from API
       await waitFor(() => {
@@ -236,8 +255,8 @@ describe('Web Platform Interactive Inputs & Consoles', () => {
 
   describe('Dashboard Interactivity & Role Actions', () => {
     it('renders Storage & Evidence quick action button for ADMIN role', () => {
-      localStorage.setItem('tiyrasense_token', 'mock_token');
-      localStorage.setItem(
+      sessionStorage.setItem('tiyrasense_token', 'mock_token');
+      sessionStorage.setItem(
         'tiyrasense_user',
         JSON.stringify({ id: 'u-admin', name: 'Nodal Director', email: 'admin@tiyrasense.gov.in', role: 'ADMIN' })
       );
